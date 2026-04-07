@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timebox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --primary: #0058ba;
+    --primary-light: #d0e4ff;
+    --primary-dark: #003f8a;
+    --surface: #f5f7f8;
+    --surface-low: #eef1f2;
+    --surface-container: #e5e9ea;
+    --on-surface: #2c2f30;
+    --on-surface-variant: #595c5d;
+    --outline-variant: #abadae;
+    --hour-height: 64px;
+    --col-min-width: 80px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--surface);
+    color: var(--on-surface);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  h1,h2,h3,.heading { font-family: 'Plus Jakarta Sans', sans-serif; }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
+    line-height: 1;
+  }
+  .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--on-surface-variant); }
+
+  /* Top Nav */
+  #topnav {
+    height: 56px;
+    background: white;
+    border-bottom: 1px solid var(--surface-container);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    z-index: 50;
+  }
+  .logo { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 18px; color: var(--primary); }
+  .nav-btn {
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: none; cursor: pointer; color: var(--on-surface-variant);
+    border-radius: 8px; padding: 6px; transition: background 0.15s;
+  }
+  .nav-btn:hover { background: var(--surface-low); }
+  .today-btn {
+    height: 32px; padding: 0 16px; border-radius: 8px;
+    border: 1px solid var(--outline-variant); background: white;
+    font-size: 13px; font-weight: 500; cursor: pointer; color: var(--on-surface);
+    transition: background 0.15s;
+  }
+  .today-btn:hover { background: var(--surface-low); }
+  .view-switcher {
+    display: flex; gap: 2px; background: var(--surface-low); border-radius: 10px; padding: 3px;
+  }
+  .view-btn {
+    height: 28px; padding: 0 12px; border-radius: 7px; border: none; background: none;
+    font-size: 13px; font-weight: 500; cursor: pointer; color: var(--on-surface-variant);
+    transition: all 0.15s;
+  }
+  .view-btn.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  #nav-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 16px; }
+
+  /* Main Layout */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* Left Sidebar */
+  #left-sidebar {
+    width: 256px; flex-shrink: 0; background: white;
+    border-right: 1px solid var(--surface-container);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .sidebar-section { padding: 12px; }
+  .create-btn {
+    width: 100%; height: 40px; border-radius: 20px;
+    background: var(--primary); color: white; border: none;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: background 0.15s; box-shadow: 0 2px 6px rgba(0,88,186,0.3);
+  }
+  .create-btn:hover { background: var(--primary-dark); }
+
+  /* Mini Calendar */
+  #mini-cal { padding: 8px 12px 12px; }
+  .mini-cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .mini-cal-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 13px; }
+  .mini-nav-btn {
+    width: 24px; height: 24px; border: none; background: none; cursor: pointer;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: var(--on-surface-variant); transition: background 0.15s; font-size: 18px;
+  }
+  .mini-nav-btn:hover { background: var(--surface-low); }
+  .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .mini-day-label {
+    text-align: center; font-size: 11px; font-weight: 500;
+    color: var(--on-surface-variant); padding: 4px 0;
+  }
+  .mini-day {
+    text-align: center; font-size: 12px; padding: 4px 2px;
+    border-radius: 50%; cursor: pointer; color: var(--on-surface);
+    transition: all 0.1s; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; margin: 0 auto;
+  }
+  .mini-day:hover { background: var(--surface-low); }
+  .mini-day.today { background: var(--primary); color: white; font-weight: 600; }
+  .mini-day.selected { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  .mini-day.today.selected { background: var(--primary); color: white; }
+  .mini-day.other-month { color: var(--outline-variant); }
+  .mini-day.has-events::after {
+    content: ''; display: block; width: 4px; height: 4px;
+    border-radius: 50%; background: var(--primary); margin: 1px auto 0;
+  }
+
+  /* Right Task Panel */
+  #right-panel {
+    width: 288px; flex-shrink: 0; background: white;
+    border-left: 1px solid var(--surface-container);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-header {
+    padding: 16px; border-bottom: 1px solid var(--surface-container);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 15px; }
+  .icon-btn {
+    width: 32px; height: 32px; border: none; background: none; cursor: pointer;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    color: var(--on-surface-variant); transition: background 0.15s;
+  }
+  .icon-btn:hover { background: var(--surface-low); }
+  #tasks-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .task-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px; border-radius: 10px; cursor: pointer;
+    transition: background 0.1s; margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  .task-item:hover { background: var(--surface-low); border-color: var(--surface-container); }
+  .task-item[draggable="true"] { cursor: grab; }
+  .task-item[draggable="true"]:active { cursor: grabbing; }
+  .task-checkbox {
+    width: 18px; height: 18px; border: 2px solid var(--outline-variant);
+    border-radius: 50%; flex-shrink: 0; margin-top: 1px; cursor: pointer;
+    transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+  }
+  .task-checkbox.checked { background: var(--primary); border-color: var(--primary); }
+  .task-checkbox.checked::after {
+    content: ''; display: block; width: 5px; height: 8px;
+    border: 2px solid white; border-top: none; border-left: none;
+    transform: rotate(45deg) translateY(-1px);
+  }
+  .task-content { flex: 1; min-width: 0; }
+  .task-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-title.done { text-decoration: line-through; color: var(--on-surface-variant); }
+  .task-meta { font-size: 11px; color: var(--on-surface-variant); margin-top: 2px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .task-tag {
+    background: var(--surface-container); color: var(--on-surface-variant);
+    padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500;
+  }
+  .task-delete { opacity: 0; transition: opacity 0.15s; }
+  .task-item:hover .task-delete { opacity: 1; }
+
+  /* Calendar Area */
+  #cal-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
+
+  /* Month View */
+  #month-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .month-day-labels {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    background: white; border-bottom: 1px solid var(--surface-container);
+    padding: 0 1px;
+  }
+  .month-day-label {
+    text-align: center; padding: 8px 0; font-size: 12px; font-weight: 500;
+    color: var(--on-surface-variant);
+  }
+  .month-grid {
+    flex: 1; display: grid; grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, 1fr); overflow: hidden;
+    border-top: 1px solid var(--surface-container);
+  }
+  .month-cell {
+    border-right: 1px solid var(--surface-container);
+    border-bottom: 1px solid var(--surface-container);
+    padding: 4px; overflow: hidden; cursor: pointer;
+    transition: background 0.1s; min-height: 80px;
+  }
+  .month-cell:hover { background: var(--surface-low); }
+  .month-cell.today .month-cell-num {
+    background: var(--primary); color: white; border-radius: 50%;
+    width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+  }
+  .month-cell.other-month { background: var(--surface-low); }
+  .month-cell.other-month .month-cell-num { color: var(--outline-variant); }
+  .month-cell-num { font-size: 13px; font-weight: 500; margin-bottom: 2px; display: inline-block; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+  .month-event {
+    font-size: 11px; padding: 1px 5px; border-radius: 3px; margin-bottom: 1px;
+    color: white; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: pointer;
+  }
+  .month-more { font-size: 11px; color: var(--primary); font-weight: 500; padding: 1px 4px; cursor: pointer; }
+
+  /* Week/Day View */
+  #week-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .week-header {
+    background: white; border-bottom: 1px solid var(--surface-container);
+    display: flex; flex-shrink: 0;
+  }
+  .time-gutter { width: 56px; flex-shrink: 0; }
+  .week-day-headers { flex: 1; display: flex; overflow: hidden; }
+  .day-header-col {
+    flex: 1; text-align: center; padding: 8px 4px; border-left: 1px solid var(--surface-container);
+    min-width: var(--col-min-width);
+  }
+  .day-header-name { font-size: 11px; font-weight: 500; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; }
+  .day-header-num {
+    font-size: 22px; font-weight: 600; font-family: 'Plus Jakarta Sans', sans-serif;
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    margin: 2px auto 0; border-radius: 50%; cursor: pointer;
+  }
+  .day-header-num:hover { background: var(--surface-low); }
+  .day-header-num.today { background: var(--primary); color: white; }
+
+  /* All-day row */
+  .allday-row { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--surface-container); background: white; min-height: 28px; }
+  .allday-gutter { width: 56px; flex-shrink: 0; font-size: 10px; color: var(--on-surface-variant); display: flex; align-items: flex-start; justify-content: flex-end; padding: 4px 6px 0 0; }
+  .allday-cols { flex: 1; display: flex; overflow: hidden; position: relative; }
+  .allday-col { flex: 1; border-left: 1px solid var(--surface-container); min-height: 28px; position: relative; }
+  .allday-event {
+    position: absolute; left: 2px; right: 2px;
+    background: var(--primary); color: white;
+    font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 4px;
+    cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Time Grid */
+  .time-grid-scroll { flex: 1; overflow: auto; position: relative; }
+  .time-grid { display: flex; height: 1536px; position: relative; }
+  .time-labels { width: 56px; flex-shrink: 0; position: relative; }
+  .time-label {
+    position: absolute; right: 8px; font-size: 11px; color: var(--on-surface-variant);
+    transform: translateY(-50%); white-space: nowrap; font-weight: 500;
+  }
+  .time-grid-cols { flex: 1; display: flex; position: relative; }
+  .day-col {
+    flex: 1; border-left: 1px solid var(--surface-container);
+    position: relative; min-width: var(--col-min-width);
+  }
+  .day-col.today-col { background: rgba(0,88,186,0.02); }
+  .hour-line {
+    position: absolute; left: 0; right: 0; border-top: 1px solid var(--surface-container);
+  }
+  .half-line {
+    position: absolute; left: 0; right: 0; border-top: 1px dashed var(--outline-variant);
+    opacity: 0.4;
+  }
+
+  /* Current time indicator */
+  .current-time-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: #e53935; z-index: 10; pointer-events: none;
+  }
+  .current-time-line::before {
+    content: ''; position: absolute; left: -5px; top: -4px;
+    width: 10px; height: 10px; background: #e53935; border-radius: 50%;
+  }
+
+  /* Event blocks */
+  .cal-event {
+    position: absolute; border-radius: 6px;
+    padding: 3px 6px; cursor: pointer; overflow: hidden;
+    border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    transition: filter 0.1s, box-shadow 0.1s; z-index: 5;
+    display: flex; flex-direction: column;
+  }
+  .cal-event:hover { filter: brightness(0.9); box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 6; }
+  .cal-event-title { font-size: 12px; font-weight: 600; color: white; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-event-time { font-size: 10px; color: rgba(255,255,255,0.85); margin-top: 1px; }
+  .cal-event-linked { font-size: 10px; color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 2px; }
+
+  /* Drag selection overlay */
+  #drag-overlay {
+    position: absolute; background: rgba(0,88,186,0.2);
+    border: 2px solid var(--primary); border-radius: 6px;
+    pointer-events: none; z-index: 20; display: none;
+  }
+  #drag-time-tooltip {
+    position: absolute; background: var(--primary); color: white;
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    pointer-events: none; z-index: 21; display: none; white-space: nowrap;
+  }
+
+  /* Drop zone highlight */
+  .drop-active { background: rgba(0,88,186,0.08) !important; }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.2s;
+  }
+  .modal-backdrop.visible { opacity: 1; }
+  .modal {
+    background: rgba(255,255,255,0.97); backdrop-filter: blur(24px);
+    border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+    width: 480px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px);
+    overflow-y: auto; transform: scale(0.95) translateY(8px);
+    transition: transform 0.2s; padding: 0;
+  }
+  .modal-backdrop.visible .modal { transform: scale(1) translateY(0); }
+  .modal-header {
+    padding: 20px 24px 16px; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--surface-container);
+  }
+  .modal-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 18px; }
+  .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--surface-container); display: flex; gap: 10px; justify-content: flex-end; }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-input {
+    height: 40px; border: 1px solid var(--surface-container); border-radius: 10px;
+    padding: 0 12px; font-size: 14px; font-family: 'Inter', sans-serif;
+    background: var(--surface-low); color: var(--on-surface);
+    transition: border-color 0.15s, background 0.15s; outline: none;
+  }
+  .form-input:focus { border-color: var(--primary); background: white; }
+  .form-input.title-input { height: 48px; font-size: 16px; font-weight: 500; }
+  textarea.form-input { height: 80px; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+  select.form-input { cursor: pointer; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle {
+    width: 40px; height: 22px; background: var(--outline-variant); border-radius: 11px;
+    cursor: pointer; position: relative; transition: background 0.2s;
+  }
+  .toggle.on { background: var(--primary); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; background: white; border-radius: 50%;
+    transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle.on::after { transform: translateX(18px); }
+  .toggle-label { font-size: 14px; font-weight: 500; }
+
+  /* Color picker */
+  .color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+  .color-swatch {
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    transition: transform 0.1s; border: 3px solid transparent; flex-shrink: 0;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.selected { border-color: var(--on-surface); }
+
+  /* Subtasks */
+  .subtask-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--surface-container); }
+  .subtask-check {
+    width: 16px; height: 16px; border: 2px solid var(--outline-variant);
+    border-radius: 3px; cursor: pointer; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .subtask-check.checked { background: var(--primary); border-color: var(--primary); }
+  .subtask-check.checked::after {
+    content: ''; display: block; width: 4px; height: 6px;
+    border: 1.5px solid white; border-top: none; border-left: none;
+    transform: rotate(45deg) translateY(-1px);
+  }
+  .subtask-text { flex: 1; font-size: 13px; outline: none; border: none; background: none; }
+  .subtask-text.done { text-decoration: line-through; color: var(--on-surface-variant); }
+
+  /* Buttons */
+  .btn { height: 38px; padding: 0 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; font-family: 'Inter', sans-serif; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary { background: var(--surface-low); color: var(--on-surface); }
+  .btn-secondary:hover { background: var(--surface-container); }
+  .btn-danger { background: #fde8e8; color: #c62828; }
+  .btn-danger:hover { background: #f8d0d0; }
+
+  /* Day view single column */
+  .day-view-single .week-day-headers .day-header-col { flex: 1; }
+
+  /* Notification badge */
+  .notif-dot {
+    width: 8px; height: 8px; background: #f57c00; border-radius: 50%;
+    display: inline-block; margin-left: 4px;
+  }
+
+  /* Task drag ghost */
+  .drag-ghost {
+    position: fixed; background: var(--primary); color: white;
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    pointer-events: none; z-index: 1000; opacity: 0.9;
+  }
+
+  /* Scrolled sticky header */
+  .sticky-time-col { position: sticky; left: 0; background: white; z-index: 10; }
+
+  /* Tag input */
+  .tags-input-area {
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    border: 1px solid var(--surface-container); border-radius: 10px;
+    padding: 6px 10px; background: var(--surface-low); min-height: 40px; cursor: text;
+  }
+  .tags-input-area:focus-within { border-color: var(--primary); background: white; }
+  .tag-chip {
+    background: var(--primary-light); color: var(--primary);
+    padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tag-chip-remove { cursor: pointer; opacity: 0.7; font-size: 14px; line-height: 1; }
+  .tag-chip-remove:hover { opacity: 1; }
+  .tag-real-input { border: none; outline: none; background: none; font-size: 13px; min-width: 60px; flex: 1; }
+
+  /* Empty state */
+  .empty-state { padding: 32px 16px; text-align: center; color: var(--on-surface-variant); font-size: 13px; }
+  .empty-state .material-symbols-outlined { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
+
+  /* Week/day scrolling sync */
+  .time-grid-scroll { scroll-behavior: smooth; }
+
+  /* Compact day header for N-day */
+  .compact-day-header .day-header-num { font-size: 16px; width: 28px; height: 28px; }
+
+  /* Ensure month view works */
+  #month-view { background: white; }
+</style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<nav id="topnav">
+  <span class="logo">Timebox</span>
+  <div style="display:flex;gap:6px;align-items:center;">
+    <button class="nav-btn" id="prev-btn" title="Previous (←)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_left</span></button>
+    <button class="today-btn" id="today-btn">Today</button>
+    <button class="nav-btn" id="next-btn" title="Next (→)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_right</span></button>
+  </div>
+  <span id="nav-title" class="heading"></span>
+  <div style="flex:1"></div>
+  <div class="view-switcher">
+    <button class="view-btn" data-view="day">Day</button>
+    <button class="view-btn" data-view="week">Week</button>
+    <button class="view-btn" data-view="month">Month</button>
+  </div>
+  <button class="nav-btn" id="notif-btn" title="Enable Notifications"><span class="material-symbols-outlined" style="font-size:20px;">notifications</span></button>
+</nav>
+
+<!-- Main -->
+<div id="main">
+  <!-- Left Sidebar -->
+  <aside id="left-sidebar">
+    <div class="sidebar-section">
+      <button class="create-btn" id="create-event-btn">
+        <span class="material-symbols-outlined" style="font-size:18px;">add</span>
+        New Event
+      </button>
+    </div>
+    <div id="mini-cal">
+      <div class="mini-cal-header">
+        <span class="mini-cal-title" id="mini-cal-title"></span>
+        <div style="display:flex;gap:2px;">
+          <button class="mini-nav-btn" id="mini-prev"><span class="material-symbols-outlined" style="font-size:18px;">chevron_left</span></button>
+          <button class="mini-nav-btn" id="mini-next"><span class="material-symbols-outlined" style="font-size:18px;">chevron_right</span></button>
+        </div>
+      </div>
+      <div class="mini-cal-grid" id="mini-cal-grid"></div>
+    </div>
+    <div style="padding: 0 12px 8px;">
+      <button class="create-btn" id="create-task-btn" style="background: white; color: var(--primary); border: 1.5px solid var(--primary); box-shadow: none;">
+        <span class="material-symbols-outlined" style="font-size:18px;">check_circle</span>
+        New Task
+      </button>
+    </div>
+  </aside>
+
+  <!-- Calendar Area -->
+  <div id="cal-area">
+    <!-- Month View -->
+    <div id="month-view" style="display:none;">
+      <div class="month-day-labels" id="month-day-labels"></div>
+      <div class="month-grid" id="month-grid"></div>
+    </div>
+    <!-- Week/Day View -->
+    <div id="week-view" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
+      <div class="week-header" id="week-header">
+        <div class="time-gutter"></div>
+        <div class="week-day-headers" id="week-day-headers"></div>
+      </div>
+      <div class="allday-row" id="allday-row">
+        <div class="allday-gutter">all-day</div>
+        <div class="allday-cols" id="allday-cols"></div>
+      </div>
+      <div class="time-grid-scroll" id="time-grid-scroll">
+        <div class="time-grid" id="time-grid">
+          <div class="time-labels" id="time-labels"></div>
+          <div class="time-grid-cols" id="time-grid-cols">
+            <div id="drag-overlay"></div>
+            <div id="drag-time-tooltip"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Task Panel -->
+  <aside id="right-panel">
+    <div class="panel-header">
+      <span class="panel-title heading">Tasks</span>
+      <div style="display:flex;gap:4px;">
+        <button class="icon-btn" id="add-task-btn" title="Add task"><span class="material-symbols-outlined" style="font-size:20px;">add</span></button>
+      </div>
+    </div>
+    <div id="tasks-list"></div>
+  </aside>
+</div>
+
+<!-- Event Modal -->
+<div class="modal-backdrop" id="event-modal-backdrop">
+  <div class="modal" id="event-modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <span class="modal-title" id="event-modal-title">New Event</span>
+      <button class="icon-btn" id="event-modal-close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <input type="text" class="form-input title-input" id="ev-title" placeholder="Event title">
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">All Day</span>
+        <div class="toggle" id="ev-allday-toggle"></div>
+      </div>
+      <div id="ev-time-fields" class="form-row">
+        <div class="form-group">
+          <label class="form-label">Start</label>
+          <input type="datetime-local" class="form-input" id="ev-start">
+        </div>
+        <div class="form-group">
+          <label class="form-label">End</label>
+          <input type="datetime-local" class="form-input" id="ev-end">
+        </div>
+      </div>
+      <div id="ev-date-field" style="display:none;" class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="ev-allday-date">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input type="text" class="form-input" id="ev-location" placeholder="Add location">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="ev-description" placeholder="Add description"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Color</label>
+        <div class="color-picker" id="ev-color-picker"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Notification</label>
+          <select class="form-input" id="ev-notification">
+            <option value="none">None</option>
+            <option value="5">5 min before</option>
+            <option value="10">10 min before</option>
+            <option value="15">15 min before</option>
+            <option value="30">30 min before</option>
+            <option value="60">1 hr before</option>
+            <option value="120">2 hr before</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Repeat</label>
+          <select class="form-input" id="ev-recurring">
+            <option value="none">Never</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="ev-delete-btn" style="margin-right:auto; display:none;">Delete</button>
+      <button class="btn btn-secondary" id="ev-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="ev-save-btn">Save Event</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal-backdrop" id="task-modal-backdrop">
+  <div class="modal" id="task-modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <span class="modal-title" id="task-modal-title">New Task</span>
+      <button class="icon-btn" id="task-modal-close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <input type="text" class="form-input title-input" id="task-title-input" placeholder="Task title">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Due Date</label>
+          <input type="date" class="form-input" id="task-due-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Due Time</label>
+          <input type="time" class="form-input" id="task-due-time">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="task-description" placeholder="Add description"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags</label>
+        <div class="tags-input-area" id="tags-input-area">
+          <input type="text" class="tag-real-input" id="tag-input" placeholder="Add tag + Enter">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Notification</label>
+          <select class="form-input" id="task-notification">
+            <option value="none">None</option>
+            <option value="5">5 min before</option>
+            <option value="10">10 min before</option>
+            <option value="15">15 min before</option>
+            <option value="30">30 min before</option>
+            <option value="60">1 hr before</option>
+            <option value="120">2 hr before</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Repeat</label>
+          <select class="form-input" id="task-recurring">
+            <option value="none">Never</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Subtasks</label>
+        <div id="subtasks-list"></div>
+        <button class="btn btn-secondary" id="add-subtask-btn" style="margin-top:8px; height:32px; font-size:12px; padding:0 12px;">+ Add Subtask</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="task-delete-btn" style="margin-right:auto; display:none;">Delete</button>
+      <button class="btn btn-secondary" id="task-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="task-save-btn">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONSTANTS & HELPERS
+// ─────────────────────────────────────────────
+const HOUR_HEIGHT = 64;
+const SNAP = 15; // minutes
+const EVENT_COLORS = ['#0058ba','#7c3aed','#059669','#d97706','#dc2626','#db2777'];
+const COLOR_NAMES = ['Blue','Purple','Green','Amber','Red','Pink'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function startOfDay(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function endOfDay(d) { const x = new Date(d); x.setHours(23,59,59,999); return x; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function addMonths(d, n) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
+function isSameDay(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function isSameMonth(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
+function formatTime(d) {
+  let h = d.getHours(), m = d.getMinutes(), ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function formatDatetimeLocal(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function formatDateInput(d) {
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function parseDatetimeLocal(s) { if (!s) return null; return new Date(s); }
+function minutesToY(min) { return (min / 60) * HOUR_HEIGHT; }
+function yToMinutes(y, totalHeight) { return clamp(Math.round((y / totalHeight) * 24 * 60 / SNAP) * SNAP, 0, 24*60-SNAP); }
+function snapMinutes(m) { return Math.round(m / SNAP) * SNAP; }
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let STATE = {
+  events: [],
+  tasks: [],
+  view: 'week',
+  nDays: 7,
+  currentDate: new Date(),
+  miniCalDate: new Date(),
+};
+
+function saveState() {
+  const s = {
+    events: STATE.events.map(e => ({...e, start: e.start.toISOString(), end: e.end.toISOString()})),
+    tasks: STATE.tasks.map(t => ({...t, dueDate: t.dueDate ? t.dueDate.toISOString() : null})),
+    view: STATE.view,
+    nDays: STATE.nDays,
+    currentDate: STATE.currentDate.toISOString(),
+    miniCalDate: STATE.miniCalDate.toISOString(),
+  };
+  localStorage.setItem('timebox_v3', JSON.stringify(s));
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('timebox_v3');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
+    STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: t.dueDate ? new Date(t.dueDate) : null}));
+    STATE.view = s.view || 'week';
+    STATE.nDays = s.nDays || 7;
+    STATE.currentDate = s.currentDate ? new Date(s.currentDate) : new Date();
+    STATE.miniCalDate = s.miniCalDate ? new Date(s.miniCalDate) : new Date();
+    return true;
+  } catch(e) { return false; }
+}
+
+// ─────────────────────────────────────────────
+// SAMPLE DATA (loaded once if no saved state)
+// ─────────────────────────────────────────────
+function loadSampleData() {
+  const today = new Date(2026, 3, 6); // April 6, 2026
+  const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+  const weekStart = addDays(today, mondayOffset);
+
+  STATE.events = [
+    {
+      id: uid(), title: 'Team Standup', color: '#0058ba',
+      start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
+      end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 30),
+      allDay: false, description: 'Daily team sync', location: 'Zoom', recurring: 'daily', notification: '5', linkedTaskId: null
+    },
+    {
+      id: uid(), title: 'Product Review', color: '#7c3aed',
+      start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 14, 0),
+      end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30),
+      allDay: false, description: 'Q2 product roadmap review', location: 'Conference Room B', recurring: 'none', notification: '15', linkedTaskId: null
+    },
+    {
+      id: uid(), title: 'Design Sprint Kickoff', color: '#059669',
+      start: addDays(today, 1) && (() => { const d = addDays(today,1); d.setHours(10,0,0,0); return d; })(),
+      end: addDays(today, 1) && (() => { const d = addDays(today,1); d.setHours(12,0,0,0); return d; })(),
+      allDay: false, description: 'Sprint planning for new feature', location: '', recurring: 'none', notification: '30', linkedTaskId: null
+    },
+    {
+      id: uid(), title: 'Team Offsite', color: '#d97706',
+      start: addDays(today, 2) && (() => { const d = addDays(today,2); d.setHours(0,0,0,0); return d; })(),
+      end: addDays(today, 2) && (() => { const d = addDays(today,2); d.setHours(23,59,0,0); return d; })(),
+      allDay: true, description: 'Annual team retreat', location: 'Whistler, BC', recurring: 'none', notification: 'none', linkedTaskId: null
+    },
+  ];
+
+  // Fix event creation
+  STATE.events = STATE.events.map(e => {
+    if (!(e.start instanceof Date)) e.start = new Date(e.start);
+    if (!(e.end instanceof Date)) e.end = new Date(e.end);
+    return e;
+  });
+
+  STATE.tasks = [
+    { id: uid(), title: 'Finalize Q2 roadmap deck', completed: false, dueDate: today, dueTime: '17:00', description: 'Compile feedback and create final slides', tags: ['work','priority'], subtasks: [{id:uid(),text:'Gather team input',done:true},{id:uid(),text:'Design slides',done:false}], recurring: 'none', notification: '30' },
+    { id: uid(), title: 'Review design mockups', completed: false, dueDate: addDays(today,1), dueTime: '12:00', description: '', tags: ['design'], subtasks: [], recurring: 'none', notification: '15' },
+    { id: uid(), title: 'Send weekly report', completed: false, dueDate: addDays(today,4), dueTime: '09:00', description: 'Send metrics to leadership', tags: ['work'], subtasks: [{id:uid(),text:'Compile metrics',done:false},{id:uid(),text:'Write summary',done:false}], recurring: 'weekly', notification: '60' },
+    { id: uid(), title: 'Book dentist appointment', completed: true, dueDate: addDays(today,-1), dueTime: '', description: '', tags: ['personal'], subtasks: [], recurring: 'none', notification: 'none' },
+    { id: uid(), title: 'Read "Shape Up"', completed: false, dueDate: addDays(today,7), dueTime: '', description: 'Finish chapters 5-8', tags: ['learning'], subtasks: [{id:uid(),text:'Chapter 5',done:true},{id:uid(),text:'Chapter 6',done:false}], recurring: 'none', notification: 'none' },
+  ];
+}
+
+// ─────────────────────────────────────────────
+// NAVIGATION HELPERS
+// ─────────────────────────────────────────────
+function getViewDays() {
+  const d = STATE.currentDate;
+  if (STATE.view === 'day') return [startOfDay(d)];
+  if (STATE.view === 'month') return [];
+  // week or nday
+  const n = STATE.view === 'week' ? 7 : STATE.nDays;
+  if (STATE.view === 'week') {
+    const offset = d.getDay(); // 0=Sun
+    const start = addDays(startOfDay(d), -offset);
+    return Array.from({length: 7}, (_, i) => addDays(start, i));
+  }
+  // nday: start from currentDate
+  return Array.from({length: n}, (_, i) => addDays(startOfDay(d), i));
+}
+
+function navigate(dir) {
+  const d = STATE.currentDate;
+  if (STATE.view === 'month') STATE.currentDate = addMonths(d, dir);
+  else if (STATE.view === 'day') STATE.currentDate = addDays(d, dir);
+  else if (STATE.view === 'week') STATE.currentDate = addDays(d, dir * 7);
+  else STATE.currentDate = addDays(d, dir * STATE.nDays);
+  saveState(); render();
+}
+
+function goToday() {
+  STATE.currentDate = new Date();
+  STATE.miniCalDate = new Date();
+  saveState(); render();
+}
+
+function getNavTitle() {
+  const d = STATE.currentDate;
+  if (STATE.view === 'month') return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  if (STATE.view === 'day') return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  const days = getViewDays();
+  if (!days.length) return '';
+  const s = days[0], e = days[days.length-1];
+  if (s.getMonth() === e.getMonth()) return `${MONTHS[s.getMonth()]} ${s.getFullYear()}`;
+  if (s.getFullYear() === e.getFullYear()) return `${MONTHS[s.getMonth()]} – ${MONTHS[e.getMonth()]} ${s.getFullYear()}`;
+  return `${MONTHS[s.getMonth()]} ${s.getFullYear()} – ${MONTHS[e.getMonth()]} ${e.getFullYear()}`;
+}
+
+// ─────────────────────────────────────────────
+// EVENTS ON DATE
+// ─────────────────────────────────────────────
+function eventsOnDay(day) {
+  return STATE.events.filter(e => {
+    if (e.allDay) return isSameDay(e.start, day);
+    if (e.recurring === 'daily') return e.start <= endOfDay(day);
+    if (e.recurring === 'weekly') {
+      if (e.start.getDay() !== day.getDay()) return false;
+      return e.start <= endOfDay(day);
+    }
+    if (e.recurring === 'monthly') {
+      if (e.start.getDate() !== day.getDate()) return false;
+      return e.start <= endOfDay(day);
+    }
+    return isSameDay(e.start, day);
+  });
+}
+
+function nonAlldayEventsOnDay(day) {
+  return eventsOnDay(day).filter(e => !e.allDay);
+}
+
+function alldayEventsOnDay(day) {
+  return eventsOnDay(day).filter(e => e.allDay);
+}
+
+// ─────────────────────────────────────────────
+// LAYOUT: OVERLAPPING EVENTS
+// ─────────────────────────────────────────────
+function layoutEvents(events) {
+  // Sort by start
+  const sorted = [...events].sort((a,b) => a.start - b.start);
+  const columns = [];
+  const result = [];
+
+  for (const ev of sorted) {
+    let placed = false;
+    for (let c = 0; c < columns.length; c++) {
+      const last = columns[c][columns[c].length - 1];
+      // Get effective start/end for comparison (use today's date for recurring)
+      if (last._effEnd <= ev.start.getHours()*60 + ev.start.getMinutes()) {
+        columns[c].push(ev);
+        result.push({ev, col: c});
+        placed = true; break;
+      }
+    }
+    if (!placed) { columns.push([ev]); result.push({ev, col: columns.length-1}); }
+  }
+
+  // Assign total columns
+  return result.map(item => ({...item, totalCols: columns.length}));
+}
+
+function getEffMinutes(ev, day) {
+  // For recurring, use the start/end time on the given day
+  if (ev.recurring !== 'none') {
+    const sm = ev.start.getHours()*60 + ev.start.getMinutes();
+    const dur = (ev.end - ev.start) / 60000;
+    return { startMin: sm, endMin: sm + dur };
+  }
+  const startMin = ev.start.getHours()*60 + ev.start.getMinutes();
+  const endMin = ev.end.getHours()*60 + ev.end.getMinutes();
+  return { startMin, endMin: endMin > startMin ? endMin : endMin + 24*60 };
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render() {
+  renderNavTitle();
+  renderMiniCal();
+  renderTasks();
+  renderViewButtons();
+  if (STATE.view === 'month') {
+    document.getElementById('month-view').style.display = 'flex';
+    document.getElementById('week-view').style.display = 'none';
+    renderMonth();
+  } else {
+    document.getElementById('month-view').style.display = 'none';
+    document.getElementById('week-view').style.display = 'flex';
+    renderWeekDay();
+  }
+}
+
+function renderNavTitle() {
+  document.getElementById('nav-title').textContent = getNavTitle();
+}
+
+function renderViewButtons() {
+  document.querySelectorAll('.view-btn').forEach(btn => {
+    const v = btn.dataset.view;
+    btn.classList.toggle('active', v === STATE.view || (v === 'week' && STATE.view === 'nday'));
+  });
+}
+
+// ─────────────────────────────────────────────
+// MINI CALENDAR
+// ─────────────────────────────────────────────
+function renderMiniCal() {
+  const mc = STATE.miniCalDate;
+  document.getElementById('mini-cal-title').textContent = `${MONTHS[mc.getMonth()].slice(0,3)} ${mc.getFullYear()}`;
+
+  const grid = document.getElementById('mini-cal-grid');
+  grid.innerHTML = '';
+  DAYS.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'mini-day-label'; el.textContent = d[0];
+    grid.appendChild(el);
+  });
+
+  const first = new Date(mc.getFullYear(), mc.getMonth(), 1);
+  const startDay = first.getDay();
+  const daysInMonth = new Date(mc.getFullYear(), mc.getMonth()+1, 0).getDate();
+  const today = new Date();
+
+  for (let i = 0; i < startDay; i++) {
+    const prev = new Date(mc.getFullYear(), mc.getMonth(), -startDay + i + 1);
+    const el = document.createElement('div');
+    el.className = 'mini-day other-month';
+    el.textContent = prev.getDate();
+    el.addEventListener('click', () => { STATE.currentDate = prev; STATE.miniCalDate = new Date(prev.getFullYear(), prev.getMonth(), 1); saveState(); render(); });
+    grid.appendChild(el);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(mc.getFullYear(), mc.getMonth(), d);
+    const el = document.createElement('div');
+    el.className = 'mini-day';
+    if (isSameDay(date, today)) el.classList.add('today');
+    if (isSameDay(date, STATE.currentDate)) el.classList.add('selected');
+    const hasEv = STATE.events.some(e => isSameDay(e.start, date));
+    if (hasEv) el.classList.add('has-events');
+    el.textContent = d;
+    el.addEventListener('click', () => {
+      STATE.currentDate = date;
+      if (STATE.view === 'month') {}
+      else if (STATE.view !== 'day') STATE.view = 'day';
+      saveState(); render();
+    });
+    grid.appendChild(el);
+  }
+}
+
+// ─────────────────────────────────────────────
+// MONTH VIEW
+// ─────────────────────────────────────────────
+function renderMonth() {
+  const labels = document.getElementById('month-day-labels');
+  labels.innerHTML = '';
+  DAYS.forEach(d => { const el = document.createElement('div'); el.className = 'month-day-label'; el.textContent = d; labels.appendChild(el); });
+
+  const d = STATE.currentDate;
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const startDay = first.getDay();
+  const daysInMonth = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  const today = new Date();
+  const grid = document.getElementById('month-grid');
+  grid.innerHTML = '';
+
+  const totalCells = Math.ceil((startDay + daysInMonth) / 7) * 7;
+  const rows = totalCells / 7;
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+  for (let i = 0; i < totalCells; i++) {
+    const date = new Date(d.getFullYear(), d.getMonth(), i - startDay + 1);
+    const cell = document.createElement('div');
+    cell.className = 'month-cell';
+    if (!isSameMonth(date, d)) cell.classList.add('other-month');
+    if (isSameDay(date, today)) cell.classList.add('today');
+
+    const numDiv = document.createElement('div');
+    numDiv.className = 'month-cell-num';
+    numDiv.textContent = date.getDate();
+    cell.appendChild(numDiv);
+
+    const dayEvs = eventsOnDay(date).slice(0, 3);
+    dayEvs.forEach(ev => {
+      const evEl = document.createElement('div');
+      evEl.className = 'month-event';
+      evEl.style.background = ev.color || '#0058ba';
+      evEl.textContent = (ev.allDay ? '' : formatTime(ev.start) + ' ') + ev.title;
+      evEl.addEventListener('click', e => { e.stopPropagation(); openEventModal(ev.id); });
+      cell.appendChild(evEl);
+    });
+
+    const total = eventsOnDay(date).length;
+    if (total > 3) {
+      const more = document.createElement('div');
+      more.className = 'month-more';
+      more.textContent = `+${total - 3} more`;
+      cell.appendChild(more);
+    }
+
+    cell.addEventListener('click', () => {
+      STATE.currentDate = date;
+      STATE.view = 'day';
+      saveState(); render();
+    });
+
+    // Drop target for tasks
+    cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('drop-active'); });
+    cell.addEventListener('dragleave', () => cell.classList.remove('drop-active'));
+    cell.addEventListener('drop', e => {
+      e.preventDefault();
+      cell.classList.remove('drop-active');
+      const taskId = e.dataTransfer.getData('text/task-id');
+      if (!taskId) return;
+      const task = STATE.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const start = new Date(date); start.setHours(9,0,0,0);
+      const end = new Date(date); end.setHours(10,0,0,0);
+      STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#0058ba', recurring: 'none', notification: 'none', linkedTaskId: taskId });
+      saveState(); render();
+    });
+
+    grid.appendChild(cell);
+  }
+}
+
+// ─────────────────────────────────────────────
+// WEEK / DAY / NDAY VIEW
+// ─────────────────────────────────────────────
+function renderWeekDay() {
+  const days = getViewDays();
+  const today = new Date();
+  renderWeekHeader(days, today);
+  renderAlldayRow(days);
+  renderTimeGrid(days, today);
+}
+
+function renderWeekHeader(days, today) {
+  const headers = document.getElementById('week-day-headers');
+  headers.innerHTML = '';
+  days.forEach(day => {
+    const col = document.createElement('div');
+    col.className = 'day-header-col';
+    if (days.length > 4) col.classList.add('compact-day-header');
+    const nameEl = document.createElement('div');
+    nameEl.className = 'day-header-name';
+    nameEl.textContent = days.length === 1 ? DAYS[day.getDay()] : DAYS[day.getDay()];
+    const numEl = document.createElement('div');
+    numEl.className = 'day-header-num';
+    if (isSameDay(day, today)) numEl.classList.add('today');
+    numEl.textContent = day.getDate();
+    numEl.addEventListener('click', () => { STATE.currentDate = day; STATE.view = 'day'; saveState(); render(); });
+    col.appendChild(nameEl);
+    col.appendChild(numEl);
+    headers.appendChild(col);
+  });
+}
+
+function renderAlldayRow(days) {
+  const cols = document.getElementById('allday-cols');
+  cols.innerHTML = '';
+  days.forEach(day => {
+    const col = document.createElement('div');
+    col.className = 'allday-col';
+    alldayEventsOnDay(day).forEach((ev, i) => {
+      const el = document.createElement('div');
+      el.className = 'allday-event';
+      el.style.background = ev.color || '#0058ba';
+      el.style.top = `${i * 26 + 4}px`;
+      el.textContent = ev.title;
+      el.addEventListener('click', () => openEventModal(ev.id));
+      col.appendChild(el);
+    });
+    const alldayCount = alldayEventsOnDay(day).length;
+    if (alldayCount > 0) document.getElementById('allday-row').style.minHeight = `${alldayCount * 26 + 12}px`;
+    cols.appendChild(col);
+  });
+}
+
+function renderTimeGrid(days, today) {
+  // Time labels
+  const labels = document.getElementById('time-labels');
+  labels.innerHTML = '';
+  for (let h = 0; h <= 24; h++) {
+    if (h === 0) continue; // skip midnight label at top
+    const el = document.createElement('div');
+    el.className = 'time-label';
+    el.style.top = `${h * HOUR_HEIGHT}px`;
+    if (h < 24) {
+      el.textContent = h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
+    }
+    labels.appendChild(el);
+  }
+
+  const cols = document.getElementById('time-grid-cols');
+  // Remove existing day cols (but keep overlay elements)
+  Array.from(cols.querySelectorAll('.day-col')).forEach(el => el.remove());
+
+  days.forEach((day, dayIdx) => {
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    col.dataset.dayIdx = dayIdx;
+    col.dataset.date = formatDateInput(day);
+    if (isSameDay(day, today)) col.classList.add('today-col');
+
+    // Hour/half lines
+    for (let h = 0; h < 24; h++) {
+      const line = document.createElement('div');
+      line.className = 'hour-line';
+      line.style.top = `${h * HOUR_HEIGHT}px`;
+      col.appendChild(line);
+      const half = document.createElement('div');
+      half.className = 'half-line';
+      half.style.top = `${h * HOUR_HEIGHT + HOUR_HEIGHT/2}px`;
+      col.appendChild(half);
+    }
+
+    // Current time line
+    if (isSameDay(day, today)) {
+      const now = new Date();
+      const mins = now.getHours()*60 + now.getMinutes();
+      const line = document.createElement('div');
+      line.className = 'current-time-line';
+      line.id = 'current-time-line';
+      line.style.top = `${minutesToY(mins)}px`;
+      col.appendChild(line);
+    }
+
+    // Drop target for tasks
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drop-active'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drop-active'));
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drop-active');
+      const taskId = e.dataTransfer.getData('text/task-id');
+      if (!taskId) return;
+      const task = STATE.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const rect = col.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const mins = snapMinutes(yToMinutes(y, 1536));
+      const start = new Date(day); start.setHours(Math.floor(mins/60), mins%60, 0, 0);
+      const end = new Date(start); end.setMinutes(end.getMinutes() + 60);
+      STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#0058ba', recurring: 'none', notification: 'none', linkedTaskId: taskId });
+      saveState(); render();
+    });
+
+    // Events
+    const dayEvents = nonAlldayEventsOnDay(day);
+    const laid = layoutEventsForDay(dayEvents, day);
+    laid.forEach(({ev, col: c, totalCols}) => {
+      const {startMin, endMin} = getEffMinutes(ev, day);
+      const top = minutesToY(startMin);
+      const height = Math.max(minutesToY(endMin - startMin), 20);
+      const width = `calc(${100/totalCols}% - 4px)`;
+      const left = `calc(${(c/totalCols)*100}% + 2px)`;
+
+      const el = document.createElement('div');
+      el.className = 'cal-event';
+      el.style.cssText = `top:${top}px; height:${height}px; left:${left}; width:${width}; background:${ev.color||'#0058ba'};`;
+      el.innerHTML = `<div class="cal-event-title">${ev.title}</div>` +
+        (height > 30 ? `<div class="cal-event-time">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>` : '') +
+        (ev.linkedTaskId ? `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>Task</div>` : '');
+      el.addEventListener('click', e => { e.stopPropagation(); openEventModal(ev.id); });
+      col.appendChild(el);
+    });
+
+    cols.insertBefore(col, document.getElementById('drag-overlay'));
+  });
+}
+
+function layoutEventsForDay(events, day) {
+  const sorted = [...events].sort((a,b) => {
+    const am = getEffMinutes(a,day).startMin, bm = getEffMinutes(b,day).startMin;
+    return am - bm;
+  });
+  const columns = [];
+  const result = [];
+
+  for (const ev of sorted) {
+    const {startMin, endMin} = getEffMinutes(ev, day);
+    let placed = false;
+    for (let c = 0; c < columns.length; c++) {
+      const lastEv = columns[c][columns[c].length-1];
+      const lastEnd = getEffMinutes(lastEv, day).endMin;
+      if (lastEnd <= startMin) {
+        columns[c].push(ev);
+        result.push({ev, col: c});
+        placed = true; break;
+      }
+    }
+    if (!placed) { columns.push([ev]); result.push({ev, col: columns.length-1}); }
+  }
+
+  return result.map(item => ({...item, totalCols: columns.length}));
+}
+
+// ─────────────────────────────────────────────
+// TASKS PANEL
+// ─────────────────────────────────────────────
+function renderTasks() {
+  const list = document.getElementById('tasks-list');
+  list.innerHTML = '';
+  if (STATE.tasks.length === 0) {
+    list.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">check_circle</span><br>No tasks yet</div>';
+    return;
+  }
+  STATE.tasks.forEach(task => {
+    const item = document.createElement('div');
+    item.className = 'task-item';
+    item.setAttribute('draggable', 'true');
+    item.dataset.taskId = task.id;
+
+    const checkbox = document.createElement('div');
+    checkbox.className = 'task-checkbox' + (task.completed ? ' checked' : '');
+    checkbox.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
+
+    const content = document.createElement('div');
+    content.className = 'task-content';
+
+    const title = document.createElement('div');
+    title.className = 'task-title' + (task.completed ? ' done' : '');
+    title.textContent = task.title;
+
+    const meta = document.createElement('div');
+    meta.className = 'task-meta';
+    if (task.dueDate) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const due = new Date(task.dueDate); due.setHours(0,0,0,0);
+      const diff = Math.round((due - today) / 86400000);
+      const dueTxt = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff < 0 ? `${-diff}d overdue` : `${MONTHS[due.getMonth()].slice(0,3)} ${due.getDate()}`;
+      const span = document.createElement('span');
+      span.style.color = diff < 0 ? '#c62828' : diff === 0 ? '#d97706' : 'inherit';
+      span.textContent = dueTxt + (task.dueTime ? ` ${task.dueTime}` : '');
+      meta.appendChild(span);
+    }
+    if (task.tags && task.tags.length) {
+      task.tags.forEach(tag => {
+        const t = document.createElement('span');
+        t.className = 'task-tag'; t.textContent = tag;
+        meta.appendChild(t);
+      });
+    }
+
+    const del = document.createElement('button');
+    del.className = 'icon-btn task-delete';
+    del.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">delete</span>';
+    del.addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); });
+
+    content.appendChild(title);
+    content.appendChild(meta);
+    item.appendChild(checkbox);
+    item.appendChild(content);
+    item.appendChild(del);
+
+    // Drag
+    item.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/task-id', task.id);
+      e.dataTransfer.effectAllowed = 'copy';
+      const ghost = document.createElement('div');
+      ghost.className = 'drag-ghost';
+      ghost.textContent = task.title;
+      ghost.style.cssText = 'position:fixed;top:-100px;left:-100px;';
+      document.body.appendChild(ghost);
+      e.dataTransfer.setDragImage(ghost, 0, 0);
+      setTimeout(() => ghost.remove(), 0);
+    });
+
+    item.addEventListener('click', () => openTaskModal(task.id));
+    list.appendChild(item);
+  });
+}
+
+function toggleTaskComplete(id) {
+  const task = STATE.tasks.find(t => t.id === id);
+  if (task) { task.completed = !task.completed; saveState(); renderTasks(); }
+}
+
+function deleteTask(id) {
+  STATE.tasks = STATE.tasks.filter(t => t.id !== id);
+  saveState(); renderTasks();
+}
+
+// ─────────────────────────────────────────────
+// EVENT MODAL
+// ─────────────────────────────────────────────
+let editingEventId = null;
+let editingEventAllDay = false;
+
+function openEventModal(id, prefillStart, prefillEnd) {
+  editingEventId = id || null;
+  const modal = document.getElementById('event-modal-backdrop');
+  const ev = id ? STATE.events.find(e => e.id === id) : null;
+
+  document.getElementById('event-modal-title').textContent = ev ? 'Edit Event' : 'New Event';
+  document.getElementById('ev-title').value = ev ? ev.title : '';
+  document.getElementById('ev-location').value = ev ? ev.location||'' : '';
+  document.getElementById('ev-description').value = ev ? ev.description||'' : '';
+  document.getElementById('ev-notification').value = ev ? ev.notification||'none' : 'none';
+  document.getElementById('ev-recurring').value = ev ? ev.recurring||'none' : 'none';
+
+  const isAllDay = ev ? ev.allDay : false;
+  editingEventAllDay = isAllDay;
+  updateAlldayToggle(isAllDay);
+
+  const start = ev ? ev.start : (prefillStart || new Date());
+  const end = ev ? ev.end : (prefillEnd || (() => { const d = new Date(start); d.setHours(d.getHours()+1); return d; })());
+  document.getElementById('ev-start').value = formatDatetimeLocal(start);
+  document.getElementById('ev-end').value = formatDatetimeLocal(end);
+  document.getElementById('ev-allday-date').value = formatDateInput(start);
+
+  // Color picker
+  const picker = document.getElementById('ev-color-picker');
+  picker.innerHTML = '';
+  const currentColor = ev ? ev.color : EVENT_COLORS[0];
+  EVENT_COLORS.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (c === currentColor ? ' selected' : '');
+    sw.style.background = c; sw.dataset.color = c;
+    sw.title = COLOR_NAMES[EVENT_COLORS.indexOf(c)];
+    sw.addEventListener('click', () => {
+      picker.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+      sw.classList.add('selected');
+    });
+    picker.appendChild(sw);
+  });
+
+  document.getElementById('ev-delete-btn').style.display = ev ? 'block' : 'none';
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('visible'));
+  document.getElementById('ev-title').focus();
+}
+
+function updateAlldayToggle(on) {
+  const toggle = document.getElementById('ev-allday-toggle');
+  toggle.classList.toggle('on', on);
+  document.getElementById('ev-time-fields').style.display = on ? 'none' : 'flex';
+  document.getElementById('ev-date-field').style.display = on ? 'flex' : 'none';
+}
+
+function closeEventModal() {
+  const modal = document.getElementById('event-modal-backdrop');
+  modal.classList.remove('visible');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+function saveEvent() {
+  const title = document.getElementById('ev-title').value.trim();
+  if (!title) { document.getElementById('ev-title').focus(); return; }
+
+  const allDay = document.getElementById('ev-allday-toggle').classList.contains('on');
+  let start, end;
+  if (allDay) {
+    const dateVal = document.getElementById('ev-allday-date').value;
+    start = dateVal ? new Date(dateVal + 'T00:00:00') : new Date();
+    end = new Date(start);
+  } else {
+    start = parseDatetimeLocal(document.getElementById('ev-start').value) || new Date();
+    end = parseDatetimeLocal(document.getElementById('ev-end').value) || new Date(start.getTime() + 3600000);
+    if (end <= start) end = new Date(start.getTime() + 3600000);
+  }
+
+  const color = document.getElementById('ev-color-picker').querySelector('.selected')?.dataset.color || EVENT_COLORS[0];
+  const notification = document.getElementById('ev-notification').value;
+  const recurring = document.getElementById('ev-recurring').value;
+  const location = document.getElementById('ev-location').value.trim();
+  const description = document.getElementById('ev-description').value.trim();
+
+  if (editingEventId) {
+    const ev = STATE.events.find(e => e.id === editingEventId);
+    if (ev) Object.assign(ev, {title, start, end, allDay, color, notification, recurring, location, description});
+  } else {
+    STATE.events.push({ id: uid(), title, start, end, allDay, color, notification, recurring, location, description, linkedTaskId: null });
+  }
+
+  saveState(); closeEventModal(); render();
+}
+
+function deleteEvent(id) {
+  STATE.events = STATE.events.filter(e => e.id !== id);
+  saveState(); closeEventModal(); render();
+}
+
+// ─────────────────────────────────────────────
+// TASK MODAL
+// ─────────────────────────────────────────────
+let editingTaskId = null;
+let currentTags = [];
+let currentSubtasks = [];
+
+function openTaskModal(id) {
+  editingTaskId = id || null;
+  const task = id ? STATE.tasks.find(t => t.id === id) : null;
+  document.getElementById('task-modal-title').textContent = task ? 'Edit Task' : 'New Task';
+  document.getElementById('task-title-input').value = task ? task.title : '';
+  document.getElementById('task-due-date').value = task && task.dueDate ? formatDateInput(task.dueDate) : '';
+  document.getElementById('task-due-time').value = task ? task.dueTime||'' : '';
+  document.getElementById('task-description').value = task ? task.description||'' : '';
+  document.getElementById('task-notification').value = task ? task.notification||'none' : 'none';
+  document.getElementById('task-recurring').value = task ? task.recurring||'none' : 'none';
+  document.getElementById('task-delete-btn').style.display = task ? 'block' : 'none';
+
+  currentTags = task ? [...(task.tags||[])] : [];
+  currentSubtasks = task ? (task.subtasks||[]).map(s => ({...s})) : [];
+  renderTagsInput();
+  renderSubtasks();
+
+  const modal = document.getElementById('task-modal-backdrop');
+  modal.style.display = 'flex';
+  requestAnimationFrame(() => modal.classList.add('visible'));
+  document.getElementById('task-title-input').focus();
+}
+
+function closeTaskModal() {
+  const modal = document.getElementById('task-modal-backdrop');
+  modal.classList.remove('visible');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+function renderTagsInput() {
+  const area = document.getElementById('tags-input-area');
+  // Remove all chips
+  area.querySelectorAll('.tag-chip').forEach(c => c.remove());
+  const input = document.getElementById('tag-input');
+  currentTags.forEach(tag => {
+    const chip = document.createElement('div');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${tag}<span class="tag-chip-remove" data-tag="${tag}">×</span>`;
+    chip.querySelector('.tag-chip-remove').addEventListener('click', () => {
+      currentTags = currentTags.filter(t => t !== tag);
+      renderTagsInput();
+    });
+    area.insertBefore(chip, input);
+  });
+}
+
+function renderSubtasks() {
+  const list = document.getElementById('subtasks-list');
+  list.innerHTML = '';
+  currentSubtasks.forEach((st, i) => {
+    const item = document.createElement('div');
+    item.className = 'subtask-item';
+    const check = document.createElement('div');
+    check.className = 'subtask-check' + (st.done ? ' checked' : '');
+    check.addEventListener('click', () => { currentSubtasks[i].done = !currentSubtasks[i].done; renderSubtasks(); });
+    const text = document.createElement('input');
+    text.type = 'text';
+    text.className = 'subtask-text' + (st.done ? ' done' : '');
+    text.value = st.text;
+    text.placeholder = 'Subtask…';
+    text.addEventListener('input', () => currentSubtasks[i].text = text.value);
+    const del = document.createElement('button');
+    del.className = 'icon-btn';
+    del.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">close</span>';
+    del.addEventListener('click', () => { currentSubtasks.splice(i,1); renderSubtasks(); });
+    item.appendChild(check); item.appendChild(text); item.appendChild(del);
+    list.appendChild(item);
+  });
+}
+
+function saveTask() {
+  const title = document.getElementById('task-title-input').value.trim();
+  if (!title) { document.getElementById('task-title-input').focus(); return; }
+  const dateVal = document.getElementById('task-due-date').value;
+  const dueDate = dateVal ? new Date(dateVal + 'T00:00:00') : null;
+  const dueTime = document.getElementById('task-due-time').value;
+  const description = document.getElementById('task-description').value.trim();
+  const notification = document.getElementById('task-notification').value;
+  const recurring = document.getElementById('task-recurring').value;
+  const tags = [...currentTags];
+  const subtasks = currentSubtasks.filter(s => s.text.trim()).map(s => ({...s}));
+
+  if (editingTaskId) {
+    const task = STATE.tasks.find(t => t.id === editingTaskId);
+    if (task) Object.assign(task, {title, dueDate, dueTime, description, notification, recurring, tags, subtasks});
+  } else {
+    STATE.tasks.push({ id: uid(), title, completed: false, dueDate, dueTime, description, notification, recurring, tags, subtasks });
+  }
+  saveState(); closeTaskModal(); renderTasks();
+}
+
+// ─────────────────────────────────────────────
+// DRAG TO CREATE EVENTS
+// ─────────────────────────────────────────────
+let dragState = null;
+
+function initDragCreate() {
+  const cols = document.getElementById('time-grid-cols');
+  const overlay = document.getElementById('drag-overlay');
+  const tooltip = document.getElementById('drag-time-tooltip');
+
+  cols.addEventListener('mousedown', e => {
+    const col = e.target.closest('.day-col');
+    if (!col || e.target.closest('.cal-event')) return;
+    e.preventDefault();
+
+    const rect = col.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const startMin = snapMinutes(yToMinutes(y, 1536));
+    const dateStr = col.dataset.date;
+    dragState = { col, dateStr, startY: e.clientY, startMin, currentMin: startMin, rect, colIdx: parseInt(col.dataset.dayIdx) };
+
+    overlay.style.display = 'block';
+    tooltip.style.display = 'block';
+    updateDragOverlay(startMin, startMin);
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragState) return;
+    const col = dragState.col;
+    const rect = dragState.rect;
+    const y = e.clientY - rect.top;
+    const currentMin = snapMinutes(clamp(yToMinutes(y, 1536), 0, 24*60 - SNAP));
+    dragState.currentMin = currentMin;
+
+    const s = Math.min(dragState.startMin, currentMin);
+    const en = Math.max(dragState.startMin, currentMin) + SNAP;
+    updateDragOverlay(s, en);
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!dragState) return;
+    const s = Math.min(dragState.startMin, dragState.currentMin);
+    let en = Math.max(dragState.startMin, dragState.currentMin) + SNAP;
+    if (en - s < 15) en = s + 15;
+
+    overlay.style.display = 'none';
+    tooltip.style.display = 'none';
+
+    if (en - s >= 15) {
+      const dateStr = dragState.dateStr;
+      const [yr, mo, dy] = dateStr.split('-').map(Number);
+      const start = new Date(yr, mo-1, dy, Math.floor(s/60), s%60, 0, 0);
+      const end = new Date(yr, mo-1, dy, Math.floor(en/60), en%60, 0, 0);
+      openEventModal(null, start, end);
+    }
+    dragState = null;
+  });
+}
+
+function updateDragOverlay(startMin, endMin) {
+  const overlay = document.getElementById('drag-overlay');
+  const tooltip = document.getElementById('drag-time-tooltip');
+  if (!dragState) return;
+
+  const col = dragState.col;
+  const colRect = col.getBoundingClientRect();
+  const gridCols = document.getElementById('time-grid-cols');
+  const gridRect = gridCols.getBoundingClientRect();
+
+  const top = minutesToY(startMin);
+  const height = minutesToY(endMin - startMin);
+  const left = colRect.left - gridRect.left;
+  const width = colRect.width;
+
+  overlay.style.cssText = `display:block; position:absolute; top:${top}px; left:${left}px; width:${width}px; height:${height}px; background:rgba(0,88,186,0.2); border:2px solid #0058ba; border-radius:6px; pointer-events:none; z-index:20;`;
+
+  const startH = Math.floor(startMin/60), startM = startMin%60;
+  const endH = Math.floor(endMin/60), endM = endMin%60;
+  const fmtMin = (h,m) => { const ap = h>=12?'PM':'AM'; const hh=h%12||12; return `${hh}:${String(m).padStart(2,'0')} ${ap}`; };
+  tooltip.textContent = `${fmtMin(startH,startM)} – ${fmtMin(endH,endM)}`;
+  tooltip.style.cssText = `display:block; position:absolute; top:${top-24}px; left:${left}px; background:#0058ba; color:white; font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; pointer-events:none; z-index:21; white-space:nowrap;`;
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+let notifScheduled = new Set();
+
+function scheduleNotifications() {
+  if (Notification.permission !== 'granted') return;
+  const now = new Date();
+  STATE.events.forEach(ev => {
+    if (ev.notification === 'none' || !ev.notification) return;
+    const minsBefore = parseInt(ev.notification);
+    const notifTime = new Date(ev.start.getTime() - minsBefore * 60000);
+    if (notifTime > now) {
+      const key = `ev_${ev.id}_${minsBefore}`;
+      if (!notifScheduled.has(key)) {
+        notifScheduled.add(key);
+        const delay = notifTime - now;
+        setTimeout(() => {
+          new Notification(`📅 ${ev.title}`, { body: `Starts at ${formatTime(ev.start)}${ev.location ? ' · '+ev.location : ''}`, icon: '' });
+        }, delay);
+      }
+    }
+  });
+  STATE.tasks.forEach(task => {
+    if (!task.dueDate || task.notification === 'none' || !task.notification || task.completed) return;
+    const minsBefore = parseInt(task.notification);
+    const dueDateTime = new Date(task.dueDate);
+    if (task.dueTime) { const [h,m] = task.dueTime.split(':'); dueDateTime.setHours(+h, +m, 0, 0); }
+    const notifTime = new Date(dueDateTime.getTime() - minsBefore * 60000);
+    if (notifTime > now) {
+      const key = `task_${task.id}_${minsBefore}`;
+      if (!notifScheduled.has(key)) {
+        notifScheduled.add(key);
+        const delay = notifTime - now;
+        setTimeout(() => {
+          new Notification(`✅ ${task.title}`, { body: `Due ${task.dueTime || 'today'}` });
+        }, delay);
+      }
+    }
+  });
+}
+
+async function requestNotifications() {
+  if (!('Notification' in window)) { alert('Notifications not supported'); return; }
+  if (Notification.permission === 'default') await Notification.requestPermission();
+  if (Notification.permission === 'granted') scheduleNotifications();
+}
+
+// ─────────────────────────────────────────────
+// KEYBOARD SHORTCUTS
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') return;
+  if (document.querySelector('.modal-backdrop.visible')) return;
+  switch(e.key) {
+    case 'm': STATE.view = 'month'; saveState(); render(); break;
+    case 'w': STATE.view = 'week'; STATE.nDays = 7; saveState(); render(); break;
+    case 'd': STATE.view = 'day'; saveState(); render(); break;
+    case 'ArrowLeft': navigate(-1); break;
+    case 'ArrowRight': navigate(1); break;
+    case 't': goToday(); break;
+    default:
+      if (e.key >= '1' && e.key <= '9') {
+        STATE.view = 'nday'; STATE.nDays = parseInt(e.key);
+        saveState(); render();
+      }
+  }
+});
+
+// ─────────────────────────────────────────────
+// CURRENT TIME UPDATE
+// ─────────────────────────────────────────────
+setInterval(() => {
+  const line = document.getElementById('current-time-line');
+  if (line) {
+    const now = new Date();
+    const mins = now.getHours()*60 + now.getMinutes();
+    line.style.top = `${minutesToY(mins)}px`;
+  }
+}, 60000);
+
+// ─────────────────────────────────────────────
+// EVENT LISTENERS
+// ─────────────────────────────────────────────
+document.getElementById('prev-btn').addEventListener('click', () => navigate(-1));
+document.getElementById('next-btn').addEventListener('click', () => navigate(1));
+document.getElementById('today-btn').addEventListener('click', goToday);
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.view;
+    if (v === 'week') { STATE.view = 'week'; STATE.nDays = 7; }
+    else STATE.view = v;
+    saveState(); render();
+  });
+});
+
+document.getElementById('mini-prev').addEventListener('click', () => {
+  STATE.miniCalDate = addMonths(STATE.miniCalDate, -1); renderMiniCal();
+});
+document.getElementById('mini-next').addEventListener('click', () => {
+  STATE.miniCalDate = addMonths(STATE.miniCalDate, 1); renderMiniCal();
+});
+
+document.getElementById('create-event-btn').addEventListener('click', () => openEventModal(null));
+document.getElementById('create-task-btn').addEventListener('click', () => openTaskModal(null));
+document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal(null));
+
+// Event modal listeners
+document.getElementById('event-modal-close').addEventListener('click', closeEventModal);
+document.getElementById('ev-cancel-btn').addEventListener('click', closeEventModal);
+document.getElementById('ev-save-btn').addEventListener('click', saveEvent);
+document.getElementById('ev-delete-btn').addEventListener('click', () => { if (editingEventId) deleteEvent(editingEventId); });
+document.getElementById('ev-allday-toggle').addEventListener('click', () => {
+  editingEventAllDay = !editingEventAllDay;
+  updateAlldayToggle(editingEventAllDay);
+});
+document.getElementById('event-modal-backdrop').addEventListener('click', e => {
+  if (e.target === document.getElementById('event-modal-backdrop')) closeEventModal();
+});
+
+// Task modal listeners
+document.getElementById('task-modal-close').addEventListener('click', closeTaskModal);
+document.getElementById('task-cancel-btn').addEventListener('click', closeTaskModal);
+document.getElementById('task-save-btn').addEventListener('click', saveTask);
+document.getElementById('task-delete-btn').addEventListener('click', () => {
+  if (editingTaskId) { STATE.tasks = STATE.tasks.filter(t => t.id !== editingTaskId); saveState(); closeTaskModal(); renderTasks(); }
+});
+document.getElementById('task-modal-backdrop').addEventListener('click', e => {
+  if (e.target === document.getElementById('task-modal-backdrop')) closeTaskModal();
+});
+document.getElementById('add-subtask-btn').addEventListener('click', () => {
+  currentSubtasks.push({id: uid(), text: '', done: false});
+  renderSubtasks();
+  const inputs = document.querySelectorAll('.subtask-text');
+  if (inputs.length) inputs[inputs.length-1].focus();
+});
+
+// Tag input
+document.getElementById('tag-input').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ',') && e.target.value.trim()) {
+    e.preventDefault();
+    const tag = e.target.value.trim().replace(',','');
+    if (tag && !currentTags.includes(tag)) { currentTags.push(tag); renderTagsInput(); }
+    e.target.value = '';
+  }
+  if (e.key === 'Backspace' && !e.target.value && currentTags.length) {
+    currentTags.pop(); renderTagsInput();
+  }
+});
+
+document.getElementById('notif-btn').addEventListener('click', requestNotifications);
+
+// Modal keyboard close
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('event-modal-backdrop').classList.contains('visible')) closeEventModal();
+    if (document.getElementById('task-modal-backdrop').classList.contains('visible')) closeTaskModal();
+  }
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    if (document.getElementById('event-modal-backdrop').classList.contains('visible')) saveEvent();
+    if (document.getElementById('task-modal-backdrop').classList.contains('visible')) saveTask();
+  }
+});
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init() {
+  const hasData = loadState();
+  if (!hasData) loadSampleData();
+  render();
+  initDragCreate();
+
+  // Scroll to 7am
+  setTimeout(() => {
+    const scroll = document.getElementById('time-grid-scroll');
+    if (scroll) scroll.scrollTop = 7 * HOUR_HEIGHT - 32;
+  }, 50);
+
+  // Schedule notifications if already granted
+  if (Notification.permission === 'granted') scheduleNotifications();
+}
+
+init();
+</script>
+</body>
+</html>
