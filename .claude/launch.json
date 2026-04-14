@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Timebox App (static)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/Users/graysonottenbreit/bin/timebox-server.py"],
+      "port": 3000
+    },
+    {
+      "name": "timeblock-main (Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/graysonottenbreit/Downloads/timeblock-main"],
+      "port": 8080
+    }
+  ]
+}
