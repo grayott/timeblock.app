@@ -551,6 +551,63 @@
   .ev-task-suggestion-item { padding:8px 12px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:8px; }
   .ev-task-suggestion-item:hover { background:var(--surface-low); }
 
+  /* Quick Event Popover */
+  #quick-event-popover {
+    position: fixed; z-index: 350; width: 440px;
+    background: white; border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+    display: none; flex-direction: column; overflow: hidden;
+    transition: opacity 0.15s, transform 0.15s;
+    opacity: 0; transform: scale(0.97);
+  }
+  #quick-event-popover.visible { display: flex; opacity: 1; transform: scale(1); }
+  #quick-event-popover.is-dragging { user-select: none; transition: none !important; }
+  .qep-drag-handle {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px 4px; cursor: move;
+  }
+  .qep-title-input {
+    font-size: 22px; font-weight: 400; border: none; outline: none;
+    border-bottom: 2px solid var(--primary); width: 100%;
+    padding: 4px 16px 10px; font-family: inherit; color: var(--on-surface);
+    background: transparent;
+  }
+  .qep-title-input::placeholder { color: var(--on-surface-variant); }
+  .qep-field {
+    display: flex; align-items: flex-start; gap: 0; padding: 2px 0;
+    transition: background 0.1s;
+  }
+  .qep-field:hover { background: var(--surface-low); }
+  .qep-field-icon {
+    width: 52px; display: flex; justify-content: center; padding-top: 10px;
+    color: var(--on-surface-variant); font-size: 20px; flex-shrink: 0;
+  }
+  .qep-field-body { flex: 1; padding: 8px 16px 8px 0; min-width: 0; }
+  .qep-field-text { font-size: 14px; color: var(--on-surface); cursor: pointer; padding: 2px 0; }
+  .qep-field-input {
+    border: none; outline: none; background: transparent;
+    font-size: 14px; font-family: inherit; color: var(--on-surface);
+    width: 100%; display: block;
+  }
+  .qep-field-input::placeholder { color: var(--on-surface-variant); }
+  .qep-datetime-inputs { display: none; margin-top: 6px; }
+  .qep-datetime-inputs.open { display: flex; gap: 8px; }
+  .qep-datetime-inputs input {
+    flex: 1; border: 1px solid var(--surface-container); border-radius: 6px;
+    padding: 6px 8px; font-size: 13px; font-family: inherit; outline: none;
+    min-width: 0;
+  }
+  .qep-datetime-inputs input:focus { border-color: var(--primary); }
+  .qep-cal-row { display: flex; align-items: center; gap: 8px; }
+  .qep-cal-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .qep-footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    padding: 12px 16px; border-top: 1px solid var(--surface-container); margin-top: 4px;
+  }
+  /* Backdrop for quick popover (transparent, just for outside-click) */
+  #qep-backdrop { position: fixed; inset: 0; z-index: 349; display: none; }
+  #qep-backdrop.visible { display: block; }
+
   /* Draggable modals */
   .modal { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; max-height: 90vh; overflow-y: auto; }
   .modal.is-dragging { user-select: none; transition: none !important; }
@@ -886,6 +943,63 @@
       <button class="btn btn-secondary" id="ev-cancel-btn">Cancel</button>
       <button class="btn btn-primary" id="ev-save-btn">Save Event</button>
     </div>
+  </div>
+</div>
+
+<!-- Quick Event Popover -->
+<div id="qep-backdrop"></div>
+<div id="quick-event-popover" role="dialog">
+  <div class="qep-drag-handle" id="qep-drag-handle">
+    <span class="material-symbols-outlined" style="font-size:20px;color:var(--on-surface-variant);">drag_indicator</span>
+    <button class="icon-btn" id="qep-close-btn"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>
+  </div>
+  <input type="text" class="qep-title-input" id="qep-title" placeholder="Add title">
+  <div style="height:8px;"></div>
+  <!-- Date/time -->
+  <div class="qep-field" id="qep-dt-field">
+    <span class="material-symbols-outlined qep-field-icon">schedule</span>
+    <div class="qep-field-body">
+      <div class="qep-field-text" id="qep-dt-text"></div>
+      <div class="qep-datetime-inputs" id="qep-dt-inputs">
+        <input type="datetime-local" id="qep-start">
+        <input type="datetime-local" id="qep-end">
+      </div>
+    </div>
+  </div>
+  <!-- Guests -->
+  <div class="qep-field">
+    <span class="material-symbols-outlined qep-field-icon">person_add</span>
+    <div class="qep-field-body">
+      <input type="text" class="qep-field-input" id="qep-guests" placeholder="Add guests">
+    </div>
+  </div>
+  <!-- Location -->
+  <div class="qep-field">
+    <span class="material-symbols-outlined qep-field-icon">location_on</span>
+    <div class="qep-field-body">
+      <input type="text" class="qep-field-input" id="qep-location" placeholder="Add location">
+    </div>
+  </div>
+  <!-- Description -->
+  <div class="qep-field">
+    <span class="material-symbols-outlined qep-field-icon">notes</span>
+    <div class="qep-field-body">
+      <input type="text" class="qep-field-input" id="qep-description" placeholder="Add description">
+    </div>
+  </div>
+  <!-- Calendar -->
+  <div class="qep-field">
+    <span class="material-symbols-outlined qep-field-icon">calendar_today</span>
+    <div class="qep-field-body" style="padding-top:6px;">
+      <div class="qep-cal-row">
+        <div class="qep-cal-dot" id="qep-cal-dot"></div>
+        <select class="qep-field-input" id="qep-calendar" style="cursor:pointer;font-size:14px;"></select>
+      </div>
+    </div>
+  </div>
+  <div class="qep-footer">
+    <button class="btn btn-secondary" id="qep-more-btn">More options</button>
+    <button class="btn btn-primary" id="qep-save-btn">Save</button>
   </div>
 </div>
 
@@ -2316,7 +2430,7 @@ function initDragCreate() {
       const [yr, mo, dy] = dateStr.split('-').map(Number);
       const start = new Date(yr, mo-1, dy, Math.floor(s/60), s%60, 0, 0);
       const end = new Date(yr, mo-1, dy, Math.floor(en/60), en%60, 0, 0);
-      openEventModal(null, start, end);
+      openQuickEventPopover(start, end, e.clientX, e.clientY);
     }
     dragState = null;
   });
@@ -2450,7 +2564,150 @@ document.getElementById('mini-next').addEventListener('click', () => {
   STATE.miniCalDate = addMonths(STATE.miniCalDate, 1); renderMiniCal();
 });
 
-document.getElementById('create-event-btn').addEventListener('click', () => openEventModal(null));
+// ─── Quick Event Popover ───────────────────────────────────────────────────
+let qepStart = null, qepEnd = null;
+
+function formatQepDatetime(start, end) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const ds = start, de = end || start;
+  const datePart = `${days[ds.getDay()]}, ${months[ds.getMonth()]} ${ds.getDate()}`;
+  const fmt = (d) => {
+    const h = d.getHours(), m = d.getMinutes();
+    const ampm = h >= 12 ? 'pm' : 'am';
+    const h12 = h % 12 || 12;
+    return `${h12}${m ? ':' + String(m).padStart(2,'0') : ''}${ampm}`;
+  };
+  return `${datePart} · ${fmt(ds)} – ${fmt(de)}`;
+}
+
+function openQuickEventPopover(start, end, clientX, clientY) {
+  qepStart = start || (() => { const d = new Date(); d.setMinutes(Math.round(d.getMinutes()/15)*15,0,0); return d; })();
+  qepEnd = end || (() => { const d = new Date(qepStart); d.setHours(d.getHours()+1); return d; })();
+
+  // Title
+  document.getElementById('qep-title').value = '';
+  // Datetime display
+  document.getElementById('qep-dt-text').textContent = formatQepDatetime(qepStart, qepEnd);
+  document.getElementById('qep-start').value = formatDatetimeLocal(qepStart);
+  document.getElementById('qep-end').value = formatDatetimeLocal(qepEnd);
+  document.getElementById('qep-dt-inputs').classList.remove('open');
+  // Other fields
+  document.getElementById('qep-guests').value = '';
+  document.getElementById('qep-location').value = '';
+  document.getElementById('qep-description').value = '';
+  // Calendar dropdown
+  const calSel = document.getElementById('qep-calendar');
+  calSel.innerHTML = '';
+  STATE.calendars.forEach(cal => {
+    const opt = document.createElement('option');
+    opt.value = cal.id; opt.textContent = cal.name;
+    calSel.appendChild(opt);
+  });
+  const defCal = STATE.calendars.find(c => c.isDefault) || STATE.calendars[0];
+  if (defCal) { calSel.value = defCal.id; document.getElementById('qep-cal-dot').style.background = defCal.color; }
+  calSel.addEventListener('change', () => {
+    const cal = STATE.calendars.find(c => c.id === calSel.value);
+    if (cal) document.getElementById('qep-cal-dot').style.background = cal.color;
+  });
+
+  // Position
+  const pop = document.getElementById('quick-event-popover');
+  pop.style.display = 'flex';
+  const W = 440, H = 420;
+  let x = (clientX || window.innerWidth/2) + 12;
+  let y = (clientY || window.innerHeight/2 - H/2);
+  x = Math.min(x, window.innerWidth - W - 12);
+  y = Math.max(12, Math.min(y, window.innerHeight - H - 12));
+  pop.style.left = x + 'px';
+  pop.style.top = y + 'px';
+
+  document.getElementById('qep-backdrop').classList.add('visible');
+  requestAnimationFrame(() => { pop.classList.add('visible'); });
+  setTimeout(() => document.getElementById('qep-title').focus(), 100);
+
+  makeDraggable(pop, document.getElementById('qep-drag-handle'));
+}
+
+function closeQuickEventPopover() {
+  const pop = document.getElementById('quick-event-popover');
+  pop.classList.remove('visible');
+  document.getElementById('qep-backdrop').classList.remove('visible');
+  setTimeout(() => { pop.style.display = 'none'; }, 150);
+}
+
+function qepGetValues() {
+  const startVal = document.getElementById('qep-start').value;
+  const endVal = document.getElementById('qep-end').value;
+  const start = startVal ? new Date(startVal) : qepStart;
+  const end = endVal ? new Date(endVal) : qepEnd;
+  return {
+    title: document.getElementById('qep-title').value.trim(),
+    start, end,
+    guests: document.getElementById('qep-guests').value.trim(),
+    location: document.getElementById('qep-location').value.trim(),
+    description: document.getElementById('qep-description').value.trim(),
+    calendarId: document.getElementById('qep-calendar').value,
+  };
+}
+
+// Date/time field toggle
+document.getElementById('qep-dt-field').addEventListener('click', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const inputs = document.getElementById('qep-dt-inputs');
+  inputs.classList.toggle('open');
+});
+
+// Update text when inputs change
+['qep-start', 'qep-end'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    const s = document.getElementById('qep-start').value;
+    const en = document.getElementById('qep-end').value;
+    if (s) qepStart = new Date(s);
+    if (en) qepEnd = new Date(en);
+    document.getElementById('qep-dt-text').textContent = formatQepDatetime(qepStart, qepEnd);
+  });
+});
+
+document.getElementById('qep-close-btn').addEventListener('click', closeQuickEventPopover);
+document.getElementById('qep-backdrop').addEventListener('click', closeQuickEventPopover);
+
+document.getElementById('qep-save-btn').addEventListener('click', () => {
+  const v = qepGetValues();
+  if (!v.title) { document.getElementById('qep-title').focus(); return; }
+  const cal = STATE.calendars.find(c => c.id === v.calendarId) || STATE.calendars[0];
+  STATE.events.push({
+    id: uid(), title: v.title, start: v.start, end: v.end,
+    allDay: false, color: cal?.color || EVENT_COLORS[0],
+    notification: 'none', recurring: 'none',
+    location: v.location, description: v.description,
+    guests: v.guests ? v.guests.split(',').map(g => g.trim()).filter(Boolean) : [],
+    linkedTaskIds: [], calendarId: v.calendarId,
+  });
+  saveState(); render();
+  closeQuickEventPopover();
+});
+
+document.getElementById('qep-more-btn').addEventListener('click', () => {
+  const v = qepGetValues();
+  closeQuickEventPopover();
+  openEventModal(null, v.start, v.end);
+  // Pre-fill additional fields after modal opens
+  requestAnimationFrame(() => {
+    if (v.title) document.getElementById('ev-title').value = v.title;
+    if (v.location) document.getElementById('ev-location').value = v.location;
+    if (v.description) document.getElementById('ev-description').value = v.description;
+    if (v.calendarId) document.getElementById('ev-calendar').value = v.calendarId;
+  });
+});
+
+// Allow Enter in title to save
+document.getElementById('qep-title').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('qep-save-btn').click();
+  if (e.key === 'Escape') closeQuickEventPopover();
+});
+
+document.getElementById('create-event-btn').addEventListener('click', (e) => openQuickEventPopover(null, null, e.clientX, e.clientY));
 document.getElementById('create-task-btn').addEventListener('click', () => openTaskModal(null));
 document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal(null));
 
