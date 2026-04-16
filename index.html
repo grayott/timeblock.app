@@ -153,7 +153,7 @@
     color: var(--on-surface-variant); transition: background 0.15s;
   }
   .icon-btn:hover { background: var(--surface-low); }
-  #tasks-list { flex: 1; overflow-y: auto; padding: 8px; }
+  #tasks-list { padding: 8px; }
   .task-item {
     display: flex; align-items: flex-start; gap: 10px;
     padding: 10px; border-radius: 10px; cursor: pointer;
@@ -184,6 +184,36 @@
   }
   .task-delete { opacity: 0; transition: opacity 0.15s; }
   .task-item:hover .task-delete { opacity: 1; }
+
+  /* Right panel collapse */
+  #right-panel { transition: width 0.25s ease; }
+  #right-panel.panel-collapsed { width: 40px; }
+  #right-panel.panel-collapsed .panel-hide { display: none !important; }
+  #right-panel.panel-collapsed .panel-header { justify-content: center; padding: 8px 4px; border-bottom: none; }
+
+  /* Inline task detail */
+  .task-item-wrapper { margin-bottom: 4px; }
+  .task-item.task-expanded {
+    background: var(--primary-light); border-color: var(--primary) !important;
+    margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  }
+  .task-inline-detail {
+    background: var(--surface-low); border: 1px solid var(--primary);
+    border-top: none; border-radius: 0 0 10px 10px;
+    padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .task-inline-input {
+    width: 100%; border: 1px solid var(--surface-container); border-radius: 6px;
+    padding: 6px 8px; font-size: 13px; font-family: inherit; background: white;
+    color: var(--on-surface); outline: none; box-sizing: border-box;
+  }
+  .task-inline-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,88,186,0.1); }
+  select.task-inline-input { cursor: pointer; }
+  textarea.task-inline-input { resize: vertical; min-height: 56px; }
+  .task-inline-row { display: flex; gap: 6px; }
+  .task-inline-row .task-inline-input { flex: 1; min-width: 0; }
+  .task-inline-actions { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+  .task-inline-actions .spacer { flex: 1; }
 
   /* Calendar Area */
   #cal-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
@@ -250,7 +280,7 @@
   .allday-row { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--surface-container); background: white; min-height: 28px; }
   .allday-gutter { width: 56px; flex-shrink: 0; font-size: 10px; color: var(--on-surface-variant); display: flex; align-items: flex-start; justify-content: flex-end; padding: 4px 6px 0 0; }
   .allday-cols { flex: 1; display: flex; overflow: hidden; position: relative; }
-  .allday-col { flex: 1; border-left: 1px solid var(--surface-container); min-height: 28px; position: relative; }
+  .allday-col { flex: 1; border-left: 1px solid var(--surface-container); min-height: 28px; position: relative; min-width: var(--col-min-width); }
   .allday-event {
     position: absolute; left: 2px; right: 2px;
     background: var(--primary); color: white;
@@ -259,7 +289,7 @@
   }
 
   /* Time Grid */
-  .time-grid-scroll { flex: 1; overflow: auto; position: relative; }
+  .time-grid-scroll { flex: 1; overflow: auto; position: relative; scrollbar-gutter: stable; }
   .time-grid { display: flex; height: 1536px; position: relative; }
   .time-labels { width: 56px; flex-shrink: 0; position: relative; }
   .time-label {
@@ -665,22 +695,23 @@
   <!-- Right Task Panel -->
   <aside id="right-panel">
     <div class="panel-header">
-      <span class="panel-title heading">Tasks</span>
-      <div style="display:flex;gap:4px;">
+      <span class="panel-title heading panel-hide">Tasks</span>
+      <div style="display:flex;gap:4px;" class="panel-hide">
         <button class="icon-btn" id="add-task-btn" title="Add task"><span class="material-symbols-outlined" style="font-size:20px;">add</span></button>
       </div>
+      <button class="icon-btn" id="panel-collapse-btn" title="Toggle tasks panel"><span class="material-symbols-outlined" style="font-size:20px;" id="panel-collapse-icon">chevron_right</span></button>
     </div>
     <!-- Tabs -->
-    <div class="panel-tabs">
+    <div class="panel-tabs panel-hide">
       <button class="panel-tab active" data-panel="all">All Tasks</button>
       <button class="panel-tab" data-panel="focus">Focus</button>
     </div>
     <!-- All Tasks view -->
-    <div class="panel-view active" id="panel-all">
+    <div class="panel-view active panel-hide" id="panel-all">
       <div id="tasks-list"></div>
     </div>
     <!-- Focus view: Top Three + Brain Dump -->
-    <div class="panel-view" id="panel-focus" style="gap:0;">
+    <div class="panel-view panel-hide" id="panel-focus" style="gap:0;">
       <div style="padding:8px 4px 4px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">⭐ Top Three</div>
         <div id="top-three-slots"></div>
@@ -1011,7 +1042,7 @@ function loadState() {
     STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
     STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: t.dueDate ? new Date(t.dueDate) : null}));
     STATE.view = s.view || 'week';
-    STATE.nDays = s.nDays || 7;
+    STATE.nDays = Math.min(s.nDays || 7, 7);
     STATE.currentDate = s.currentDate ? new Date(s.currentDate) : new Date();
     STATE.miniCalDate = s.miniCalDate ? new Date(s.miniCalDate) : new Date();
     STATE.topThree = s.topThree || [];
@@ -1541,60 +1572,265 @@ function categorizeTasks() {
   return cats;
 }
 
+let quickAddActive = false;
+
 function renderTasks() {
   const list = document.getElementById('tasks-list');
   list.innerHTML = '';
-  const cats = categorizeTasks();
-  const sections = [
-    { key: 'overdue', label: 'Overdue', emoji: '🔴', tasks: cats.overdue, danger: true },
-    { key: 'today',   label: 'Today',   emoji: '📅', tasks: cats.today },
-    { key: 'upcoming',label: 'Upcoming', emoji: '🗓',  tasks: cats.upcoming },
-    { key: 'noDueDate',label:'No Due Date',emoji:'📌', tasks: cats.noDueDate },
-    { key: 'completed',label:'Completed', emoji:'✅',  tasks: cats.completed },
-  ];
 
-  const totalVisible = STATE.tasks.length;
-  if (totalVisible === 0) {
-    list.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">check_circle</span><br>No tasks yet</div>';
-    return;
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+
+  const incomplete = STATE.tasks.filter(t => !t.completed).sort((a, b) => {
+    const aDate = a.dueDate ? new Date(a.dueDate).setHours(0,0,0,0) : Infinity;
+    const bDate = b.dueDate ? new Date(b.dueDate).setHours(0,0,0,0) : Infinity;
+    if (aDate !== bDate) return aDate - bDate;
+    return (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
+  });
+
+  const completed = STATE.tasks.filter(t => t.completed);
+
+  if (STATE.tasks.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = '<span class="material-symbols-outlined">check_circle</span><br>No tasks yet';
+    list.appendChild(empty);
+  } else {
+    incomplete.forEach(task => list.appendChild(buildTaskItem(task)));
+    if (completed.length) {
+      const divider = document.createElement('div');
+      divider.style.cssText = 'border-top:1px solid var(--surface-container);margin:8px 2px 4px;';
+      list.appendChild(divider);
+      completed.forEach(task => list.appendChild(buildTaskItem(task)));
+    }
   }
 
-  sections.forEach(sec => {
-    if (sec.tasks.length === 0) return;
-    const open = SECTION_STATE[sec.key] !== false;
+  // Quick add at bottom
+  renderQuickAdd(list);
 
-    const wrap = document.createElement('div');
-    wrap.style.marginBottom = '4px';
+  // Scroll expanded task into view
+  if (expandedTaskId) {
+    requestAnimationFrame(() => {
+      const detail = list.querySelector('.task-inline-detail');
+      if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+}
 
-    // Header
-    const hdr = document.createElement('div');
-    hdr.className = 'task-section-header';
-    const countClass = sec.danger ? 'task-section-count overdue' : 'task-section-count';
-    hdr.innerHTML = `<span class="task-section-title">${sec.emoji} ${sec.label}<span class="${countClass}">${sec.tasks.length}</span></span><span class="material-symbols-outlined task-section-chevron${open ? '' : ' collapsed'}">expand_more</span>`;
+// ─── Natural Language Date Parser ───────────────────────────────────────────
+function parseNLPDate(text) {
+  const now = new Date();
+  const todayD = new Date(now); todayD.setHours(0,0,0,0);
+  let work = ' ' + text.toLowerCase() + ' '; // pad for word-boundary matching
+  let date = null, hasTime = false, hours = null, minutes = 0;
+  const removed = [];
 
-    // Body
-    const body = document.createElement('div');
-    body.className = 'task-section-body' + (open ? '' : ' collapsed');
-    body.style.maxHeight = open ? `${sec.tasks.length * 80}px` : '0';
+  const strip = (pattern) => {
+    work = work.replace(pattern, (m) => { removed.push(m.trim()); return ' '; });
+  };
 
-    hdr.addEventListener('click', () => {
-      SECTION_STATE[sec.key] = !SECTION_STATE[sec.key];
-      const isOpen = SECTION_STATE[sec.key];
-      body.classList.toggle('collapsed', !isOpen);
-      body.style.maxHeight = isOpen ? `${sec.tasks.length * 80}px` : '0';
-      hdr.querySelector('.task-section-chevron').classList.toggle('collapsed', !isOpen);
+  // ── Time: "at 8", "at 8pm", "at 8:30", "at 8:30am", "3pm", "8:30am" ──
+  const timeRx = /\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b|\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i;
+  const tm = work.match(timeRx);
+  if (tm) {
+    const h = parseInt(tm[1] || tm[4]);
+    const m = parseInt(tm[2] || tm[5] || '0');
+    const ap = (tm[3] || tm[6] || '').toLowerCase();
+    hours = h; minutes = m;
+    if (ap === 'pm' && h < 12) hours = h + 12;
+    else if (ap === 'am' && h === 12) hours = 0;
+    else if (!ap && h < 12) {
+      // Smart: if we're already past this hour in AM, assume PM
+      const nowH = now.getHours();
+      if (nowH >= 12 || nowH >= h) hours = h + 12;
+    }
+    hasTime = true;
+    strip(timeRx);
+  }
+
+  // ── Relative: "today", "tomorrow", "this week", "next week/month" ──
+  if (/\btoday\b/.test(work))          { date = new Date(todayD); strip(/\btoday\b/); }
+  else if (/\btomorrow\b/.test(work))  { date = addDays(todayD, 1); strip(/\btomorrow\b/); }
+  else if (/\bnext\s+week\b/.test(work))  { date = addDays(todayD, 7); strip(/\bnext\s+week\b/); }
+  else if (/\bnext\s+month\b/.test(work)) { date = new Date(todayD); date.setMonth(date.getMonth()+1); strip(/\bnext\s+month\b/); }
+  else if (/\bthis\s+week\b/.test(work))  { date = addDays(todayD, 7); strip(/\bthis\s+week\b/); }
+
+  // ── Relative: "in N days/weeks/months" ──
+  if (!date) {
+    const rx = /\bin\s+(\d+)\s+(days?|weeks?|months?)\b/;
+    const m = work.match(rx);
+    if (m) {
+      const n = parseInt(m[1]), u = m[2];
+      date = new Date(todayD);
+      if (u.startsWith('d')) date = addDays(date, n);
+      else if (u.startsWith('w')) date = addDays(date, n * 7);
+      else { date.setMonth(date.getMonth() + n); }
+      strip(rx);
+    }
+  }
+
+  // ── Day names: "fri", "friday", "next friday", "this friday" ──
+  if (!date) {
+    const dayRx = /\b(?:next\s+|this\s+)?(sun(?:day)?|mon(?:day)?|tues?(?:day)?|wed(?:nesday)?|thu(?:rs?(?:day)?)?|fri(?:day)?|sat(?:urday)?)\b/;
+    const dm = work.match(dayRx);
+    if (dm) {
+      const short = { sun:0, mon:1, tue:2, wed:3, thu:4, fri:5, sat:6 };
+      const key = Object.keys(short).find(k => dm[1].startsWith(k));
+      if (key !== undefined) {
+        const target = short[key];
+        let diff = target - todayD.getDay();
+        if (diff <= 0) diff += 7;
+        date = addDays(todayD, diff);
+        strip(dayRx);
+      }
+    }
+  }
+
+  // ── Month + day: "jan 15", "december 25", "apr 3rd" ──
+  if (!date) {
+    const months = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+    const rx = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/;
+    const mm = work.match(rx);
+    if (mm) {
+      const key = Object.keys(months).find(k => mm[1].startsWith(k));
+      if (key !== undefined) {
+        date = new Date(todayD.getFullYear(), months[key], parseInt(mm[2]));
+        if (date < todayD) date.setFullYear(date.getFullYear() + 1);
+        strip(rx);
+      }
+    }
+  }
+
+  // ── If only time given, use today (or tomorrow if past) ──
+  if (!date && hasTime && hours !== null) {
+    date = new Date(todayD);
+    const test = new Date(todayD); test.setHours(hours, minutes, 0, 0);
+    if (test <= now) date = addDays(todayD, 1);
+  }
+
+  if (!date) return null;
+
+  // Apply time to date
+  if (hasTime && hours !== null) {
+    date = new Date(date);
+    date.setHours(hours, minutes, 0, 0);
+  }
+
+  const cleanTitle = work.replace(/\s+/g,' ').trim();
+  return { date, hasTime, matchedText: removed.join(' '), cleanTitle };
+}
+
+function formatNLPPreview(date, hasTime) {
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const diff = Math.round((d - todayD) / 86400000);
+  let datePart = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+  if (hasTime) {
+    const h = date.getHours(), m = date.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    datePart += ` · ${h12}${m ? ':' + String(m).padStart(2,'0') : ''} ${ampm}`;
+  }
+  return datePart;
+}
+
+function renderQuickAdd(container) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'padding:4px 2px 8px;';
+
+  if (quickAddActive) {
+    const box = document.createElement('div');
+    box.style.cssText = 'border-radius:10px;background:var(--surface-low);border:1px solid var(--primary);overflow:hidden;';
+
+    const inputWrap = document.createElement('div');
+    inputWrap.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 10px;';
+    const dot = document.createElement('div');
+    dot.style.cssText = 'width:16px;height:16px;border:2px solid var(--outline-variant);border-radius:50%;flex-shrink:0;';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Task name… try "call dentist fri 3pm"';
+    input.style.cssText = 'border:none;outline:none;background:transparent;font-size:13px;font-family:inherit;flex:1;color:var(--on-surface);min-width:0;';
+
+    inputWrap.appendChild(dot);
+    inputWrap.appendChild(input);
+    box.appendChild(inputWrap);
+
+    // NLP date preview chip
+    const chipRow = document.createElement('div');
+    chipRow.style.cssText = 'padding:0 10px 8px;display:none;';
+    const chip = document.createElement('div');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:var(--primary-light);color:var(--primary);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;';
+    chipRow.appendChild(chip);
+    box.appendChild(chipRow);
+    wrap.appendChild(box);
+
+    let parsedResult = null;
+
+    input.addEventListener('input', () => {
+      parsedResult = parseNLPDate(input.value);
+      if (parsedResult) {
+        chip.innerHTML = `<span class="material-symbols-outlined" style="font-size:13px;">calendar_today</span>${formatNLPPreview(parsedResult.date, parsedResult.hasTime)}`;
+        chipRow.style.display = 'block';
+      } else {
+        chipRow.style.display = 'none';
+      }
     });
 
-    sec.tasks.forEach(task => body.appendChild(buildTaskItem(task)));
-    wrap.appendChild(hdr);
-    wrap.appendChild(body);
-    list.appendChild(wrap);
-  });
+    const addTask = () => {
+      let title = input.value.trim();
+      if (!title) return;
+      let dueDate = null, dueTime = null;
+      if (parsedResult) {
+        title = parsedResult.cleanTitle || title;
+        dueDate = new Date(parsedResult.date);
+        dueDate.setHours(0, 0, 0, 0);
+        if (parsedResult.hasTime) {
+          const h = parsedResult.date.getHours(), m = parsedResult.date.getMinutes();
+          dueTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+        }
+      }
+      if (!title) title = input.value.trim(); // fallback if clean title is empty
+      STATE.tasks.push({ id: uid(), title, completed: false, priority: 'medium',
+        dueDate, dueTime, description: '', tags: [], subtasks: [],
+        notification: 'none', recurring: 'none' });
+      saveState();
+      parsedResult = null;
+      renderTasks();
+      requestAnimationFrame(() => {
+        const newInput = document.querySelector('#tasks-list input[placeholder^="Task name"]');
+        if (newInput) newInput.focus();
+      });
+    };
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); addTask(); }
+      if (e.key === 'Escape') { quickAddActive = false; renderTasks(); }
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => { if (quickAddActive) { quickAddActive = false; renderTasks(); } }, 200);
+    });
+
+    container.appendChild(wrap);
+    setTimeout(() => input.focus(), 0);
+  } else {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'width:100%;display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;font-size:13px;font-family:inherit;color:var(--on-surface-variant);background:none;border:1px dashed var(--surface-container);cursor:pointer;transition:background 0.1s;';
+    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">add</span> Add task';
+    btn.addEventListener('mouseenter', () => btn.style.background = 'var(--surface-low)');
+    btn.addEventListener('mouseleave', () => btn.style.background = 'none');
+    btn.addEventListener('click', () => { quickAddActive = true; expandedTaskId = null; renderTasks(); });
+    wrap.appendChild(btn);
+    container.appendChild(wrap);
+  }
 }
 
 function buildTaskItem(task) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'task-item-wrapper';
+
   const item = document.createElement('div');
-  item.className = 'task-item';
+  item.className = 'task-item' + (task.id === expandedTaskId ? ' task-expanded' : '');
   item.setAttribute('draggable', 'true');
   item.dataset.taskId = task.id;
 
@@ -1658,8 +1894,110 @@ function buildTaskItem(task) {
     setTimeout(() => ghost.remove(), 0);
   });
 
-  item.addEventListener('click', () => openTaskModal(task.id));
-  return item;
+  item.addEventListener('click', e => {
+    if (e.target.closest('.task-checkbox') || e.target.closest('.task-delete')) return;
+    expandedTaskId = expandedTaskId === task.id ? null : task.id;
+    renderTasks();
+  });
+
+  wrapper.appendChild(item);
+
+  if (task.id === expandedTaskId) {
+    wrapper.appendChild(buildInlineDetail(task));
+  }
+
+  return wrapper;
+}
+
+function buildInlineDetail(task) {
+  const d = document.createElement('div');
+  d.className = 'task-inline-detail';
+
+  // Title
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'task-inline-input';
+  titleInput.value = task.title;
+  titleInput.placeholder = 'Task title';
+  d.appendChild(titleInput);
+
+  // Due date + time
+  const dateRow = document.createElement('div');
+  dateRow.className = 'task-inline-row';
+  const dateInput = document.createElement('input');
+  dateInput.type = 'date'; dateInput.className = 'task-inline-input';
+  dateInput.value = task.dueDate ? formatDateInput(task.dueDate) : '';
+  const timeInput = document.createElement('input');
+  timeInput.type = 'time'; timeInput.className = 'task-inline-input';
+  timeInput.value = task.dueTime || '';
+  dateRow.appendChild(dateInput); dateRow.appendChild(timeInput);
+  d.appendChild(dateRow);
+
+  // Priority
+  const prioritySelect = document.createElement('select');
+  prioritySelect.className = 'task-inline-input';
+  ['low', 'medium', 'high'].forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p.charAt(0).toUpperCase() + p.slice(1);
+    if (task.priority === p) opt.selected = true;
+    prioritySelect.appendChild(opt);
+  });
+  d.appendChild(prioritySelect);
+
+  // Description
+  const descInput = document.createElement('textarea');
+  descInput.className = 'task-inline-input';
+  descInput.value = task.description || '';
+  descInput.placeholder = 'Add description…';
+  d.appendChild(descInput);
+
+  // Actions
+  const actions = document.createElement('div');
+  actions.className = 'task-inline-actions';
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'btn btn-danger';
+  deleteBtn.style.cssText = 'height:28px;font-size:12px;padding:0 10px;';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.addEventListener('click', e => { e.stopPropagation(); expandedTaskId = null; deleteTask(task.id); });
+
+  const spacer = document.createElement('div');
+  spacer.className = 'spacer';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-secondary';
+  cancelBtn.style.cssText = 'height:28px;font-size:12px;padding:0 10px;';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', e => { e.stopPropagation(); expandedTaskId = null; renderTasks(); });
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary';
+  saveBtn.style.cssText = 'height:28px;font-size:12px;padding:0 10px;';
+  saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const t = STATE.tasks.find(t => t.id === task.id);
+    if (t) {
+      t.title = titleInput.value.trim() || t.title;
+      t.dueDate = dateInput.value ? new Date(dateInput.value + 'T00:00:00') : null;
+      t.dueTime = timeInput.value || null;
+      t.priority = prioritySelect.value;
+      t.description = descInput.value.trim();
+      saveState();
+    }
+    expandedTaskId = null;
+    renderTasks();
+  });
+
+  actions.appendChild(deleteBtn);
+  actions.appendChild(spacer);
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+  d.appendChild(actions);
+
+  // Stop click propagation so clicking inside detail doesn't toggle collapse
+  d.addEventListener('click', e => e.stopPropagation());
+  return d;
 }
 
 function toggleTaskComplete(id) {
@@ -1829,6 +2167,7 @@ function deleteEvent(id) {
 // ─────────────────────────────────────────────
 let editingTaskId = null;
 let currentTags = [];
+let expandedTaskId = null;
 let currentSubtasks = [];
 
 function openTaskModal(id) {
@@ -2062,14 +2401,14 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') return;
   if (document.querySelector('.modal-backdrop.visible')) return;
   switch(e.key) {
-    case 'm': STATE.view = 'month'; saveState(); render(); break;
-    case 'w': STATE.view = 'week'; STATE.nDays = 7; saveState(); render(); break;
-    case 'd': STATE.view = 'day'; saveState(); render(); break;
+    case 'm': case 'M': STATE.view = 'month'; saveState(); render(); break;
+    case 'w': case 'W': STATE.view = 'week'; STATE.nDays = 7; saveState(); render(); break;
+    case 'd': case 'D': STATE.view = 'day'; saveState(); render(); break;
+    case 't': case 'T': goToday(); break;
     case 'ArrowLeft': navigate(-1); break;
     case 'ArrowRight': navigate(1); break;
-    case 't': goToday(); break;
     default:
-      if (e.key >= '1' && e.key <= '9') {
+      if (e.key >= '1' && e.key <= '7') {
         STATE.view = 'nday'; STATE.nDays = parseInt(e.key);
         saveState(); render();
       }
@@ -2114,6 +2453,14 @@ document.getElementById('mini-next').addEventListener('click', () => {
 document.getElementById('create-event-btn').addEventListener('click', () => openEventModal(null));
 document.getElementById('create-task-btn').addEventListener('click', () => openTaskModal(null));
 document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal(null));
+
+// Panel collapse
+document.getElementById('panel-collapse-btn').addEventListener('click', () => {
+  const panel = document.getElementById('right-panel');
+  const icon = document.getElementById('panel-collapse-icon');
+  const collapsed = panel.classList.toggle('panel-collapsed');
+  icon.textContent = collapsed ? 'checklist' : 'chevron_right';
+});
 
 // Event modal listeners
 document.getElementById('event-modal-close').addEventListener('click', closeEventModal);
