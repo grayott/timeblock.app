@@ -859,7 +859,7 @@
 
 <!-- Event Modal -->
 <div class="modal-backdrop" id="event-modal-backdrop">
-  <div class="modal" id="event-modal" role="dialog" aria-modal="true">
+  <div class="modal" id="event-modal" role="dialog" aria-modal="true" style="width:620px;">
     <div class="modal-header modal-drag-handle">
       <span class="modal-title" id="event-modal-title">New Event</span>
       <button class="icon-btn" id="event-modal-close"><span class="material-symbols-outlined">close</span></button>
@@ -909,15 +909,16 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Notification</label>
-          <select class="form-input" id="ev-notification">
-            <option value="none">None</option>
-            <option value="5">5 min before</option>
-            <option value="10">10 min before</option>
-            <option value="15">15 min before</option>
-            <option value="30">30 min before</option>
-            <option value="60">1 hr before</option>
-            <option value="120">2 hr before</option>
-          </select>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" class="form-input" id="ev-notif-num" min="1" placeholder="None" style="width:80px;flex-shrink:0;">
+            <select class="form-input" id="ev-notif-unit" style="flex:1;">
+              <option value="minutes">minutes</option>
+              <option value="hours">hours</option>
+              <option value="days">days</option>
+              <option value="weeks">weeks</option>
+            </select>
+            <span style="font-size:13px;color:var(--on-surface-variant);white-space:nowrap;">before</span>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Repeat</label>
@@ -1045,15 +1046,16 @@
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Notification</label>
-          <select class="form-input" id="task-notification">
-            <option value="none">None</option>
-            <option value="5">5 min before</option>
-            <option value="10">10 min before</option>
-            <option value="15">15 min before</option>
-            <option value="30">30 min before</option>
-            <option value="60">1 hr before</option>
-            <option value="120">2 hr before</option>
-          </select>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" class="form-input" id="task-notif-num" min="1" placeholder="None" style="width:80px;flex-shrink:0;">
+            <select class="form-input" id="task-notif-unit" style="flex:1;">
+              <option value="minutes">minutes</option>
+              <option value="hours">hours</option>
+              <option value="days">days</option>
+              <option value="weeks">weeks</option>
+            </select>
+            <span style="font-size:13px;color:var(--on-surface-variant);white-space:nowrap;">before</span>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Repeat</label>
@@ -1103,6 +1105,30 @@ function formatTime(d) {
   h = h % 12 || 12;
   return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
 }
+// Notification helpers: store as minutes string, display as num+unit
+function notifToMinutes(num, unit) {
+  const n = parseInt(num);
+  if (!n || n <= 0) return 'none';
+  const m = { minutes: 1, hours: 60, days: 1440, weeks: 10080 };
+  return String(n * (m[unit] || 1));
+}
+function minutesToNotif(val) {
+  if (!val || val === 'none') return { num: '', unit: 'minutes' };
+  const mins = parseInt(val);
+  if (mins % 10080 === 0) return { num: mins/10080, unit: 'weeks' };
+  if (mins % 1440 === 0) return { num: mins/1440, unit: 'days' };
+  if (mins % 60 === 0 && mins >= 60) return { num: mins/60, unit: 'hours' };
+  return { num: mins, unit: 'minutes' };
+}
+function setNotifFields(numId, unitId, val) {
+  const { num, unit } = minutesToNotif(val);
+  document.getElementById(numId).value = num;
+  document.getElementById(unitId).value = unit;
+}
+function getNotifValue(numId, unitId) {
+  return notifToMinutes(document.getElementById(numId).value, document.getElementById(unitId).value);
+}
+
 function formatDatetimeLocal(d) {
   const pad = n => String(n).padStart(2,'0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -2185,7 +2211,7 @@ function openEventModal(id, prefillStart, prefillEnd) {
   document.getElementById('ev-title').value = ev ? ev.title : '';
   document.getElementById('ev-location').value = ev ? ev.location||'' : '';
   document.getElementById('ev-description').value = ev ? ev.description||'' : '';
-  document.getElementById('ev-notification').value = ev ? ev.notification||'none' : 'none';
+  setNotifFields('ev-notif-num', 'ev-notif-unit', ev ? ev.notification||'none' : 'none');
   document.getElementById('ev-recurring').value = ev ? ev.recurring||'none' : 'none';
 
   const isAllDay = ev ? ev.allDay : false;
@@ -2254,7 +2280,7 @@ function saveEvent() {
   }
 
   const color = document.getElementById('ev-color-picker').querySelector('.selected')?.dataset.color || EVENT_COLORS[0];
-  const notification = document.getElementById('ev-notification').value;
+  const notification = getNotifValue('ev-notif-num', 'ev-notif-unit');
   const recurring = document.getElementById('ev-recurring').value;
   const location = document.getElementById('ev-location').value.trim();
   const description = document.getElementById('ev-description').value.trim();
@@ -2292,7 +2318,7 @@ function openTaskModal(id) {
   document.getElementById('task-due-date').value = task && task.dueDate ? formatDateInput(task.dueDate) : '';
   document.getElementById('task-due-time').value = task ? task.dueTime||'' : '';
   document.getElementById('task-description').value = task ? task.description||'' : '';
-  document.getElementById('task-notification').value = task ? task.notification||'none' : 'none';
+  setNotifFields('task-notif-num', 'task-notif-unit', task ? task.notification||'none' : 'none');
   document.getElementById('task-recurring').value = task ? task.recurring||'none' : 'none';
   document.getElementById('task-priority').value = task ? task.priority||'medium' : 'medium';
   document.getElementById('task-delete-btn').style.display = task ? 'block' : 'none';
@@ -2362,7 +2388,7 @@ function saveTask() {
   const dueDate = dateVal ? new Date(dateVal + 'T00:00:00') : null;
   const dueTime = document.getElementById('task-due-time').value;
   const description = document.getElementById('task-description').value.trim();
-  const notification = document.getElementById('task-notification').value;
+  const notification = getNotifValue('task-notif-num', 'task-notif-unit');
   const recurring = document.getElementById('task-recurring').value;
   const priority = document.getElementById('task-priority').value;
   const tags = [...currentTags];
@@ -2422,7 +2448,6 @@ function initDragCreate() {
     let en = Math.max(dragState.startMin, dragState.currentMin) + SNAP;
     if (en - s < 15) en = s + 15;
 
-    overlay.style.display = 'none';
     tooltip.style.display = 'none';
 
     if (en - s >= 15) {
@@ -2431,6 +2456,9 @@ function initDragCreate() {
       const start = new Date(yr, mo-1, dy, Math.floor(s/60), s%60, 0, 0);
       const end = new Date(yr, mo-1, dy, Math.floor(en/60), en%60, 0, 0);
       openQuickEventPopover(start, end, e.clientX, e.clientY);
+      // Keep overlay visible until popover is dismissed
+    } else {
+      overlay.style.display = 'none';
     }
     dragState = null;
   });
@@ -2634,6 +2662,9 @@ function closeQuickEventPopover() {
   pop.classList.remove('visible');
   document.getElementById('qep-backdrop').classList.remove('visible');
   setTimeout(() => { pop.style.display = 'none'; }, 150);
+  // Hide the drag selection overlay now that we're done
+  const overlay = document.getElementById('drag-overlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 function qepGetValues() {
