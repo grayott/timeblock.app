@@ -503,10 +503,11 @@
     box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200; overflow: hidden; display: none;
   }
   .brain-dump-suggestion {
-    padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: flex-start; gap: 8px;
   }
   .brain-dump-suggestion:hover, .brain-dump-suggestion.active { background: var(--surface-low); }
   .brain-dump-suggestion .suggestion-label { flex: 1; }
+  .brain-dump-create-option { border-top: 1px solid var(--surface-container); color: var(--primary); }
   .brain-dump-item {
     display: flex; align-items: center; gap: 8px; padding: 6px 8px;
     border-radius: 8px; margin-bottom: 2px; transition: background 0.1s;
@@ -776,7 +777,7 @@
       <div style="padding:8px 4px 4px;border-top:1px solid var(--surface-container);margin-top:4px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">🧠 Brain Dump</div>
         <div class="brain-dump-input-wrap">
-          <input type="text" class="brain-dump-input" id="brain-dump-input" placeholder="Capture a thought… press Enter">
+          <input type="text" class="brain-dump-input" id="brain-dump-input" placeholder="Search tasks or create new…">
           <div class="brain-dump-suggestions" id="brain-dump-suggestions"></div>
         </div>
         <div id="brain-dump-list" style="margin-top:6px;"></div>
@@ -3145,21 +3146,80 @@ function initBrainDump() {
   if (!input) return;
   let activeIdx = -1;
 
+  function highlightMatch(title, query) {
+    const idx = title.toLowerCase().indexOf(query.toLowerCase());
+    if (idx < 0) return title;
+    return title.slice(0, idx) + '<strong>' + title.slice(idx, idx + query.length) + '</strong>' + title.slice(idx + query.length);
+  }
+
+  function taskMeta(task) {
+    const parts = [];
+    if (task.priority && task.priority !== 'low') {
+      const colors = { high: '#c62828', medium: '#d97706' };
+      parts.push(`<span style="color:${colors[task.priority] || 'inherit'};font-weight:600;">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span>`);
+    }
+    if (task.dueDate) {
+      const todayD = new Date(); todayD.setHours(0,0,0,0);
+      const due = new Date(task.dueDate); due.setHours(0,0,0,0);
+      const diff = Math.round((due - todayD) / 86400000);
+      const txt = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff < 0 ? `${-diff}d overdue` : `${MONTHS[due.getMonth()].slice(0,3)} ${due.getDate()}`;
+      parts.push(`<span style="color:${diff < 0 ? '#c62828' : diff === 0 ? '#d97706' : 'inherit'};">${txt}</span>`);
+    }
+    return parts.length ? parts.join(' · ') : '';
+  }
+
   function showSuggestions(query) {
     const q = query.toLowerCase().trim();
-    if (!q) { suggestionsEl.style.display = 'none'; return; }
-    const matches = STATE.tasks.filter(t => !t.completed && t.title.toLowerCase().includes(q)).slice(0, 5);
-    if (!matches.length) { suggestionsEl.style.display = 'none'; return; }
+    if (!q) { suggestionsEl.style.display = 'none'; activeIdx = -1; return; }
+
+    // Filter: incomplete, not already in brain dump, matches query
+    const po = { high: 0, medium: 1, low: 2 };
+    const matches = STATE.tasks
+      .filter(t => !t.completed && !STATE.brainDump.includes(t.id) && t.title.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const aP = a.title.toLowerCase().startsWith(q) ? 0 : 1;
+        const bP = b.title.toLowerCase().startsWith(q) ? 0 : 1;
+        if (aP !== bP) return aP - bP;
+        return (po[a.priority] || 2) - (po[b.priority] || 2);
+      })
+      .slice(0, 8);
+
     suggestionsEl.innerHTML = '';
-    matches.forEach((task, i) => {
+
+    // Show matching existing tasks
+    matches.forEach((task) => {
       const item = document.createElement('div');
       item.className = 'brain-dump-suggestion';
-      item.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">task_alt</span><span class="suggestion-label">${task.title}</span>`;
+      item.dataset.taskId = task.id;
+      const meta = taskMeta(task);
+      item.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">task_alt</span><div style="flex:1;min-width:0;"><div class="suggestion-label">${highlightMatch(task.title, q)}</div>${meta ? `<div style="font-size:11px;color:var(--on-surface-variant);margin-top:1px;">${meta}</div>` : ''}</div>`;
       item.addEventListener('mousedown', e => { e.preventDefault(); addToBrainDump(task.id); input.value = ''; suggestionsEl.style.display = 'none'; });
       suggestionsEl.appendChild(item);
     });
-    suggestionsEl.style.display = 'block';
-    activeIdx = -1;
+
+    // "Create new task" option at the bottom if no exact match exists
+    const exactMatch = matches.find(t => t.title.toLowerCase() === q);
+    if (!exactMatch && q.length > 0) {
+      const createItem = document.createElement('div');
+      createItem.className = 'brain-dump-suggestion brain-dump-create-option';
+      createItem.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--primary);">add_circle</span><div style="flex:1;min-width:0;"><span class="suggestion-label">Create "<strong>${q}</strong>"</span><span style="font-size:11px;color:var(--on-surface-variant);margin-left:6px;">(new task)</span></div>`;
+      createItem.addEventListener('mousedown', e => {
+        e.preventDefault();
+        createAndAddTask(query.trim());
+        input.value = ''; suggestionsEl.style.display = 'none';
+      });
+      suggestionsEl.appendChild(createItem);
+    }
+
+    if (suggestionsEl.children.length > 0) {
+      suggestionsEl.style.display = 'block';
+      // Auto-highlight first suggestion
+      activeIdx = 0;
+      suggestionsEl.children[0].classList.add('active');
+    } else {
+      suggestionsEl.style.display = 'none';
+      activeIdx = -1;
+    }
   }
 
   function addToBrainDump(taskId) {
@@ -3169,33 +3229,43 @@ function initBrainDump() {
     }
   }
 
+  function createAndAddTask(title) {
+    const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+    const newTask = { id: uid(), title, completed: false, priority: 'medium', dueDate: todayDate, dueTime: '', description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
+    STATE.tasks.push(newTask);
+    addToBrainDump(newTask.id);
+    renderTasks();
+  }
+
   input.addEventListener('input', () => showSuggestions(input.value));
   input.addEventListener('keydown', e => {
     const items = suggestionsEl.querySelectorAll('.brain-dump-suggestion');
-    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx+1, items.length-1); items.forEach((el,i) => el.classList.toggle('active', i===activeIdx)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx-1, -1); items.forEach((el,i) => el.classList.toggle('active', i===activeIdx)); }
-    else if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+      items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const title = input.value.trim();
+      if (!title) return;
       if (activeIdx >= 0 && items[activeIdx]) {
+        // Select the highlighted suggestion (existing task or "create new")
         items[activeIdx].dispatchEvent(new MouseEvent('mousedown'));
+      } else if (items.length > 0) {
+        // If there are suggestions but none highlighted, pick the first
+        items[0].dispatchEvent(new MouseEvent('mousedown'));
       } else {
-        const title = input.value.trim();
-        if (!title) return;
-        // Check for exact match
-        const existing = STATE.tasks.find(t => t.title.toLowerCase() === title.toLowerCase() && !t.completed);
-        if (existing) { addToBrainDump(existing.id); }
-        else {
-          const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-          const newTask = { id: uid(), title, completed: false, priority: 'medium', dueDate: todayDate, dueTime: '', description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
-          STATE.tasks.push(newTask);
-          addToBrainDump(newTask.id);
-          renderTasks();
-        }
+        // No suggestions at all — create new task
+        createAndAddTask(title);
         input.value = ''; suggestionsEl.style.display = 'none';
       }
-    } else if (e.key === 'Escape') { suggestionsEl.style.display = 'none'; }
+    } else if (e.key === 'Escape') { suggestionsEl.style.display = 'none'; activeIdx = -1; }
   });
-  document.addEventListener('click', e => { if (!input.contains(e.target)) suggestionsEl.style.display = 'none'; });
+  document.addEventListener('click', e => { if (!input.contains(e.target) && !suggestionsEl.contains(e.target)) suggestionsEl.style.display = 'none'; });
 }
 
 // Panel tabs
