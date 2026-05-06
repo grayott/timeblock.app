@@ -218,6 +218,65 @@
   /* Calendar Area */
   #cal-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
 
+  /* Full-page Tasks View */
+  #tasks-fullpage {
+    display: none; flex: 1; overflow-y: auto; padding: 32px 0;
+    background: var(--surface);
+  }
+  #tasks-fullpage.active { display: flex; }
+  .tasks-fp-container {
+    width: 100%; max-width: 720px; margin: 0 auto; padding: 0 24px;
+  }
+  .tasks-fp-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+  }
+  .tasks-fp-title {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 22px;
+  }
+  .tasks-fp-tabs {
+    display: flex; gap: 2px; background: var(--surface-low); border-radius: 10px; padding: 3px;
+  }
+  .tasks-fp-tab {
+    height: 30px; padding: 0 16px; border-radius: 7px; border: none; background: none;
+    font-size: 13px; font-weight: 500; cursor: pointer; color: var(--on-surface-variant);
+    transition: all 0.15s;
+  }
+  .tasks-fp-tab.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .tasks-fp-section {
+    background: white; border-radius: 14px; border: 1px solid var(--surface-container);
+    padding: 4px 0; margin-bottom: 16px;
+  }
+  .tasks-fp-section .task-item { padding: 12px 16px; }
+  .tasks-fp-section .task-title { font-size: 14px; }
+  .tasks-fp-section .task-meta { font-size: 12px; }
+  .tasks-fp-section .task-inline-detail { margin: 0 8px 8px; border-radius: 0 0 10px 10px; }
+  .tasks-fp-section .task-item.task-expanded { margin-left: 8px; margin-right: 8px; border-radius: 10px 10px 0 0; }
+  .tasks-fp-focus { display: none; }
+  .tasks-fp-focus.active { display: block; }
+  .tasks-fp-all { display: none; }
+  .tasks-fp-all.active { display: block; }
+  .tasks-fp-focus-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--on-surface-variant); margin-bottom: 10px; padding-left: 4px;
+  }
+  .tasks-fp-brain-dump-wrap {
+    background: white; border-radius: 14px; border: 1px solid var(--surface-container);
+    padding: 12px 16px; margin-bottom: 16px;
+  }
+  .tasks-fp-brain-dump-wrap .brain-dump-input-wrap { margin-bottom: 8px; }
+  .tasks-fp-brain-dump-wrap .brain-dump-input { font-size: 14px; height: 38px; }
+  .tasks-fp-stats {
+    display: flex; gap: 16px; margin-bottom: 20px;
+  }
+  .tasks-fp-stat {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--on-surface-variant);
+  }
+  .tasks-fp-stat-num {
+    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 18px;
+    color: var(--on-surface);
+  }
+
   /* Month View */
   #month-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .month-day-labels {
@@ -748,6 +807,41 @@
         </div>
       </div>
     </div>
+    <!-- Full-page Tasks View -->
+    <div id="tasks-fullpage">
+      <div class="tasks-fp-container">
+        <div class="tasks-fp-header">
+          <h2 class="tasks-fp-title heading">Tasks</h2>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="tasks-fp-tabs">
+              <button class="tasks-fp-tab active" data-fptab="all">All Tasks</button>
+              <button class="tasks-fp-tab" data-fptab="focus">Focus</button>
+            </div>
+            <button class="icon-btn" id="tasks-fp-collapse-btn" title="Back to calendar" style="flex-shrink:0;">
+              <span class="material-symbols-outlined" style="font-size:20px;">close_fullscreen</span>
+            </button>
+          </div>
+        </div>
+        <div id="tasks-fp-stats" class="tasks-fp-stats"></div>
+        <!-- All Tasks tab -->
+        <div class="tasks-fp-all active" id="tasks-fp-all-content">
+          <div class="tasks-fp-section" id="tasks-fp-list"></div>
+        </div>
+        <!-- Focus tab -->
+        <div class="tasks-fp-focus" id="tasks-fp-focus-content">
+          <div class="tasks-fp-focus-label">⭐ Top Three</div>
+          <div class="tasks-fp-section" id="tasks-fp-top-three"></div>
+          <div class="tasks-fp-focus-label" style="margin-top:16px;">🧠 Brain Dump</div>
+          <div class="tasks-fp-brain-dump-wrap">
+            <div class="brain-dump-input-wrap">
+              <input type="text" class="brain-dump-input" id="fp-brain-dump-input" placeholder="Search tasks or create new…">
+              <div class="brain-dump-suggestions" id="fp-brain-dump-suggestions"></div>
+            </div>
+            <div id="fp-brain-dump-list" style="margin-top:6px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Right Task Panel -->
@@ -757,6 +851,7 @@
       <div style="display:flex;gap:4px;" class="panel-hide">
         <button class="icon-btn" id="add-task-btn" title="Add task"><span class="material-symbols-outlined" style="font-size:20px;">add</span></button>
       </div>
+      <button class="icon-btn panel-hide" id="panel-expand-btn" title="Full page tasks"><span class="material-symbols-outlined" style="font-size:20px;">open_in_full</span></button>
       <button class="icon-btn" id="panel-collapse-btn" title="Toggle tasks panel"><span class="material-symbols-outlined" style="font-size:20px;" id="panel-collapse-icon">chevron_right</span></button>
     </div>
     <!-- Tabs -->
@@ -1264,6 +1359,7 @@ function getViewDays() {
 }
 
 function navigate(dir) {
+  if (STATE.view === 'tasks') return;
   const d = STATE.currentDate;
   if (STATE.view === 'month') STATE.currentDate = addMonths(d, dir);
   else if (STATE.view === 'day') STATE.currentDate = addDays(d, dir);
@@ -1279,6 +1375,7 @@ function goToday() {
 }
 
 function getNavTitle() {
+  if (STATE.view === 'tasks') return '';
   const d = STATE.currentDate;
   if (STATE.view === 'month') return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
   if (STATE.view === 'day') return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
@@ -1371,14 +1468,26 @@ function render() {
   renderTasks();
   renderViewButtons();
   renderCalendarList();
-  if (STATE.view === 'month') {
-    document.getElementById('month-view').style.display = 'flex';
-    document.getElementById('week-view').style.display = 'none';
-    renderMonth();
-  } else {
+  const rightPanel = document.getElementById('right-panel');
+  const tasksFullpage = document.getElementById('tasks-fullpage');
+  if (STATE.view === 'tasks') {
     document.getElementById('month-view').style.display = 'none';
-    document.getElementById('week-view').style.display = 'flex';
-    renderWeekDay();
+    document.getElementById('week-view').style.display = 'none';
+    tasksFullpage.classList.add('active');
+    rightPanel.style.display = 'none';
+    renderTasksFullPage();
+  } else {
+    tasksFullpage.classList.remove('active');
+    rightPanel.style.display = '';
+    if (STATE.view === 'month') {
+      document.getElementById('month-view').style.display = 'flex';
+      document.getElementById('week-view').style.display = 'none';
+      renderMonth();
+    } else {
+      document.getElementById('month-view').style.display = 'none';
+      document.getElementById('week-view').style.display = 'flex';
+      renderWeekDay();
+    }
   }
 }
 
@@ -1391,6 +1500,16 @@ function renderViewButtons() {
     const v = btn.dataset.view;
     btn.classList.toggle('active', v === STATE.view || (v === 'week' && STATE.view === 'nday'));
   });
+  const isTasksView = STATE.view === 'tasks';
+  // Hide/show nav controls that don't apply to tasks view
+  document.getElementById('prev-btn').parentElement.style.display = isTasksView ? 'none' : '';
+  document.getElementById('nav-title').style.display = isTasksView ? 'none' : '';
+  // Update expand button icon to reflect current state
+  const expandBtn = document.getElementById('panel-expand-btn');
+  if (expandBtn) {
+    expandBtn.querySelector('.material-symbols-outlined').textContent = isTasksView ? 'close_fullscreen' : 'open_in_full';
+    expandBtn.title = isTasksView ? 'Back to calendar' : 'Full page tasks';
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -2586,6 +2705,18 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   });
 });
 
+// Full-page tasks tab switching
+document.querySelectorAll('.tasks-fp-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tasks-fp-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.fptab;
+    document.getElementById('tasks-fp-all-content').classList.toggle('active', tab === 'all');
+    document.getElementById('tasks-fp-focus-content').classList.toggle('active', tab === 'focus');
+    if (tab === 'focus') renderTasksFullPageFocus();
+  });
+});
+
 document.getElementById('mini-prev').addEventListener('click', () => {
   STATE.miniCalDate = addMonths(STATE.miniCalDate, -1); renderMiniCal();
 });
@@ -2749,6 +2880,22 @@ document.getElementById('panel-collapse-btn').addEventListener('click', () => {
   const icon = document.getElementById('panel-collapse-icon');
   const collapsed = panel.classList.toggle('panel-collapsed');
   icon.textContent = collapsed ? 'checklist' : 'chevron_right';
+});
+
+let _prevView = 'week';
+document.getElementById('panel-expand-btn').addEventListener('click', () => {
+  if (STATE.view === 'tasks') {
+    STATE.view = _prevView;
+  } else {
+    _prevView = STATE.view;
+    STATE.view = 'tasks';
+  }
+  saveState(); render();
+});
+
+document.getElementById('tasks-fp-collapse-btn').addEventListener('click', () => {
+  STATE.view = _prevView;
+  saveState(); render();
 });
 
 // Event modal listeners
@@ -3048,6 +3195,409 @@ function closeEventPopover() {
   popover.classList.remove('visible');
   popover.style.display = 'none';
   popoverEventId = null;
+}
+
+// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// FULL-PAGE TASKS VIEW
+// ─────────────────────────────────────────────
+let fpExpandedTaskId = null;
+let fpQuickAddActive = false;
+let fpBrainDumpInitialized = false;
+
+function renderTasksFullPage() {
+  renderTasksFullPageStats();
+  renderTasksFullPageAll();
+  // Only render focus if focus tab is active
+  if (document.getElementById('tasks-fp-focus-content').classList.contains('active')) {
+    renderTasksFullPageFocus();
+  }
+}
+
+function renderTasksFullPageStats() {
+  const stats = document.getElementById('tasks-fp-stats');
+  const incomplete = STATE.tasks.filter(t => !t.completed).length;
+  const completed = STATE.tasks.filter(t => t.completed).length;
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  const overdue = STATE.tasks.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < todayD).length;
+  stats.innerHTML = `
+    <div class="tasks-fp-stat"><span class="tasks-fp-stat-num">${incomplete}</span> open</div>
+    <div class="tasks-fp-stat"><span class="tasks-fp-stat-num">${completed}</span> done</div>
+    ${overdue ? `<div class="tasks-fp-stat" style="color:#c62828;"><span class="tasks-fp-stat-num" style="color:#c62828;">${overdue}</span> overdue</div>` : ''}
+  `;
+}
+
+function renderTasksFullPageAll() {
+  const list = document.getElementById('tasks-fp-list');
+  list.innerHTML = '';
+
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  const incomplete = STATE.tasks.filter(t => !t.completed).sort((a, b) => {
+    const aDate = a.dueDate ? new Date(a.dueDate).setHours(0,0,0,0) : Infinity;
+    const bDate = b.dueDate ? new Date(b.dueDate).setHours(0,0,0,0) : Infinity;
+    if (aDate !== bDate) return aDate - bDate;
+    return (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
+  });
+  const completed = STATE.tasks.filter(t => t.completed);
+
+  if (STATE.tasks.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'text-align:center;padding:48px 16px;color:var(--on-surface-variant);font-size:14px;';
+    empty.innerHTML = '<span class="material-symbols-outlined" style="font-size:40px;display:block;margin-bottom:8px;opacity:0.4;">check_circle</span>No tasks yet. Add one below!';
+    list.appendChild(empty);
+  } else {
+    incomplete.forEach(task => list.appendChild(buildFpTaskItem(task)));
+    if (completed.length) {
+      const divider = document.createElement('div');
+      divider.style.cssText = 'border-top:1px solid var(--surface-container);margin:4px 16px;';
+      list.appendChild(divider);
+      completed.forEach(task => list.appendChild(buildFpTaskItem(task)));
+    }
+  }
+
+  // Quick add
+  renderFpQuickAdd(list);
+
+  if (fpExpandedTaskId) {
+    requestAnimationFrame(() => {
+      const detail = list.querySelector('.task-inline-detail');
+      if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+}
+
+function buildFpTaskItem(task) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'task-item-wrapper';
+  const el = document.createElement('div');
+  el.className = 'task-item' + (fpExpandedTaskId === task.id ? ' task-expanded' : '');
+  el.draggable = true;
+  el.dataset.taskId = task.id;
+
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  let meta = [];
+  if (task.dueDate) {
+    const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
+    const diff = Math.round((dd - todayD) / 86400000);
+    let label = dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (diff < 0 && !task.completed) label = `<span style="color:#c62828;">${Math.abs(diff)}d overdue</span>`;
+    else if (diff === 0) label = '<span style="color:var(--primary);">Today</span>';
+    else if (diff === 1) label = 'Tomorrow';
+    meta.push(label);
+    if (task.dueTime) meta.push(task.dueTime);
+  }
+  if (task.priority && task.priority !== 'low') {
+    const col = task.priority === 'high' ? '#c62828' : '#ef6c00';
+    meta.push(`<span style="color:${col};font-weight:600;">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span>`);
+  }
+
+  el.innerHTML = `
+    <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
+    <div class="task-content">
+      <div class="task-title ${task.completed?'done':''}">${task.title}</div>
+      ${meta.length ? `<div class="task-meta">${meta.join(' · ')}</div>` : ''}
+    </div>
+    <button class="icon-btn task-delete" style="width:24px;height:24px;" title="Delete">
+      <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
+    </button>
+  `;
+
+  el.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderTasksFullPage(); });
+  el.querySelector('.task-delete').addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); renderTasksFullPage(); });
+  el.addEventListener('click', () => {
+    fpExpandedTaskId = fpExpandedTaskId === task.id ? null : task.id;
+    renderTasksFullPageAll();
+  });
+
+  // Drag support
+  el.addEventListener('dragstart', e => {
+    e.dataTransfer.setData('text/plain', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+    el.style.opacity = '0.5';
+  });
+  el.addEventListener('dragend', () => el.style.opacity = '');
+
+  wrapper.appendChild(el);
+  if (fpExpandedTaskId === task.id) {
+    wrapper.appendChild(buildFpInlineDetail(task));
+  }
+  return wrapper;
+}
+
+function buildFpInlineDetail(task) {
+  // Reuse the same inline detail builder but wire saves to fp re-render
+  const detail = buildInlineDetail(task);
+  // Override save/cancel/delete to re-render full-page view
+  const saveBtn = detail.querySelector('.inline-save-btn') || detail.querySelectorAll('button')[0];
+  const cancelBtn = detail.querySelector('.inline-cancel-btn') || detail.querySelectorAll('button')[1];
+  if (cancelBtn) {
+    const newCancel = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+    newCancel.addEventListener('click', e => { e.stopPropagation(); fpExpandedTaskId = null; renderTasksFullPageAll(); });
+  }
+  if (saveBtn) {
+    const newSave = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newSave, saveBtn);
+    newSave.addEventListener('click', e => {
+      e.stopPropagation();
+      // Read form values
+      const titleInput = detail.querySelector('input[type="text"]');
+      const dateInput = detail.querySelector('input[type="date"]');
+      const timeInput = detail.querySelector('input[type="time"]');
+      const prioSelect = detail.querySelector('select');
+      const descArea = detail.querySelector('textarea');
+      if (titleInput) task.title = titleInput.value.trim() || task.title;
+      if (dateInput) task.dueDate = dateInput.value || null;
+      if (timeInput) task.dueTime = timeInput.value || null;
+      if (prioSelect) task.priority = prioSelect.value;
+      if (descArea) task.description = descArea.value;
+      fpExpandedTaskId = null;
+      saveState();
+      renderTasks();
+      renderTasksFullPage();
+    });
+  }
+  // Override delete
+  const deleteBtn = detail.querySelectorAll('button')[2];
+  if (deleteBtn && deleteBtn.textContent.includes('delete')) {
+    const newDel = deleteBtn.cloneNode(true);
+    deleteBtn.parentNode.replaceChild(newDel, deleteBtn);
+    newDel.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteTask(task.id);
+      fpExpandedTaskId = null;
+      renderTasksFullPage();
+    });
+  }
+  return detail;
+}
+
+function renderFpQuickAdd(container) {
+  if (fpQuickAddActive) {
+    const row = document.createElement('div');
+    row.className = 'task-item';
+    row.style.cssText = 'padding:8px 16px;';
+    row.innerHTML = `
+      <div class="task-checkbox" style="visibility:hidden;"></div>
+      <div class="task-content" style="display:flex;flex-direction:column;gap:4px;">
+        <input type="text" placeholder="Task name… (natural language dates supported)" style="border:none;outline:none;font-size:14px;font-weight:500;background:transparent;width:100%;font-family:Inter,sans-serif;">
+        <div class="nlp-chip-preview" style="font-size:11px;color:var(--primary);min-height:14px;"></div>
+      </div>
+    `;
+    container.appendChild(row);
+    const input = row.querySelector('input');
+    const chipPreview = row.querySelector('.nlp-chip-preview');
+    input.focus();
+    input.addEventListener('input', () => {
+      const parsed = parseNLPDate(input.value);
+      if (parsed.date) {
+        let chipText = parsed.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        if (parsed.hasTime) chipText += ' · ' + parsed.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        chipPreview.textContent = '📅 ' + chipText;
+      } else { chipPreview.textContent = ''; }
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && input.value.trim()) {
+        const parsed = parseNLPDate(input.value);
+        const title = parsed.date ? parsed.cleanTitle : input.value.trim();
+        if (!title) return;
+        const newTask = { id: uid(), title, completed: false, priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
+        if (parsed.date) {
+          newTask.dueDate = parsed.date.toISOString().split('T')[0];
+          if (parsed.hasTime) newTask.dueTime = parsed.date.toTimeString().slice(0, 5);
+        }
+        STATE.tasks.push(newTask);
+        saveState();
+        input.value = '';
+        chipPreview.textContent = '';
+        renderTasks();
+        renderTasksFullPage();
+        // Re-focus for next task
+        requestAnimationFrame(() => {
+          const newInput = document.querySelector('#tasks-fp-list input[placeholder^="Task name"]');
+          if (newInput) newInput.focus();
+        });
+      }
+      if (e.key === 'Escape') { fpQuickAddActive = false; renderTasksFullPageAll(); }
+    });
+    input.addEventListener('blur', () => {
+      setTimeout(() => { if (fpQuickAddActive && !input.value.trim()) { fpQuickAddActive = false; renderTasksFullPageAll(); } }, 200);
+    });
+  } else {
+    const addBtn = document.createElement('div');
+    addBtn.style.cssText = 'padding:10px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--on-surface-variant);font-size:13px;font-weight:500;border-radius:0 0 14px 14px;transition:background 0.15s;';
+    addBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--primary);">add</span> Add task';
+    addBtn.addEventListener('mouseenter', () => addBtn.style.background = 'var(--surface-low)');
+    addBtn.addEventListener('mouseleave', () => addBtn.style.background = '');
+    addBtn.addEventListener('click', () => { fpQuickAddActive = true; fpExpandedTaskId = null; renderTasksFullPageAll(); });
+    container.appendChild(addBtn);
+  }
+}
+
+function renderTasksFullPageFocus() {
+  // Top Three
+  const container = document.getElementById('tasks-fp-top-three');
+  if (!container) return;
+  container.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const tid = STATE.topThree[i];
+    const task = tid ? STATE.tasks.find(t => t.id === tid) : null;
+    const slot = document.createElement('div');
+    if (task) {
+      slot.className = 'task-item';
+      slot.style.cssText = 'padding:12px 16px;';
+      const todayD = new Date(); todayD.setHours(0,0,0,0);
+      let meta = [];
+      if (task.dueDate) {
+        const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
+        const diff = Math.round((dd - todayD) / 86400000);
+        let label = dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        if (diff < 0 && !task.completed) label = `<span style="color:#c62828;">${Math.abs(diff)}d overdue</span>`;
+        else if (diff === 0) label = '<span style="color:var(--primary);">Today</span>';
+        meta.push(label);
+      }
+      slot.innerHTML = `
+        <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
+        <div class="task-content">
+          <div class="task-title ${task.completed?'done':''}">${task.title}</div>
+          ${meta.length ? `<div class="task-meta">${meta.join(' · ')}</div>` : ''}
+        </div>
+        <button class="icon-btn" title="Remove" style="width:24px;height:24px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">close</span>
+        </button>
+      `;
+      slot.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderTasksFullPageFocus(); renderTasks(); });
+      slot.querySelector('.icon-btn').addEventListener('click', e => { e.stopPropagation(); STATE.topThree[i] = null; saveState(); renderTasksFullPageFocus(); });
+    } else {
+      slot.style.cssText = 'padding:12px 16px;display:flex;align-items:center;gap:8px;color:var(--outline-variant);font-size:13px;border:1px dashed var(--surface-container);border-radius:8px;margin:4px 8px;';
+      slot.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">star</span> Slot ${i+1} — drag a task here`;
+      // Drop zone
+      slot.addEventListener('dragover', e => { e.preventDefault(); slot.style.borderColor = 'var(--primary)'; slot.style.background = 'var(--primary-light)'; });
+      slot.addEventListener('dragleave', () => { slot.style.borderColor = ''; slot.style.background = ''; });
+      slot.addEventListener('drop', e => {
+        e.preventDefault();
+        const taskId = e.dataTransfer.getData('text/plain');
+        if (taskId && !STATE.topThree.includes(taskId)) {
+          STATE.topThree[i] = taskId;
+          saveState();
+          renderTasksFullPageFocus();
+          renderTopThree();
+        }
+        slot.style.borderColor = ''; slot.style.background = '';
+      });
+    }
+    container.appendChild(slot);
+  }
+
+  // Brain dump
+  renderFpBrainDump();
+}
+
+function renderFpBrainDump() {
+  const list = document.getElementById('fp-brain-dump-list');
+  if (!list) return;
+  list.innerHTML = '';
+  STATE.brainDump.forEach(tid => {
+    const task = STATE.tasks.find(t => t.id === tid);
+    if (!task) return;
+    const item = document.createElement('div');
+    item.className = 'brain-dump-item';
+    item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:8px;';
+    item.innerHTML = `
+      <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
+      <span style="flex:1;font-size:13px;font-weight:500;${task.completed?'text-decoration:line-through;color:var(--on-surface-variant);':''}">${task.title}</span>
+      <button class="icon-btn" title="Remove" style="width:22px;height:22px;"><span class="material-symbols-outlined" style="font-size:14px;">close</span></button>
+    `;
+    item.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderFpBrainDump(); renderBrainDump(); renderTasks(); });
+    item.querySelector('.icon-btn').addEventListener('click', e => { e.stopPropagation(); STATE.brainDump = STATE.brainDump.filter(id => id !== tid); saveState(); renderFpBrainDump(); renderBrainDump(); });
+    list.appendChild(item);
+  });
+  if (!fpBrainDumpInitialized) {
+    initFpBrainDump();
+    fpBrainDumpInitialized = true;
+  }
+}
+
+function initFpBrainDump() {
+  const input = document.getElementById('fp-brain-dump-input');
+  const suggestionsEl = document.getElementById('fp-brain-dump-suggestions');
+  if (!input || !suggestionsEl) return;
+  let activeIdx = -1;
+
+  function createAndAddTask(title) {
+    const newTask = { id: uid(), title, completed: false, priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
+    STATE.tasks.push(newTask);
+    STATE.brainDump.push(newTask.id);
+    saveState(); renderFpBrainDump(); renderBrainDump(); renderTasks();
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { suggestionsEl.style.display = 'none'; activeIdx = -1; return; }
+    const matches = STATE.tasks
+      .filter(t => !t.completed && !STATE.brainDump.includes(t.id) && t.title.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const aP = a.title.toLowerCase().startsWith(q) ? 0 : 1;
+        const bP = b.title.toLowerCase().startsWith(q) ? 0 : 1;
+        if (aP !== bP) return aP - bP;
+        const po = { high: 0, medium: 1, low: 2 };
+        return (po[a.priority] || 2) - (po[b.priority] || 2);
+      })
+      .slice(0, 8);
+    suggestionsEl.innerHTML = '';
+    if (!matches.length && !q) { suggestionsEl.style.display = 'none'; return; }
+    const todayD = new Date(); todayD.setHours(0,0,0,0);
+    matches.forEach((task, idx) => {
+      const item = document.createElement('div');
+      item.className = 'brain-dump-suggestion' + (idx === 0 ? ' active' : '');
+      const titleHtml = task.title.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<strong>$1</strong>');
+      let metaParts = [];
+      if (task.priority && task.priority !== 'low') {
+        const col = task.priority === 'high' ? '#c62828' : '#ef6c00';
+        metaParts.push(`<span style="color:${col};font-weight:600;">${task.priority.charAt(0).toUpperCase()+task.priority.slice(1)}</span>`);
+      }
+      if (task.dueDate) {
+        const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
+        const diff = Math.round((dd - todayD) / 86400000);
+        if (diff < 0) metaParts.push(`<span style="color:#c62828;">${Math.abs(diff)}d overdue</span>`);
+        else if (diff === 0) metaParts.push(`<span style="color:var(--primary);">Today</span>`);
+        else metaParts.push(dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      }
+      item.innerHTML = `<div style="font-size:13px;">${titleHtml}</div>${metaParts.length ? `<div style="font-size:11px;color:var(--on-surface-variant);margin-top:1px;">${metaParts.join(' · ')}</div>` : ''}`;
+      item.addEventListener('mousedown', e => {
+        e.preventDefault();
+        if (!STATE.brainDump.includes(task.id)) { STATE.brainDump.push(task.id); saveState(); }
+        input.value = ''; suggestionsEl.style.display = 'none'; activeIdx = -1;
+        renderFpBrainDump(); renderBrainDump(); renderTasks();
+      });
+      suggestionsEl.appendChild(item);
+    });
+    // Create new option
+    const createOpt = document.createElement('div');
+    createOpt.className = 'brain-dump-suggestion brain-dump-create-option';
+    createOpt.innerHTML = `<div style="font-size:13px;">Create '<strong>${q}</strong>' (new task)</div>`;
+    createOpt.addEventListener('mousedown', e => {
+      e.preventDefault();
+      createAndAddTask(input.value.trim());
+      input.value = ''; suggestionsEl.style.display = 'none'; activeIdx = -1;
+    });
+    suggestionsEl.appendChild(createOpt);
+    activeIdx = matches.length ? 0 : -1;
+    suggestionsEl.style.display = 'block';
+  });
+  input.addEventListener('keydown', e => {
+    const items = suggestionsEl.querySelectorAll('.brain-dump-suggestion');
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); items.forEach((it, i) => it.classList.toggle('active', i === activeIdx)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); items.forEach((it, i) => it.classList.toggle('active', i === activeIdx)); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      const title = input.value.trim(); if (!title) return;
+      if (activeIdx >= 0 && items[activeIdx]) { items[activeIdx].dispatchEvent(new MouseEvent('mousedown')); }
+      else if (items.length) { items[0].dispatchEvent(new MouseEvent('mousedown')); }
+      else { createAndAddTask(title); input.value = ''; suggestionsEl.style.display = 'none'; }
+    } else if (e.key === 'Escape') { suggestionsEl.style.display = 'none'; activeIdx = -1; }
+  });
+  document.addEventListener('click', e => { if (!input.contains(e.target) && !suggestionsEl.contains(e.target)) suggestionsEl.style.display = 'none'; });
 }
 
 // ─────────────────────────────────────────────
