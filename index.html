@@ -265,17 +265,65 @@
   }
   .tasks-fp-brain-dump-wrap .brain-dump-input-wrap { margin-bottom: 8px; }
   .tasks-fp-brain-dump-wrap .brain-dump-input { font-size: 14px; height: 38px; }
-  .tasks-fp-stats {
-    display: flex; gap: 16px; margin-bottom: 20px;
+  /* Task toolbar (Sort / Filter / Group) */
+  .tasks-fp-toolbar {
+    display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
   }
-  .tasks-fp-stat {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: var(--on-surface-variant);
+  .fp-toolbar-btn {
+    display: flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px;
+    border-radius: 7px; border: 1px solid var(--surface-container); background: white;
+    font-size: 12px; font-weight: 500; cursor: pointer; color: var(--on-surface-variant);
+    transition: all 0.15s; position: relative; white-space: nowrap;
   }
-  .tasks-fp-stat-num {
-    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 18px;
-    color: var(--on-surface);
+  .fp-toolbar-btn:hover { background: var(--surface-low); border-color: var(--outline-variant); }
+  .fp-toolbar-btn.active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .fp-toolbar-btn .material-symbols-outlined { font-size: 16px; }
+  .fp-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 200px;
+    background: white; border: 1px solid var(--surface-container); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; padding: 4px; display: none;
   }
+  .fp-dropdown.open { display: block; }
+  .fp-dropdown-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px;
+    font-size: 13px; cursor: pointer; color: var(--on-surface); transition: background 0.1s;
+  }
+  .fp-dropdown-item:hover { background: var(--surface-low); }
+  .fp-dropdown-item.selected { color: var(--primary); font-weight: 600; }
+  .fp-dropdown-item .material-symbols-outlined { font-size: 16px; }
+  .fp-dropdown-divider { border-top: 1px solid var(--surface-container); margin: 4px 0; }
+  .fp-group-header {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--on-surface-variant); padding: 12px 4px 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .fp-group-header .material-symbols-outlined { font-size: 16px; }
+  /* Active filter chips */
+  .fp-filter-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .fp-filter-chip {
+    display: flex; align-items: center; gap: 3px; height: 24px; padding: 0 8px;
+    border-radius: 12px; background: var(--primary-light); color: var(--primary);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .fp-filter-chip .material-symbols-outlined { font-size: 14px; }
+  /* Tags */
+  .task-tag-chip {
+    display: inline-flex; align-items: center; gap: 2px; padding: 1px 7px;
+    border-radius: 4px; font-size: 11px; font-weight: 500;
+    background: var(--surface-low); color: var(--on-surface-variant);
+  }
+  /* List badge */
+  .task-list-badge {
+    font-size: 11px; font-weight: 500; color: var(--on-surface-variant);
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .task-list-badge .material-symbols-outlined { font-size: 13px; }
+  /* Status badge */
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.not_started { background: var(--outline-variant); }
+  .status-dot.in_progress { background: #0058ba; }
+  .status-dot.completed { background: #2e7d32; }
 
   /* Month View */
   #month-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -822,10 +870,11 @@
             </button>
           </div>
         </div>
-        <div id="tasks-fp-stats" class="tasks-fp-stats"></div>
+        <div id="tasks-fp-toolbar" class="tasks-fp-toolbar"></div>
+        <div id="tasks-fp-filter-chips" class="fp-filter-chips" style="margin-bottom:12px;"></div>
         <!-- All Tasks tab -->
         <div class="tasks-fp-all active" id="tasks-fp-all-content">
-          <div class="tasks-fp-section" id="tasks-fp-list"></div>
+          <div id="tasks-fp-groups"></div>
         </div>
         <!-- Focus tab -->
         <div class="tasks-fp-focus" id="tasks-fp-focus-content">
@@ -1245,12 +1294,14 @@ let STATE = {
   events: [],
   tasks: [],
   calendars: [],
+  lists: [],
   view: 'week',
   nDays: 7,
   currentDate: new Date(),
   miniCalDate: new Date(),
   topThree: [],
   brainDump: [],
+  taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' },
   settings: { darkMode: false, weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
 };
 
@@ -1265,6 +1316,8 @@ function saveState() {
     topThree: STATE.topThree || [],
     brainDump: STATE.brainDump || [],
     calendars: STATE.calendars || [],
+    lists: STATE.lists || [],
+    taskViewConfig: STATE.taskViewConfig || {},
     settings: STATE.settings || {},
   };
   localStorage.setItem('timebox_v3', JSON.stringify(s));
@@ -1284,7 +1337,15 @@ function loadState() {
     STATE.topThree = s.topThree || [];
     STATE.brainDump = s.brainDump || [];
     STATE.calendars = s.calendars || [];
+    STATE.lists = s.lists || [];
+    STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' }, s.taskViewConfig || {});
     STATE.settings = Object.assign({ darkMode: false, weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
+    // Migrate tasks: ensure status and listId fields exist
+    STATE.tasks.forEach(t => {
+      if (!t.status) t.status = t.completed ? 'completed' : 'not_started';
+      if (t.listId === undefined) t.listId = null;
+      if (!t.tags) t.tags = [];
+    });
     return true;
   } catch(e) { return false; }
 }
@@ -2050,10 +2111,12 @@ function renderQuickAdd(container) {
           dueTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
         }
       }
-      if (!title) title = input.value.trim(); // fallback if clean title is empty
-      STATE.tasks.push({ id: uid(), title, completed: false, priority: 'medium',
-        dueDate, dueTime, description: '', tags: [], subtasks: [],
-        notification: 'none', recurring: 'none' });
+      if (!title) title = input.value.trim();
+      const { title: cleanTitle, tags } = parseTagsFromTitle(title);
+      title = cleanTitle || title;
+      STATE.tasks.push({ id: uid(), title, completed: false, status: 'not_started', priority: 'medium',
+        dueDate, dueTime, description: '', tags, subtasks: [],
+        notification: 'none', recurring: 'none', listId: null });
       saveState();
       parsedResult = null;
       renderTasks();
@@ -2193,16 +2256,81 @@ function buildInlineDetail(task) {
   dateRow.appendChild(dateInput); dateRow.appendChild(timeInput);
   d.appendChild(dateRow);
 
-  // Priority
+  // Priority + Status row
+  const prioStatusRow = document.createElement('div');
+  prioStatusRow.className = 'task-inline-row';
+
   const prioritySelect = document.createElement('select');
   prioritySelect.className = 'task-inline-input';
   ['low', 'medium', 'high'].forEach(p => {
     const opt = document.createElement('option');
-    opt.value = p; opt.textContent = p.charAt(0).toUpperCase() + p.slice(1);
+    opt.value = p; opt.textContent = p.charAt(0).toUpperCase() + p.slice(1) + ' priority';
     if (task.priority === p) opt.selected = true;
     prioritySelect.appendChild(opt);
   });
-  d.appendChild(prioritySelect);
+  prioStatusRow.appendChild(prioritySelect);
+
+  const statusSelect = document.createElement('select');
+  statusSelect.className = 'task-inline-input';
+  [['not_started','Not started'],['in_progress','In progress'],['completed','Completed']].forEach(([v,l]) => {
+    const opt = document.createElement('option');
+    opt.value = v; opt.textContent = l;
+    if ((task.status || (task.completed ? 'completed' : 'not_started')) === v) opt.selected = true;
+    statusSelect.appendChild(opt);
+  });
+  prioStatusRow.appendChild(statusSelect);
+  d.appendChild(prioStatusRow);
+
+  // List picker
+  if (STATE.lists.length) {
+    const listSelect = document.createElement('select');
+    listSelect.className = 'task-inline-input';
+    listSelect.dataset.field = 'listId';
+    const noOpt = document.createElement('option');
+    noOpt.value = ''; noOpt.textContent = 'No list';
+    if (!task.listId) noOpt.selected = true;
+    listSelect.appendChild(noOpt);
+    STATE.lists.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.id; opt.textContent = l.name;
+      if (task.listId === l.id) opt.selected = true;
+      listSelect.appendChild(opt);
+    });
+    d.appendChild(listSelect);
+  }
+
+  // Tags
+  const tagsRow = document.createElement('div');
+  tagsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;';
+  (task.tags||[]).forEach(tag => {
+    const chip = document.createElement('span');
+    chip.className = 'task-tag-chip';
+    chip.style.cursor = 'pointer';
+    chip.innerHTML = `#${tag} <span class="material-symbols-outlined" style="font-size:12px;">close</span>`;
+    chip.addEventListener('click', e => {
+      e.stopPropagation();
+      task.tags = (task.tags||[]).filter(t => t !== tag);
+      saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
+    });
+    tagsRow.appendChild(chip);
+  });
+  const tagInput = document.createElement('input');
+  tagInput.type = 'text'; tagInput.className = 'task-inline-input';
+  tagInput.placeholder = '#add-tag'; tagInput.style.cssText = 'width:80px;flex:0 0 auto;font-size:11px;height:24px;padding:0 6px;';
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      let val = tagInput.value.replace(/^#/, '').trim().toLowerCase().replace(/\s+/g, '');
+      if (val && !(task.tags||[]).includes(val)) {
+        if (!task.tags) task.tags = [];
+        task.tags.push(val);
+        saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
+      }
+      tagInput.value = '';
+    }
+  });
+  tagsRow.appendChild(tagInput);
+  d.appendChild(tagsRow);
 
   // Description
   const descInput = document.createElement('textarea');
@@ -2242,11 +2370,16 @@ function buildInlineDetail(task) {
       t.dueDate = dateInput.value ? new Date(dateInput.value + 'T00:00:00') : null;
       t.dueTime = timeInput.value || null;
       t.priority = prioritySelect.value;
+      t.status = statusSelect.value;
+      t.completed = statusSelect.value === 'completed';
       t.description = descInput.value.trim();
+      const listSel = d.querySelector('select[data-field="listId"]');
+      if (listSel) t.listId = listSel.value || null;
       saveState();
     }
     expandedTaskId = null;
     renderTasks();
+    if (STATE.view === 'tasks') renderTasksFullPage();
   });
 
   actions.appendChild(deleteBtn);
@@ -2262,7 +2395,11 @@ function buildInlineDetail(task) {
 
 function toggleTaskComplete(id) {
   const task = STATE.tasks.find(t => t.id === id);
-  if (task) { task.completed = !task.completed; saveState(); renderTasks(); }
+  if (task) {
+    task.completed = !task.completed;
+    task.status = task.completed ? 'completed' : 'not_started';
+    saveState(); renderTasks();
+  }
 }
 
 function deleteTask(id) {
@@ -3205,62 +3342,359 @@ let fpExpandedTaskId = null;
 let fpQuickAddActive = false;
 let fpBrainDumpInitialized = false;
 
+// ─── Task helpers ──────────────────────────────────────────────
+function getTaskStatus(t) { return t.status || (t.completed ? 'completed' : 'not_started'); }
+function getTaskListName(t) {
+  if (!t.listId) return 'No list';
+  const l = STATE.lists.find(li => li.id === t.listId);
+  return l ? l.name : 'No list';
+}
+function getAllTags() {
+  const tags = new Set();
+  STATE.tasks.forEach(t => (t.tags||[]).forEach(tag => tags.add(tag)));
+  return [...tags].sort();
+}
+function parseTagsFromTitle(text) {
+  const tags = [];
+  const cleaned = text.replace(/#([a-z0-9_]+)/gi, (_, tag) => { tags.push(tag.toLowerCase()); return ''; }).trim();
+  return { title: cleaned, tags };
+}
+
+// ─── Full-page render ──────────────────────────────────────────
 function renderTasksFullPage() {
-  renderTasksFullPageStats();
+  renderFpToolbar();
   renderTasksFullPageAll();
-  // Only render focus if focus tab is active
   if (document.getElementById('tasks-fp-focus-content').classList.contains('active')) {
     renderTasksFullPageFocus();
   }
 }
 
-function renderTasksFullPageStats() {
-  const stats = document.getElementById('tasks-fp-stats');
-  const incomplete = STATE.tasks.filter(t => !t.completed).length;
-  const completed = STATE.tasks.filter(t => t.completed).length;
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
-  const overdue = STATE.tasks.filter(t => !t.completed && t.dueDate && new Date(t.dueDate) < todayD).length;
-  stats.innerHTML = `
-    <div class="tasks-fp-stat"><span class="tasks-fp-stat-num">${incomplete}</span> open</div>
-    <div class="tasks-fp-stat"><span class="tasks-fp-stat-num">${completed}</span> done</div>
-    ${overdue ? `<div class="tasks-fp-stat" style="color:#c62828;"><span class="tasks-fp-stat-num" style="color:#c62828;">${overdue}</span> overdue</div>` : ''}
-  `;
+function renderFpToolbar() {
+  const toolbar = document.getElementById('tasks-fp-toolbar');
+  const chips = document.getElementById('tasks-fp-filter-chips');
+  toolbar.innerHTML = '';
+  chips.innerHTML = '';
+  const cfg = STATE.taskViewConfig;
+
+  // ── Sort button
+  const sortLabels = { dueDate: 'Due date', priority: 'Priority', title: 'Title', status: 'Status', list: 'List' };
+  const sortBtn = document.createElement('button');
+  sortBtn.className = 'fp-toolbar-btn' + (cfg.sortBy !== 'dueDate' ? ' active' : '');
+  sortBtn.innerHTML = `<span class="material-symbols-outlined">sort</span>Sort: ${sortLabels[cfg.sortBy] || cfg.sortBy}
+    ${cfg.sortDir === 'desc' ? '<span class="material-symbols-outlined" style="font-size:14px;">arrow_downward</span>' : '<span class="material-symbols-outlined" style="font-size:14px;">arrow_upward</span>'}`;
+  const sortDrop = buildDropdown([
+    { id: 'dueDate', label: 'Due date', icon: 'calendar_today' },
+    { id: 'priority', label: 'Priority', icon: 'flag' },
+    { id: 'title', label: 'Title', icon: 'sort_by_alpha' },
+    { id: 'status', label: 'Status', icon: 'radio_button_checked' },
+    { id: 'list', label: 'List', icon: 'folder' },
+    { id: '__divider__' },
+    { id: '__dir__', label: cfg.sortDir === 'asc' ? 'Switch to descending' : 'Switch to ascending', icon: cfg.sortDir === 'asc' ? 'arrow_downward' : 'arrow_upward' },
+  ], cfg.sortBy, val => {
+    if (val === '__dir__') { cfg.sortDir = cfg.sortDir === 'asc' ? 'desc' : 'asc'; }
+    else { cfg.sortBy = val; }
+    saveState(); renderTasksFullPage();
+  });
+  sortBtn.appendChild(sortDrop);
+  sortBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); sortDrop.classList.toggle('open'); });
+  toolbar.appendChild(sortBtn);
+
+  // ── Filter button
+  const filterBtn = document.createElement('button');
+  const hasFilters = Object.keys(cfg.filters).some(k => cfg.filters[k] && cfg.filters[k].length);
+  filterBtn.className = 'fp-toolbar-btn' + (hasFilters ? ' active' : '');
+  filterBtn.innerHTML = `<span class="material-symbols-outlined">filter_list</span>Filter${hasFilters ? '' : ''}`;
+  const filterItems = [
+    { id: '__label__', label: 'STATUS' },
+    { id: 'status:not_started', label: 'Not started', icon: 'circle' },
+    { id: 'status:in_progress', label: 'In progress', icon: 'timelapse' },
+    { id: 'status:completed', label: 'Completed', icon: 'check_circle' },
+    { id: '__divider__' },
+    { id: '__label__', label: 'PRIORITY' },
+    { id: 'priority:high', label: 'High', icon: 'flag' },
+    { id: 'priority:medium', label: 'Medium', icon: 'flag' },
+    { id: 'priority:low', label: 'Low', icon: 'flag' },
+  ];
+  const allTags = getAllTags();
+  if (allTags.length) {
+    filterItems.push({ id: '__divider__' });
+    filterItems.push({ id: '__label__', label: 'TAGS' });
+    allTags.forEach(tag => filterItems.push({ id: 'tag:' + tag, label: '#' + tag, icon: 'tag' }));
+  }
+  if (STATE.lists.length) {
+    filterItems.push({ id: '__divider__' });
+    filterItems.push({ id: '__label__', label: 'LIST' });
+    STATE.lists.forEach(l => filterItems.push({ id: 'list:' + l.id, label: l.name, icon: 'folder' }));
+    filterItems.push({ id: 'list:__none__', label: 'No list', icon: 'folder_off' });
+  }
+  const activeFilters = flattenFilters(cfg.filters);
+  const filterDrop = buildMultiDropdown(filterItems, activeFilters, selection => {
+    cfg.filters = unflattenFilters(selection);
+    saveState(); renderTasksFullPage();
+  });
+  filterBtn.appendChild(filterDrop);
+  filterBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); filterDrop.classList.toggle('open'); });
+  toolbar.appendChild(filterBtn);
+
+  // ── Group button
+  const groupLabels = { none: 'None', status: 'Status', priority: 'Priority', dueDate: 'Due date', list: 'List', tag: 'Tag' };
+  const groupBtn = document.createElement('button');
+  groupBtn.className = 'fp-toolbar-btn' + (cfg.groupBy !== 'none' ? ' active' : '');
+  groupBtn.innerHTML = `<span class="material-symbols-outlined">view_agenda</span>Group: ${groupLabels[cfg.groupBy] || 'None'}`;
+  const groupDrop = buildDropdown([
+    { id: 'none', label: 'None', icon: 'close' },
+    { id: 'status', label: 'Status', icon: 'radio_button_checked' },
+    { id: 'priority', label: 'Priority', icon: 'flag' },
+    { id: 'dueDate', label: 'Due date', icon: 'calendar_today' },
+    { id: 'list', label: 'List', icon: 'folder' },
+    { id: 'tag', label: 'Tag', icon: 'tag' },
+  ], cfg.groupBy, val => { cfg.groupBy = val; saveState(); renderTasksFullPage(); });
+  groupBtn.appendChild(groupDrop);
+  groupBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); groupDrop.classList.toggle('open'); });
+  toolbar.appendChild(groupBtn);
+
+  // ── List manage button
+  const listBtn = document.createElement('button');
+  listBtn.className = 'fp-toolbar-btn';
+  listBtn.innerHTML = `<span class="material-symbols-outlined">folder</span>Lists`;
+  listBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); openListManager(); });
+  toolbar.appendChild(listBtn);
+
+  // ── Active filter chips
+  if (hasFilters) {
+    activeFilters.forEach(f => {
+      const [type, val] = f.split(':');
+      let label = val;
+      if (type === 'status') label = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' }[val] || val;
+      if (type === 'priority') label = val.charAt(0).toUpperCase() + val.slice(1);
+      if (type === 'tag') label = '#' + val;
+      if (type === 'list') {
+        if (val === '__none__') label = 'No list';
+        else { const li = STATE.lists.find(l => l.id === val); label = li ? li.name : val; }
+      }
+      const chip = document.createElement('span');
+      chip.className = 'fp-filter-chip';
+      chip.innerHTML = `${label} <span class="material-symbols-outlined">close</span>`;
+      chip.addEventListener('click', () => {
+        const arr = activeFilters.filter(x => x !== f);
+        cfg.filters = unflattenFilters(arr);
+        saveState(); renderTasksFullPage();
+      });
+      chips.appendChild(chip);
+    });
+  }
+
+  // Close dropdowns on outside click
+  document.addEventListener('click', closeAllDropdowns, { once: true });
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.fp-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+function buildDropdown(items, selected, onSelect) {
+  const drop = document.createElement('div');
+  drop.className = 'fp-dropdown';
+  items.forEach(item => {
+    if (item.id === '__divider__') { const d = document.createElement('div'); d.className = 'fp-dropdown-divider'; drop.appendChild(d); return; }
+    const el = document.createElement('div');
+    el.className = 'fp-dropdown-item' + (item.id === selected ? ' selected' : '');
+    el.innerHTML = `<span class="material-symbols-outlined">${item.icon}</span>${item.label}${item.id === selected ? '<span class="material-symbols-outlined" style="margin-left:auto;">check</span>' : ''}`;
+    el.addEventListener('click', e => { e.stopPropagation(); onSelect(item.id); drop.classList.remove('open'); });
+    drop.appendChild(el);
+  });
+  return drop;
+}
+
+function buildMultiDropdown(items, selected, onChange) {
+  const drop = document.createElement('div');
+  drop.className = 'fp-dropdown';
+  drop.style.maxHeight = '320px'; drop.style.overflowY = 'auto';
+  function rebuild() {
+    drop.innerHTML = '';
+    items.forEach(item => {
+      if (item.id === '__divider__') { const d = document.createElement('div'); d.className = 'fp-dropdown-divider'; drop.appendChild(d); return; }
+      if (item.id === '__label__') {
+        const lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--on-surface-variant);padding:8px 10px 2px;';
+        lbl.textContent = item.label;
+        drop.appendChild(lbl); return;
+      }
+      const isActive = selected.includes(item.id);
+      const el = document.createElement('div');
+      el.className = 'fp-dropdown-item' + (isActive ? ' selected' : '');
+      el.innerHTML = `<span class="material-symbols-outlined">${isActive ? 'check_box' : 'check_box_outline_blank'}</span>${item.label}`;
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        if (isActive) selected.splice(selected.indexOf(item.id), 1);
+        else selected.push(item.id);
+        onChange([...selected]);
+        rebuild();
+      });
+      drop.appendChild(el);
+    });
+  }
+  rebuild();
+  return drop;
+}
+
+function flattenFilters(filters) {
+  const out = [];
+  Object.keys(filters).forEach(k => (filters[k]||[]).forEach(v => out.push(k + ':' + v)));
+  return out;
+}
+function unflattenFilters(arr) {
+  const out = {};
+  arr.forEach(f => { const [k, v] = f.split(':'); if (!out[k]) out[k] = []; out[k].push(v); });
+  return out;
+}
+
+// ─── Sort / Filter / Group logic ───────────────────────────────
+function getFilteredSortedTasks() {
+  const cfg = STATE.taskViewConfig;
+  let tasks = [...STATE.tasks];
+
+  // Apply filters
+  const f = cfg.filters || {};
+  if (f.status && f.status.length) tasks = tasks.filter(t => f.status.includes(getTaskStatus(t)));
+  if (f.priority && f.priority.length) tasks = tasks.filter(t => f.priority.includes(t.priority || 'low'));
+  if (f.tag && f.tag.length) tasks = tasks.filter(t => (t.tags||[]).some(tag => f.tag.includes(tag)));
+  if (f.list && f.list.length) tasks = tasks.filter(t => {
+    if (f.list.includes('__none__') && !t.listId) return true;
+    return f.list.includes(t.listId);
+  });
+
+  // Sort
+  const dir = cfg.sortDir === 'desc' ? -1 : 1;
+  tasks.sort((a, b) => {
+    let cmp = 0;
+    switch (cfg.sortBy) {
+      case 'dueDate': {
+        const aD = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const bD = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        cmp = aD - bD; break;
+      }
+      case 'priority': {
+        const po = { high: 0, medium: 1, low: 2 };
+        cmp = (po[a.priority||'low']||2) - (po[b.priority||'low']||2); break;
+      }
+      case 'title': cmp = (a.title||'').localeCompare(b.title||''); break;
+      case 'status': {
+        const so = { not_started: 0, in_progress: 1, completed: 2 };
+        cmp = (so[getTaskStatus(a)]||0) - (so[getTaskStatus(b)]||0); break;
+      }
+      case 'list': cmp = getTaskListName(a).localeCompare(getTaskListName(b)); break;
+    }
+    return cmp * dir;
+  });
+  return tasks;
+}
+
+function groupTasks(tasks) {
+  const cfg = STATE.taskViewConfig;
+  if (cfg.groupBy === 'none') return [{ key: '__all__', label: null, tasks }];
+
+  const groups = new Map();
+  tasks.forEach(t => {
+    let keys = [];
+    switch (cfg.groupBy) {
+      case 'status': keys = [getTaskStatus(t)]; break;
+      case 'priority': keys = [t.priority || 'low']; break;
+      case 'dueDate': {
+        if (!t.dueDate) { keys = ['No date']; }
+        else {
+          const todayD = new Date(); todayD.setHours(0,0,0,0);
+          const dd = new Date(t.dueDate); dd.setHours(0,0,0,0);
+          const diff = Math.round((dd - todayD) / 86400000);
+          if (diff < 0) keys = ['Overdue'];
+          else if (diff === 0) keys = ['Today'];
+          else if (diff === 1) keys = ['Tomorrow'];
+          else if (diff <= 7) keys = ['This week'];
+          else keys = ['Later'];
+        }
+        break;
+      }
+      case 'list': keys = [t.listId || '__none__']; break;
+      case 'tag': keys = (t.tags && t.tags.length) ? t.tags : ['No tag']; break;
+    }
+    keys.forEach(key => {
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    });
+  });
+
+  // Sort group keys
+  let sortedKeys = [...groups.keys()];
+  if (cfg.groupBy === 'status') {
+    const order = ['not_started', 'in_progress', 'completed'];
+    sortedKeys.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  } else if (cfg.groupBy === 'priority') {
+    const order = ['high', 'medium', 'low'];
+    sortedKeys.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  } else if (cfg.groupBy === 'dueDate') {
+    const order = ['Overdue', 'Today', 'Tomorrow', 'This week', 'Later', 'No date'];
+    sortedKeys.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  }
+
+  return sortedKeys.map(key => {
+    let label = key;
+    if (cfg.groupBy === 'status') label = { not_started: '⭘ Not started', in_progress: '◉ In progress', completed: '✓ Completed' }[key] || key;
+    if (cfg.groupBy === 'priority') label = { high: '🔴 High', medium: '🟠 Medium', low: '🔵 Low' }[key] || key;
+    if (cfg.groupBy === 'list') {
+      if (key === '__none__') label = '📁 No list';
+      else { const li = STATE.lists.find(l => l.id === key); label = '📁 ' + (li ? li.name : 'Unknown'); }
+    }
+    if (cfg.groupBy === 'tag') label = (key === 'No tag') ? '🏷 No tag' : '🏷 #' + key;
+    return { key, label, tasks: groups.get(key) };
+  });
 }
 
 function renderTasksFullPageAll() {
-  const list = document.getElementById('tasks-fp-list');
-  list.innerHTML = '';
+  const container = document.getElementById('tasks-fp-groups');
+  container.innerHTML = '';
 
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
-  const incomplete = STATE.tasks.filter(t => !t.completed).sort((a, b) => {
-    const aDate = a.dueDate ? new Date(a.dueDate).setHours(0,0,0,0) : Infinity;
-    const bDate = b.dueDate ? new Date(b.dueDate).setHours(0,0,0,0) : Infinity;
-    if (aDate !== bDate) return aDate - bDate;
-    return (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
-  });
-  const completed = STATE.tasks.filter(t => t.completed);
+  const tasks = getFilteredSortedTasks();
+  const grouped = groupTasks(tasks);
 
-  if (STATE.tasks.length === 0) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'text-align:center;padding:48px 16px;color:var(--on-surface-variant);font-size:14px;';
-    empty.innerHTML = '<span class="material-symbols-outlined" style="font-size:40px;display:block;margin-bottom:8px;opacity:0.4;">check_circle</span>No tasks yet. Add one below!';
-    list.appendChild(empty);
-  } else {
-    incomplete.forEach(task => list.appendChild(buildFpTaskItem(task)));
-    if (completed.length) {
-      const divider = document.createElement('div');
-      divider.style.cssText = 'border-top:1px solid var(--surface-container);margin:4px 16px;';
-      list.appendChild(divider);
-      completed.forEach(task => list.appendChild(buildFpTaskItem(task)));
-    }
+  if (tasks.length === 0 && STATE.tasks.length === 0) {
+    const section = document.createElement('div');
+    section.className = 'tasks-fp-section';
+    section.innerHTML = '<div style="text-align:center;padding:48px 16px;color:var(--on-surface-variant);font-size:14px;"><span class="material-symbols-outlined" style="font-size:40px;display:block;margin-bottom:8px;opacity:0.4;">check_circle</span>No tasks yet. Add one below!</div>';
+    renderFpQuickAdd(section);
+    container.appendChild(section);
+    return;
   }
 
-  // Quick add
-  renderFpQuickAdd(list);
+  if (tasks.length === 0) {
+    const section = document.createElement('div');
+    section.className = 'tasks-fp-section';
+    section.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--on-surface-variant);font-size:14px;"><span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px;opacity:0.4;">filter_list_off</span>No tasks match current filters</div>';
+    container.appendChild(section);
+    return;
+  }
+
+  grouped.forEach((group, gIdx) => {
+    if (group.label) {
+      const header = document.createElement('div');
+      header.className = 'fp-group-header';
+      header.textContent = group.label;
+      const count = document.createElement('span');
+      count.style.cssText = 'font-size:11px;color:var(--outline-variant);font-weight:500;';
+      count.textContent = group.tasks.length;
+      header.appendChild(count);
+      container.appendChild(header);
+    }
+    const section = document.createElement('div');
+    section.className = 'tasks-fp-section';
+    group.tasks.forEach(task => section.appendChild(buildFpTaskItem(task)));
+    // Quick add on last group only
+    if (gIdx === grouped.length - 1) renderFpQuickAdd(section);
+    container.appendChild(section);
+  });
 
   if (fpExpandedTaskId) {
     requestAnimationFrame(() => {
-      const detail = list.querySelector('.task-inline-detail');
+      const detail = container.querySelector('.task-inline-detail');
       if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
@@ -3274,6 +3708,7 @@ function buildFpTaskItem(task) {
   el.draggable = true;
   el.dataset.taskId = task.id;
 
+  const status = getTaskStatus(task);
   const todayD = new Date(); todayD.setHours(0,0,0,0);
   let meta = [];
   if (task.dueDate) {
@@ -3290,12 +3725,19 @@ function buildFpTaskItem(task) {
     const col = task.priority === 'high' ? '#c62828' : '#ef6c00';
     meta.push(`<span style="color:${col};font-weight:600;">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span>`);
   }
+  // List badge
+  if (task.listId) {
+    const listName = getTaskListName(task);
+    if (listName !== 'No list') meta.push(`<span class="task-list-badge"><span class="material-symbols-outlined">folder</span>${listName}</span>`);
+  }
+  // Tags
+  const tagHtml = (task.tags||[]).map(t => `<span class="task-tag-chip">#${t}</span>`).join('');
 
   el.innerHTML = `
     <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
     <div class="task-content">
       <div class="task-title ${task.completed?'done':''}">${task.title}</div>
-      ${meta.length ? `<div class="task-meta">${meta.join(' · ')}</div>` : ''}
+      <div class="task-meta">${meta.length ? meta.join(' · ') : ''}${tagHtml ? (meta.length ? ' ' : '') + tagHtml : ''}</div>
     </div>
     <button class="icon-btn task-delete" style="width:24px;height:24px;" title="Delete">
       <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
@@ -3340,16 +3782,19 @@ function buildFpInlineDetail(task) {
     saveBtn.parentNode.replaceChild(newSave, saveBtn);
     newSave.addEventListener('click', e => {
       e.stopPropagation();
-      // Read form values
       const titleInput = detail.querySelector('input[type="text"]');
       const dateInput = detail.querySelector('input[type="date"]');
       const timeInput = detail.querySelector('input[type="time"]');
-      const prioSelect = detail.querySelector('select');
+      const selects = detail.querySelectorAll('select');
       const descArea = detail.querySelector('textarea');
       if (titleInput) task.title = titleInput.value.trim() || task.title;
       if (dateInput) task.dueDate = dateInput.value || null;
       if (timeInput) task.dueTime = timeInput.value || null;
-      if (prioSelect) task.priority = prioSelect.value;
+      // Priority is first select, status is second
+      if (selects[0]) task.priority = selects[0].value;
+      if (selects[1]) { task.status = selects[1].value; task.completed = selects[1].value === 'completed'; }
+      const listSel = detail.querySelector('select[data-field="listId"]');
+      if (listSel) task.listId = listSel.value || null;
       if (descArea) task.description = descArea.value;
       fpExpandedTaskId = null;
       saveState();
@@ -3399,9 +3844,10 @@ function renderFpQuickAdd(container) {
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && input.value.trim()) {
         const parsed = parseNLPDate(input.value);
-        const title = parsed.date ? parsed.cleanTitle : input.value.trim();
+        let rawTitle = parsed.date ? parsed.cleanTitle : input.value.trim();
+        const { title, tags } = parseTagsFromTitle(rawTitle);
         if (!title) return;
-        const newTask = { id: uid(), title, completed: false, priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
+        const newTask = { id: uid(), title, completed: false, status: 'not_started', priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags, subtasks: [], listId: null };
         if (parsed.date) {
           newTask.dueDate = parsed.date.toISOString().split('T')[0];
           if (parsed.hasTime) newTask.dueTime = parsed.date.toTimeString().slice(0, 5);
@@ -3412,9 +3858,8 @@ function renderFpQuickAdd(container) {
         chipPreview.textContent = '';
         renderTasks();
         renderTasksFullPage();
-        // Re-focus for next task
         requestAnimationFrame(() => {
-          const newInput = document.querySelector('#tasks-fp-list input[placeholder^="Task name"]');
+          const newInput = document.querySelector('#tasks-fp-groups input[placeholder^="Task name"]');
           if (newInput) newInput.focus();
         });
       }
@@ -3598,6 +4043,63 @@ function initFpBrainDump() {
     } else if (e.key === 'Escape') { suggestionsEl.style.display = 'none'; activeIdx = -1; }
   });
   document.addEventListener('click', e => { if (!input.contains(e.target) && !suggestionsEl.contains(e.target)) suggestionsEl.style.display = 'none'; });
+}
+
+// ─────────────────────────────────────────────
+// LIST MANAGER
+// ─────────────────────────────────────────────
+function openListManager() {
+  // Simple modal-like overlay for managing lists
+  let overlay = document.getElementById('list-manager-overlay');
+  if (overlay) overlay.remove();
+  overlay = document.createElement('div');
+  overlay.id = 'list-manager-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:400;display:flex;align-items:center;justify-content:center;';
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:14px;padding:20px;width:360px;max-height:500px;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.15);';
+
+  function renderListModal() {
+    modal.innerHTML = '';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
+    title.innerHTML = 'Manage Lists <button class="icon-btn" id="list-mgr-close"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>';
+    modal.appendChild(title);
+    title.querySelector('#list-mgr-close').addEventListener('click', () => overlay.remove());
+
+    STATE.lists.forEach(list => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:8px;';
+      row.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size:18px;color:var(--on-surface-variant);">folder</span>
+        <input type="text" value="${list.name}" style="flex:1;border:none;outline:none;font-size:14px;font-family:Inter,sans-serif;background:transparent;">
+        <span style="font-size:11px;color:var(--outline-variant);">${STATE.tasks.filter(t=>t.listId===list.id).length}</span>
+        <button class="icon-btn" style="width:24px;height:24px;" title="Delete list"><span class="material-symbols-outlined" style="font-size:16px;">delete</span></button>
+      `;
+      const nameInput = row.querySelector('input');
+      nameInput.addEventListener('blur', () => { list.name = nameInput.value.trim() || list.name; saveState(); });
+      nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
+      row.querySelector('button').addEventListener('click', () => {
+        STATE.tasks.forEach(t => { if (t.listId === list.id) t.listId = null; });
+        STATE.lists = STATE.lists.filter(l => l.id !== list.id);
+        saveState(); renderListModal(); renderTasksFullPage();
+      });
+      modal.appendChild(row);
+    });
+
+    const addRow = document.createElement('div');
+    addRow.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 4px;cursor:pointer;color:var(--primary);font-size:13px;font-weight:500;margin-top:4px;';
+    addRow.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">add</span> New list';
+    addRow.addEventListener('click', () => {
+      STATE.lists.push({ id: uid(), name: 'New list' });
+      saveState(); renderListModal();
+    });
+    modal.appendChild(addRow);
+  }
+
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  renderListModal();
 }
 
 // ─────────────────────────────────────────────
