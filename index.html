@@ -3396,7 +3396,7 @@ function renderFpToolbar() {
     saveState(); renderTasksFullPage();
   });
   sortBtn.appendChild(sortDrop);
-  sortBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); sortDrop.classList.toggle('open'); });
+  sortBtn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = sortDrop.classList.contains('open'); closeAllDropdowns(); if (!wasOpen) sortDrop.classList.add('open'); });
   toolbar.appendChild(sortBtn);
 
   // ── Filter button
@@ -3433,7 +3433,7 @@ function renderFpToolbar() {
     saveState(); renderTasksFullPage();
   });
   filterBtn.appendChild(filterDrop);
-  filterBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); filterDrop.classList.toggle('open'); });
+  filterBtn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = filterDrop.classList.contains('open'); closeAllDropdowns(); if (!wasOpen) filterDrop.classList.add('open'); });
   toolbar.appendChild(filterBtn);
 
   // ── Group button
@@ -3450,7 +3450,7 @@ function renderFpToolbar() {
     { id: 'tag', label: 'Tag', icon: 'tag' },
   ], cfg.groupBy, val => { cfg.groupBy = val; saveState(); renderTasksFullPage(); });
   groupBtn.appendChild(groupDrop);
-  groupBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); groupDrop.classList.toggle('open'); });
+  groupBtn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = groupDrop.classList.contains('open'); closeAllDropdowns(); if (!wasOpen) groupDrop.classList.add('open'); });
   toolbar.appendChild(groupBtn);
 
   // ── List manage button
@@ -3484,13 +3484,16 @@ function renderFpToolbar() {
     });
   }
 
-  // Close dropdowns on outside click
-  document.addEventListener('click', closeAllDropdowns, { once: true });
 }
 
-function closeAllDropdowns() {
-  document.querySelectorAll('.fp-dropdown.open').forEach(d => d.classList.remove('open'));
+function closeAllDropdowns(except) {
+  document.querySelectorAll('.fp-dropdown.open').forEach(d => { if (d !== except) d.classList.remove('open'); });
 }
+
+// Persistent outside-click listener for toolbar dropdowns
+document.addEventListener('click', e => {
+  if (!e.target.closest('.fp-toolbar-btn')) closeAllDropdowns();
+});
 
 function buildDropdown(items, selected, onSelect) {
   const drop = document.createElement('div');
