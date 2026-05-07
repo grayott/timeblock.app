@@ -65,6 +65,7 @@
     border-radius: 8px; padding: 6px; transition: background 0.15s;
   }
   .nav-btn:hover { background: var(--surface-low); }
+  .nav-arrows { display: flex !important; flex-direction: row; gap: 2px; align-items: center; }
   .today-btn {
     height: 32px; padding: 0 16px; border-radius: 8px;
     border: 1px solid var(--outline-variant); background: white;
@@ -770,7 +771,7 @@
 <!-- Top Nav -->
 <nav id="topnav">
   <span class="logo">Timebox</span>
-  <div style="display:flex;flex-direction:row;gap:2px;align-items:center;">
+  <div class="nav-arrows">
     <button class="nav-btn" id="prev-btn" title="Previous (←)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_left</span></button>
     <button class="nav-btn" id="next-btn" title="Next (→)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_right</span></button>
   </div>
