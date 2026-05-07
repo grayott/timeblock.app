@@ -907,8 +907,7 @@
         <div id="brain-dump-list" style="margin-top:6px;"></div>
       </div>
       <!-- Today & Overdue -->
-      <div style="padding:8px 4px 4px;border-top:1px solid var(--surface-container);margin-top:4px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">📋 Today & Overdue</div>
+      <div style="padding:4px 0 0;border-top:1px solid var(--surface-container);margin-top:4px;">
         <div id="tasks-list"></div>
       </div>
     </div>
@@ -1887,27 +1886,112 @@ function renderTasks() {
   const todayD = new Date(); todayD.setHours(0,0,0,0);
   const tomorrowD = new Date(todayD); tomorrowD.setDate(tomorrowD.getDate() + 1);
 
-  // Only show incomplete tasks due today or overdue
-  const todayAndOverdue = STATE.tasks.filter(t => {
-    if (t.completed) return false;
-    if (!t.dueDate) return false;
+  // Split into overdue vs today
+  const overdue = [];
+  const today = [];
+  STATE.tasks.forEach(t => {
+    if (t.completed || !t.dueDate) return;
     const dd = new Date(t.dueDate); dd.setHours(0,0,0,0);
-    return dd < tomorrowD; // today or earlier
-  }).sort((a, b) => {
+    if (dd < todayD) overdue.push(t);
+    else if (dd < tomorrowD) today.push(t);
+  });
+
+  const sortByDatePriority = (a, b) => {
     const aDate = new Date(a.dueDate).setHours(0,0,0,0);
     const bDate = new Date(b.dueDate).setHours(0,0,0,0);
     if (aDate !== bDate) return aDate - bDate;
     return (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
-  });
+  };
+  overdue.sort(sortByDatePriority);
+  today.sort(sortByDatePriority);
 
-  if (todayAndOverdue.length === 0) {
+  const totalCount = overdue.length + today.length;
+
+  // Task count header
+  const countHeader = document.createElement('div');
+  countHeader.style.cssText = 'padding:8px 12px 4px;font-size:11px;color:var(--on-surface-variant);';
+  countHeader.textContent = totalCount === 0 ? 'No tasks due' : `${totalCount} task${totalCount !== 1 ? 's' : ''}`;
+  list.appendChild(countHeader);
+
+  // ── Overdue section (collapsible) ──
+  if (overdue.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'tasks-section-overdue';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;user-select:none;';
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--on-surface);';
+    const arrow = document.createElement('span');
+    arrow.className = 'material-symbols-outlined';
+    arrow.style.cssText = 'font-size:16px;transition:transform 0.15s;color:var(--on-surface-variant);';
+    arrow.textContent = 'expand_more';
+    const label = document.createElement('span');
+    label.textContent = `Overdue`;
+    const badge = document.createElement('span');
+    badge.style.cssText = 'font-size:11px;font-weight:500;color:var(--error);';
+    badge.textContent = `${overdue.length}`;
+    left.append(arrow, label, badge);
+
+    const rescheduleBtn = document.createElement('button');
+    rescheduleBtn.textContent = 'Reschedule';
+    rescheduleBtn.style.cssText = 'border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:var(--primary);padding:2px 6px;border-radius:4px;';
+    rescheduleBtn.addEventListener('mouseenter', () => rescheduleBtn.style.background = 'var(--surface-low)');
+    rescheduleBtn.addEventListener('mouseleave', () => rescheduleBtn.style.background = 'none');
+    rescheduleBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      // Reschedule all overdue to today
+      overdue.forEach(t => { t.dueDate = todayD.toISOString(); });
+      saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
+    });
+
+    header.append(left, rescheduleBtn);
+    section.appendChild(header);
+
+    const taskList = document.createElement('div');
+    taskList.style.cssText = 'padding:0 4px;';
+    overdue.forEach(t => taskList.appendChild(buildTaskItem(t)));
+    section.appendChild(taskList);
+
+    // Collapse toggle
+    header.addEventListener('click', () => {
+      const collapsed = taskList.style.display === 'none';
+      taskList.style.display = collapsed ? '' : 'none';
+      arrow.style.transform = collapsed ? '' : 'rotate(-90deg)';
+      rescheduleBtn.style.display = collapsed ? '' : 'none';
+    });
+
+    list.appendChild(section);
+  }
+
+  // ── Today section ──
+  const todaySection = document.createElement('div');
+  todaySection.className = 'tasks-section-today';
+
+  const todayHeader = document.createElement('div');
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  todayHeader.style.cssText = 'padding:8px 12px 4px;font-size:12px;font-weight:600;color:var(--primary);';
+  todayHeader.textContent = `${months[todayD.getMonth()]} ${todayD.getDate()} · Today · ${days[todayD.getDay()]}`;
+  todaySection.appendChild(todayHeader);
+
+  if (today.length === 0 && overdue.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'text-align:center;padding:16px 8px;color:var(--on-surface-variant);font-size:12px;';
     empty.textContent = 'No tasks due today';
-    list.appendChild(empty);
+    todaySection.appendChild(empty);
+  } else if (today.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'text-align:center;padding:12px 8px;color:var(--on-surface-variant);font-size:12px;';
+    empty.textContent = 'No tasks due today';
+    todaySection.appendChild(empty);
   } else {
-    todayAndOverdue.forEach(task => list.appendChild(buildTaskItem(task)));
+    const taskList = document.createElement('div');
+    taskList.style.cssText = 'padding:0 4px;';
+    today.forEach(t => taskList.appendChild(buildTaskItem(t)));
+    todaySection.appendChild(taskList);
   }
+  list.appendChild(todaySection);
 
   // Also render Top Three and Brain Dump
   renderTopThree();
