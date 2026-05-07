@@ -139,8 +139,10 @@
   }
   .mini-day:hover { background: var(--surface-low); }
   .mini-day.today { background: var(--primary); color: white; font-weight: 600; }
-  .mini-day.selected { background: var(--primary-light); color: var(--primary); font-weight: 600; }
-  .mini-day.today.selected { background: var(--primary); color: white; }
+  .mini-day.in-view { background: var(--primary-light); color: var(--primary); border-radius: 0; }
+  .mini-day.in-view.week-start { border-radius: 50% 0 0 50%; }
+  .mini-day.in-view.week-end { border-radius: 0 50% 50% 0; }
+  .mini-day.today.in-view { background: var(--primary); color: white; border-radius: 50%; }
   .mini-day.other-month { color: var(--outline-variant); }
   .mini-day.has-events::after {
     content: ''; display: block; width: 4px; height: 4px;
@@ -1419,7 +1421,9 @@ function getViewDays() {
   // week or nday
   const n = STATE.view === 'week' ? 7 : STATE.nDays;
   if (STATE.view === 'week') {
-    const offset = d.getDay(); // 0=Sun
+    const startDayOfWeek = STATE.settings.weekStartsSun ? 0 : 1; // 0=Sun, 1=Mon
+    let offset = d.getDay() - startDayOfWeek;
+    if (offset < 0) offset += 7;
     const start = addDays(startOfDay(d), -offset);
     return Array.from({length: 7}, (_, i) => addDays(start, i));
   }
@@ -1588,44 +1592,68 @@ function renderMiniCal() {
   const mc = STATE.miniCalDate;
   document.getElementById('mini-cal-title').textContent = `${MONTHS[mc.getMonth()].slice(0,3)} ${mc.getFullYear()}`;
 
+  // Respect weekStartsSun setting
+  const weekStartDay = STATE.settings.weekStartsSun ? 0 : 1; // 0=Sun, 1=Mon
+  const orderedDays = [...DAYS.slice(weekStartDay), ...DAYS.slice(0, weekStartDay)];
+
   const grid = document.getElementById('mini-cal-grid');
   grid.innerHTML = '';
-  DAYS.forEach(d => {
+  orderedDays.forEach(d => {
     const el = document.createElement('div');
     el.className = 'mini-day-label'; el.textContent = d[0];
     grid.appendChild(el);
   });
 
   const first = new Date(mc.getFullYear(), mc.getMonth(), 1);
-  const startDay = first.getDay();
+  // Adjust startDay relative to week start
+  const startDay = (first.getDay() - weekStartDay + 7) % 7;
   const daysInMonth = new Date(mc.getFullYear(), mc.getMonth()+1, 0).getDate();
   const today = new Date();
 
-  for (let i = 0; i < startDay; i++) {
-    const prev = new Date(mc.getFullYear(), mc.getMonth(), -startDay + i + 1);
-    const el = document.createElement('div');
-    el.className = 'mini-day other-month';
-    el.textContent = prev.getDate();
-    el.addEventListener('click', () => { STATE.currentDate = prev; STATE.miniCalDate = new Date(prev.getFullYear(), prev.getMonth(), 1); saveState(); render(); });
-    grid.appendChild(el);
-  }
+  // Compute which dates are "in view" (current week/day in main calendar)
+  const viewDays = getViewDays();
+  const viewDayStrings = new Set(viewDays.map(d => d.toDateString()));
+  const viewStart = viewDays[0];
+  const viewEnd = viewDays[viewDays.length - 1];
 
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(mc.getFullYear(), mc.getMonth(), d);
+  function buildDayEl(date, extraClass) {
     const el = document.createElement('div');
-    el.className = 'mini-day';
+    el.className = 'mini-day' + (extraClass ? ' ' + extraClass : '');
     if (isSameDay(date, today)) el.classList.add('today');
-    if (isSameDay(date, STATE.currentDate)) el.classList.add('selected');
+    if (viewDayStrings.has(date.toDateString())) {
+      el.classList.add('in-view');
+      if (isSameDay(date, viewStart)) el.classList.add('week-start');
+      if (isSameDay(date, viewEnd)) el.classList.add('week-end');
+    }
     const hasEv = STATE.events.some(e => isSameDay(e.start, date));
     if (hasEv) el.classList.add('has-events');
-    el.textContent = d;
+    el.textContent = date.getDate();
     el.addEventListener('click', () => {
       STATE.currentDate = date;
-      if (STATE.view === 'month') {}
-      else if (STATE.view !== 'day') STATE.view = 'day';
+      // In week view: navigate to that week without switching view
+      // In day view: navigate to that day
+      // In month view: stay in month
+      if (STATE.view !== 'month' && STATE.view !== 'day') {
+        // keep week/nday view, just update anchor
+      } else if (STATE.view !== 'month') {
+        // day view — stays as day view
+      }
+      STATE.miniCalDate = new Date(date.getFullYear(), date.getMonth(), 1);
       saveState(); render();
     });
-    grid.appendChild(el);
+    return el;
+  }
+
+  // Cells before month starts (prev month days)
+  for (let i = 0; i < startDay; i++) {
+    const prev = new Date(mc.getFullYear(), mc.getMonth(), -startDay + i + 1);
+    grid.appendChild(buildDayEl(prev, 'other-month'));
+  }
+
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(mc.getFullYear(), mc.getMonth(), d);
+    grid.appendChild(buildDayEl(date, ''));
   }
 }
 
