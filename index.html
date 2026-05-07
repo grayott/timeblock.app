@@ -2043,6 +2043,7 @@ function parseNLPDate(text) {
   // ── Relative: "today", "tomorrow", "this week", "next week/month" ──
   if (/\btoday\b/.test(work))          { date = new Date(todayD); strip(/\btoday\b/); }
   else if (/\btomorrow\b/.test(work))  { date = addDays(todayD, 1); strip(/\btomorrow\b/); }
+  else if (/\w\s+.*\btom\b/.test(work.trim()))  { date = addDays(todayD, 1); strip(/\btom\b/); }
   else if (/\bnext\s+week\b/.test(work))  { date = addDays(todayD, 7); strip(/\bnext\s+week\b/); }
   else if (/\bnext\s+month\b/.test(work)) { date = new Date(todayD); date.setMonth(date.getMonth()+1); strip(/\bnext\s+month\b/); }
   else if (/\bthis\s+week\b/.test(work))  { date = addDays(todayD, 7); strip(/\bthis\s+week\b/); }
