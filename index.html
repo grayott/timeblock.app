@@ -770,16 +770,19 @@
 <!-- Top Nav -->
 <nav id="topnav">
   <span class="logo">Timebox</span>
-  <div style="display:flex;gap:6px;align-items:center;">
+  <div style="display:flex;gap:4px;align-items:center;">
     <button class="nav-btn" id="prev-btn" title="Previous (←)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_left</span></button>
-    <button class="today-btn" id="today-btn">Today</button>
+    <button class="nav-btn" id="next-btn" title="Next (→)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_right</span></button>
   </div>
   <span id="nav-title" class="heading"></span>
   <div style="flex:1"></div>
-  <div class="view-switcher">
-    <button class="view-btn" data-view="day">Day</button>
-    <button class="view-btn" data-view="week">Week</button>
-    <button class="view-btn" data-view="month">Month</button>
+  <div style="display:flex;gap:6px;align-items:center;">
+    <button class="today-btn" id="today-btn">Today</button>
+    <div class="view-switcher">
+      <button class="view-btn" data-view="day">Day</button>
+      <button class="view-btn" data-view="week">Week</button>
+      <button class="view-btn" data-view="month">Month</button>
+    </div>
   </div>
   <button class="nav-btn" id="notif-btn" title="Enable Notifications"><span class="material-symbols-outlined" style="font-size:20px;">notifications</span></button>
   <button class="nav-btn" id="settings-btn" title="Settings"><span class="material-symbols-outlined" style="font-size:20px;">settings</span></button>
@@ -3115,6 +3118,7 @@ setInterval(() => {
 // EVENT LISTENERS
 // ─────────────────────────────────────────────
 document.getElementById('prev-btn').addEventListener('click', () => navigate(-1));
+document.getElementById('next-btn').addEventListener('click', () => navigate(1));
 document.getElementById('today-btn').addEventListener('click', goToday);
 
 document.querySelectorAll('.view-btn').forEach(btn => {
