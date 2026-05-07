@@ -92,7 +92,17 @@
     width: 256px; flex-shrink: 0; background: white;
     border-right: 1px solid var(--surface-container);
     display: flex; flex-direction: column; overflow: hidden;
+    transition: width 0.25s ease;
   }
+  #left-sidebar.sidebar-collapsed { width: 40px; }
+  #left-sidebar.sidebar-collapsed .sidebar-hide { display: none !important; }
+  .sidebar-collapse-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 8px 0; border: none; background: none; cursor: pointer;
+    color: var(--on-surface-variant); border-top: 1px solid var(--surface-container);
+    flex-shrink: 0; transition: background 0.15s;
+  }
+  .sidebar-collapse-btn:hover { background: var(--surface-low); }
   .sidebar-section { padding: 12px; }
   .create-btn {
     width: 100%; height: 40px; border-radius: 20px;
@@ -793,13 +803,13 @@
 <div id="main">
   <!-- Left Sidebar -->
   <aside id="left-sidebar">
-    <div class="sidebar-section">
+    <div class="sidebar-section sidebar-hide">
       <button class="create-btn" id="create-event-btn">
         <span class="material-symbols-outlined" style="font-size:18px;">add</span>
         New Event
       </button>
     </div>
-    <div id="mini-cal">
+    <div id="mini-cal" class="sidebar-hide">
       <div class="mini-cal-header">
         <span class="mini-cal-title" id="mini-cal-title"></span>
         <div style="display:flex;gap:2px;">
@@ -809,13 +819,16 @@
       </div>
       <div class="mini-cal-grid" id="mini-cal-grid"></div>
     </div>
-    <div class="cal-list-section" style="flex:1;overflow-y:auto;">
+    <div class="cal-list-section sidebar-hide" style="flex:1;overflow-y:auto;">
       <div class="cal-list-label">
         Calendars
         <button class="icon-btn" id="add-calendar-btn" style="width:22px;height:22px;" title="Add calendar"><span class="material-symbols-outlined" style="font-size:16px;">add</span></button>
       </div>
       <div id="calendar-list"></div>
     </div>
+    <button class="sidebar-collapse-btn" id="left-sidebar-collapse-btn" title="Toggle sidebar">
+      <span class="material-symbols-outlined" style="font-size:20px;" id="left-sidebar-collapse-icon">chevron_left</span>
+    </button>
   </aside>
 
   <!-- Calendar Area -->
@@ -3305,6 +3318,13 @@ document.getElementById('panel-collapse-btn').addEventListener('click', () => {
   const icon = document.getElementById('panel-collapse-icon');
   const collapsed = panel.classList.toggle('panel-collapsed');
   icon.textContent = collapsed ? 'checklist' : 'chevron_right';
+});
+
+document.getElementById('left-sidebar-collapse-btn').addEventListener('click', () => {
+  const sidebar = document.getElementById('left-sidebar');
+  const icon = document.getElementById('left-sidebar-collapse-icon');
+  const collapsed = sidebar.classList.toggle('sidebar-collapsed');
+  icon.textContent = collapsed ? 'chevron_right' : 'chevron_left';
 });
 
 let _prevView = 'week';
