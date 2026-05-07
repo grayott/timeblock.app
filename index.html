@@ -1285,6 +1285,7 @@ let STATE = {
   miniCalDate: new Date(),
   topThree: [],
   brainDump: [],
+  brainDumpDate: new Date().toDateString(),
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' },
   settings: { darkMode: false, weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
 };
@@ -1299,6 +1300,7 @@ function saveState() {
     miniCalDate: STATE.miniCalDate.toISOString(),
     topThree: STATE.topThree || [],
     brainDump: STATE.brainDump || [],
+    brainDumpDate: STATE.brainDumpDate || new Date().toDateString(),
     calendars: STATE.calendars || [],
     lists: STATE.lists || [],
     taskViewConfig: STATE.taskViewConfig || {},
@@ -1320,6 +1322,12 @@ function loadState() {
     STATE.miniCalDate = s.miniCalDate ? new Date(s.miniCalDate) : new Date();
     STATE.topThree = s.topThree || [];
     STATE.brainDump = s.brainDump || [];
+    STATE.brainDumpDate = s.brainDumpDate || new Date().toDateString();
+    // Reset brain dump daily
+    if (STATE.brainDumpDate !== new Date().toDateString()) {
+      STATE.brainDump = [];
+      STATE.brainDumpDate = new Date().toDateString();
+    }
     STATE.calendars = s.calendars || [];
     STATE.lists = s.lists || [];
     STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' }, s.taskViewConfig || {});
@@ -1992,6 +2000,9 @@ function renderTasks() {
     todaySection.appendChild(taskList);
   }
   list.appendChild(todaySection);
+
+  // ── + Add task button ──
+  renderQuickAdd(list);
 
   // Also render Top Three and Brain Dump
   renderTopThree();
@@ -4340,13 +4351,14 @@ function initBrainDump() {
   function addToBrainDump(taskId) {
     if (!STATE.brainDump.includes(taskId)) {
       STATE.brainDump.push(taskId);
+      STATE.brainDumpDate = new Date().toDateString();
       saveState(); renderBrainDump();
     }
   }
 
   function createAndAddTask(title) {
-    const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-    const newTask = { id: uid(), title, completed: false, priority: 'medium', dueDate: todayDate, dueTime: '', description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
+    const { title: cleanTitle, tags } = parseTagsFromTitle(title);
+    const newTask = { id: uid(), title: cleanTitle || title, completed: false, status: 'not_started', priority: 'medium', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags: tags || [], subtasks: [], listId: null };
     STATE.tasks.push(newTask);
     addToBrainDump(newTask.id);
     renderTasks();
