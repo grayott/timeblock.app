@@ -2135,11 +2135,12 @@ function renderQuickAdd(container) {
 
   if (quickAddActive) {
     // ── State for the new task being created ──
-    let qaDate = new Date(); qaDate.setHours(0,0,0,0); // default to Today
+    let qaDate = null;
     let qaTime = null;
     let qaTags = [];
     let qaListId = null;
-    let qaPriority = 'medium';
+    let qaPriority = null; // null = not set, only show chip when explicitly chosen
+    let qaDateManual = false; // true when user picked date via picker (don't override with NLP)
     let parsedResult = null;
 
     const box = document.createElement('div');
@@ -2185,15 +2186,18 @@ function renderQuickAdd(container) {
       // Due date chip
       const dateChip = makeChip('calendar_today', qaDate ? formatNLPPreview(qaDate, !!qaTime) : 'Due date',
         qaDate ? 'var(--primary)' : null,
-        qaDate ? () => { qaDate = null; qaTime = null; refreshChips(); } : null);
+        qaDate ? () => { qaDate = null; qaTime = null; qaDateManual = false; refreshChips(); } : null);
       dateChip.addEventListener('click', () => showDatePicker(dateChip));
       chipRow.appendChild(dateChip);
 
-      // Priority chip
+      // Priority chip — only shown when explicitly set, otherwise show a muted "Priority" button
       const prioColors = { high: 'var(--error)', medium: '#d97706', low: 'var(--on-surface-variant)' };
       const prioLabels = { high: 'High', medium: 'Medium', low: 'Low' };
-      const prioChip = makeChip('flag', prioLabels[qaPriority], prioColors[qaPriority]);
+      const prioChip = makeChip('flag', qaPriority ? prioLabels[qaPriority] : 'Priority',
+        qaPriority ? prioColors[qaPriority] : null,
+        qaPriority ? () => { qaPriority = null; refreshChips(); } : null);
       prioChip.addEventListener('click', () => {
+        if (!qaPriority) { qaPriority = 'medium'; refreshChips(); return; }
         const order = ['low', 'medium', 'high'];
         qaPriority = order[(order.indexOf(qaPriority) + 1) % 3];
         refreshChips();
@@ -2234,7 +2238,7 @@ function renderQuickAdd(container) {
         item.addEventListener('mouseleave', () => item.style.background = 'none');
         item.addEventListener('mousedown', e => {
           e.preventDefault(); e.stopPropagation();
-          qaDate = o.date; qaTime = null;
+          qaDate = o.date; qaTime = null; qaDateManual = !!o.date;
           closeQaDropdowns(); refreshChips();
         });
         dd.appendChild(item);
@@ -2248,7 +2252,7 @@ function renderQuickAdd(container) {
       dateInput.addEventListener('change', () => {
         if (dateInput.value) {
           qaDate = new Date(dateInput.value + 'T00:00:00');
-          qaTime = null;
+          qaTime = null; qaDateManual = true;
           closeQaDropdowns(); refreshChips();
         }
       });
@@ -2364,16 +2368,16 @@ function renderQuickAdd(container) {
     const addTask = () => {
       let title = titleInput.value.trim();
       if (!title) return;
-      // Parse NLP from title for any remaining date text
-      if (!qaDate) {
+      // Strip NLP date text from title (it was already parsed live)
+      if (!qaDateManual) {
         const nlp = parseNLPDate(title);
-        if (nlp) { qaDate = nlp.date; qaDate.setHours(0,0,0,0); title = nlp.cleanTitle || title; if (nlp.hasTime) qaTime = `${String(nlp.date.getHours()).padStart(2,'0')}:${String(nlp.date.getMinutes()).padStart(2,'0')}`; }
+        if (nlp) { title = nlp.cleanTitle || title; }
       }
       const { title: cleanTitle, tags: parsedTags } = parseTagsFromTitle(title);
       title = cleanTitle || title;
       const allTags = [...new Set([...qaTags, ...parsedTags])];
       const desc = descInput.value.trim();
-      STATE.tasks.push({ id: uid(), title, completed: false, status: 'not_started', priority: qaPriority,
+      STATE.tasks.push({ id: uid(), title, completed: false, status: 'not_started', priority: qaPriority || 'medium',
         dueDate: qaDate, dueTime: qaTime, description: desc, tags: allTags, subtasks: [],
         notification: 'none', recurring: 'none', listId: qaListId });
       saveState();
@@ -2403,12 +2407,18 @@ function renderQuickAdd(container) {
       if (e.key === 'Escape') { e.stopPropagation(); quickAddActive = false; renderTasks(); }
     });
 
-    // NLP auto-detect: update date chip as user types
+    // NLP auto-detect: update date chip as user types (only if user hasn't manually picked)
     titleInput.addEventListener('input', () => {
+      if (qaDateManual) return;
       const nlp = parseNLPDate(titleInput.value);
-      if (nlp && !qaDate) {
-        // Only auto-set if user hasn't manually picked a date
+      if (nlp) {
+        qaDate = new Date(nlp.date);
+        if (!nlp.hasTime) qaDate.setHours(0,0,0,0);
+        qaTime = nlp.hasTime ? `${String(nlp.date.getHours()).padStart(2,'0')}:${String(nlp.date.getMinutes()).padStart(2,'0')}` : null;
+      } else {
+        qaDate = null; qaTime = null;
       }
+      refreshChips();
     });
 
     setTimeout(() => titleInput.focus(), 0);
