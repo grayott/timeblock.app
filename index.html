@@ -621,14 +621,7 @@
   }
   .brain-dump-item:hover { background: var(--surface-low); }
 
-  /* Panel tabs */
-  .panel-tabs { display: flex; gap: 2px; padding: 8px 8px 0; }
-  .panel-tab {
-    flex: 1; height: 28px; border: none; background: none; border-radius: 7px;
-    font-size: 12px; font-weight: 500; cursor: pointer; color: var(--on-surface-variant);
-    transition: all 0.15s;
-  }
-  .panel-tab.active { background: var(--primary-light); color: var(--primary); font-weight: 600; }
+  /* Panel view */
   .panel-view { display: none; flex: 1; overflow-y: auto; padding: 8px; flex-direction: column; }
   .panel-view.active { display: flex; }
 
@@ -813,12 +806,6 @@
       </div>
       <div class="mini-cal-grid" id="mini-cal-grid"></div>
     </div>
-    <div style="padding: 0 12px 8px;">
-      <button class="create-btn" id="create-task-btn" style="background: white; color: var(--primary); border: 1.5px solid var(--primary); box-shadow: none;">
-        <span class="material-symbols-outlined" style="font-size:18px;">check_circle</span>
-        New Task
-      </button>
-    </div>
     <div class="cal-list-section" style="flex:1;overflow-y:auto;">
       <div class="cal-list-label">
         Calendars
@@ -903,21 +890,14 @@
       <button class="icon-btn panel-hide" id="panel-expand-btn" title="Full page tasks"><span class="material-symbols-outlined" style="font-size:20px;">open_in_full</span></button>
       <button class="icon-btn" id="panel-collapse-btn" title="Toggle tasks panel"><span class="material-symbols-outlined" style="font-size:20px;" id="panel-collapse-icon">chevron_right</span></button>
     </div>
-    <!-- Tabs -->
-    <div class="panel-tabs panel-hide">
-      <button class="panel-tab active" data-panel="all">All Tasks</button>
-      <button class="panel-tab" data-panel="focus">Focus</button>
-    </div>
-    <!-- All Tasks view -->
-    <div class="panel-view active panel-hide" id="panel-all">
-      <div id="tasks-list"></div>
-    </div>
-    <!-- Focus view: Top Three + Brain Dump -->
-    <div class="panel-view panel-hide" id="panel-focus" style="gap:0;">
+    <!-- Single scrollable view -->
+    <div class="panel-view active panel-hide" id="panel-all" style="gap:0;">
+      <!-- Top Three -->
       <div style="padding:8px 4px 4px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">⭐ Top Three</div>
         <div id="top-three-slots"></div>
       </div>
+      <!-- Brain Dump -->
       <div style="padding:8px 4px 4px;border-top:1px solid var(--surface-container);margin-top:4px;">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">🧠 Brain Dump</div>
         <div class="brain-dump-input-wrap">
@@ -925,6 +905,11 @@
           <div class="brain-dump-suggestions" id="brain-dump-suggestions"></div>
         </div>
         <div id="brain-dump-list" style="margin-top:6px;"></div>
+      </div>
+      <!-- Today & Overdue -->
+      <div style="padding:8px 4px 4px;border-top:1px solid var(--surface-container);margin-top:4px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">📋 Today & Overdue</div>
+        <div id="tasks-list"></div>
       </div>
     </div>
   </aside>
@@ -1900,41 +1885,33 @@ function renderTasks() {
   list.innerHTML = '';
 
   const todayD = new Date(); todayD.setHours(0,0,0,0);
+  const tomorrowD = new Date(todayD); tomorrowD.setDate(tomorrowD.getDate() + 1);
 
-  const incomplete = STATE.tasks.filter(t => !t.completed).sort((a, b) => {
-    const aDate = a.dueDate ? new Date(a.dueDate).setHours(0,0,0,0) : Infinity;
-    const bDate = b.dueDate ? new Date(b.dueDate).setHours(0,0,0,0) : Infinity;
+  // Only show incomplete tasks due today or overdue
+  const todayAndOverdue = STATE.tasks.filter(t => {
+    if (t.completed) return false;
+    if (!t.dueDate) return false;
+    const dd = new Date(t.dueDate); dd.setHours(0,0,0,0);
+    return dd < tomorrowD; // today or earlier
+  }).sort((a, b) => {
+    const aDate = new Date(a.dueDate).setHours(0,0,0,0);
+    const bDate = new Date(b.dueDate).setHours(0,0,0,0);
     if (aDate !== bDate) return aDate - bDate;
     return (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
   });
 
-  const completed = STATE.tasks.filter(t => t.completed);
-
-  if (STATE.tasks.length === 0) {
+  if (todayAndOverdue.length === 0) {
     const empty = document.createElement('div');
-    empty.className = 'empty-state';
-    empty.innerHTML = '<span class="material-symbols-outlined">check_circle</span><br>No tasks yet';
+    empty.style.cssText = 'text-align:center;padding:16px 8px;color:var(--on-surface-variant);font-size:12px;';
+    empty.textContent = 'No tasks due today';
     list.appendChild(empty);
   } else {
-    incomplete.forEach(task => list.appendChild(buildTaskItem(task)));
-    if (completed.length) {
-      const divider = document.createElement('div');
-      divider.style.cssText = 'border-top:1px solid var(--surface-container);margin:8px 2px 4px;';
-      list.appendChild(divider);
-      completed.forEach(task => list.appendChild(buildTaskItem(task)));
-    }
+    todayAndOverdue.forEach(task => list.appendChild(buildTaskItem(task)));
   }
 
-  // Quick add at bottom
-  renderQuickAdd(list);
-
-  // Scroll expanded task into view
-  if (expandedTaskId) {
-    requestAnimationFrame(() => {
-      const detail = list.querySelector('.task-inline-detail');
-      if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-  }
+  // Also render Top Three and Brain Dump
+  renderTopThree();
+  renderBrainDump();
 }
 
 // ─── Natural Language Date Parser ───────────────────────────────────────────
@@ -3008,7 +2985,6 @@ document.getElementById('qep-title').addEventListener('keydown', e => {
 });
 
 document.getElementById('create-event-btn').addEventListener('click', (e) => openQuickEventPopover(null, null, e.clientX, e.clientY));
-document.getElementById('create-task-btn').addEventListener('click', () => openTaskModal(null));
 document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal(null));
 
 // Panel collapse
@@ -4325,15 +4301,8 @@ function initBrainDump() {
 
 // Panel tabs
 function initPanelTabs() {
-  document.querySelectorAll('.panel-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.panel-tab').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.panel-view').forEach(v => v.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
-      if (btn.dataset.panel === 'focus') { renderTopThree(); renderBrainDump(); }
-    });
-  });
+  // Panel tabs removed — single unified view now
+  // Top Three + Brain Dump + Today/Overdue all in one panel
 }
 
 // ─────────────────────────────────────────────
