@@ -1472,14 +1472,24 @@ function isCalendarVisible(ev) {
 function eventsOnDay(day) {
   return STATE.events.filter(e => isCalendarVisible(e)).filter(e => {
     if (e.allDay) return isSameDay(e.start, day);
-    if (e.recurring === 'daily') return e.start <= endOfDay(day);
-    if (e.recurring === 'weekly') {
-      if (e.start.getDay() !== day.getDay()) return false;
-      return e.start <= endOfDay(day);
-    }
-    if (e.recurring === 'monthly') {
-      if (e.start.getDate() !== day.getDate()) return false;
-      return e.start <= endOfDay(day);
+    if (e.recurring && e.recurring !== 'none') {
+      // Check recurrence end date
+      if (e.recurrEnd) {
+        const recEnd = new Date(e.recurrEnd); recEnd.setHours(0,0,0,0);
+        const d = new Date(day); d.setHours(0,0,0,0);
+        if (d >= recEnd) return false;
+      }
+      // Check exceptions (skipped dates)
+      if (e.exceptions && e.exceptions.includes(startOfDay(day).toDateString())) return false;
+      if (e.recurring === 'daily') return e.start <= endOfDay(day);
+      if (e.recurring === 'weekly') {
+        if (e.start.getDay() !== day.getDay()) return false;
+        return e.start <= endOfDay(day);
+      }
+      if (e.recurring === 'monthly') {
+        if (e.start.getDate() !== day.getDate()) return false;
+        return e.start <= endOfDay(day);
+      }
     }
     return isSameDay(e.start, day);
   });
@@ -1695,7 +1705,7 @@ function renderMonth() {
       evEl.className = 'month-event';
       evEl.style.background = ev.color || '#0058ba';
       evEl.textContent = (ev.allDay ? '' : formatTime(ev.start) + ' ') + ev.title;
-      evEl.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY); });
+      evEl.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, day); });
       cell.appendChild(evEl);
     });
 
@@ -1777,7 +1787,7 @@ function renderAlldayRow(days) {
       el.style.background = ev.color || '#0058ba';
       el.style.top = `${i * 26 + 4}px`;
       el.textContent = ev.title;
-      el.addEventListener('click', e => { openEventPopover(ev.id, e.clientX, e.clientY); });
+      el.addEventListener('click', e => { openEventPopover(ev.id, e.clientX, e.clientY, day); });
       col.appendChild(el);
     });
     const alldayCount = alldayEventsOnDay(day).length;
@@ -1870,7 +1880,7 @@ function renderTimeGrid(days, today) {
       el.innerHTML = `<div class="cal-event-title">${ev.title}</div>` +
         (height > 30 ? `<div class="cal-event-time">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>` : '') +
         (ev.linkedTaskIds && ev.linkedTaskIds.length ? `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>${ev.linkedTaskIds.length} task${ev.linkedTaskIds.length > 1 ? 's' : ''}</div>` : '');
-      el.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY); });
+      el.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, day); });
       col.appendChild(el);
     });
 
@@ -2884,9 +2894,83 @@ function saveEvent() {
   saveState(); closeEventModal(); render();
 }
 
-function deleteEvent(id) {
-  STATE.events = STATE.events.filter(e => e.id !== id);
-  saveState(); closeEventModal(); render();
+function deleteEvent(id, instanceDate) {
+  const ev = STATE.events.find(e => e.id === id);
+  if (!ev) return;
+  if (ev.recurring && ev.recurring !== 'none') {
+    showDeleteRecurringModal(ev, instanceDate);
+  } else {
+    STATE.events = STATE.events.filter(e => e.id !== id);
+    saveState(); closeEventModal(); closeEventPopover(); render();
+  }
+}
+
+function showDeleteRecurringModal(ev, instanceDate) {
+  // Remove any existing modal
+  const existing = document.getElementById('delete-recurring-modal');
+  if (existing) existing.remove();
+
+  const backdrop = document.createElement('div');
+  backdrop.id = 'delete-recurring-modal';
+  backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:1000;display:flex;align-items:center;justify-content:center;';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:white;border-radius:16px;padding:28px 28px 20px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-family:inherit;';
+
+  const title = document.createElement('h3');
+  title.style.cssText = 'font-size:17px;font-weight:700;margin:0 0 20px;color:var(--on-surface);';
+  title.textContent = 'Delete recurring event';
+  modal.appendChild(title);
+
+  const options = [
+    { value: 'this', label: 'This event' },
+    { value: 'following', label: 'This and following events' },
+    { value: 'all', label: 'All events' },
+  ];
+
+  let selected = 'this';
+  options.forEach(o => {
+    const row = document.createElement('label');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer;font-size:14px;color:var(--on-surface);';
+    const radio = document.createElement('input');
+    radio.type = 'radio'; radio.name = 'recur-delete'; radio.value = o.value;
+    radio.style.cssText = 'width:18px;height:18px;accent-color:var(--primary);cursor:pointer;';
+    if (o.value === 'this') { radio.checked = true; }
+    radio.addEventListener('change', () => { selected = o.value; });
+    row.appendChild(radio);
+    row.appendChild(document.createTextNode(o.label));
+    modal.appendChild(row);
+  });
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:20px;';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.cssText = 'border:none;background:none;padding:8px 16px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;color:var(--primary);font-weight:600;';
+  cancelBtn.addEventListener('click', () => backdrop.remove());
+
+  const okBtn = document.createElement('button');
+  okBtn.textContent = 'OK';
+  okBtn.style.cssText = 'border:none;background:var(--primary);color:white;padding:8px 20px;border-radius:8px;font-size:14px;font-family:inherit;cursor:pointer;font-weight:600;';
+  okBtn.addEventListener('click', () => {
+    const instDay = instanceDate ? startOfDay(new Date(instanceDate)) : startOfDay(ev.start);
+    if (selected === 'all') {
+      STATE.events = STATE.events.filter(e => e.id !== ev.id);
+    } else if (selected === 'this') {
+      if (!ev.exceptions) ev.exceptions = [];
+      ev.exceptions.push(instDay.toDateString());
+    } else if (selected === 'following') {
+      ev.recurrEnd = instDay.toISOString();
+    }
+    saveState(); closeEventModal(); closeEventPopover(); backdrop.remove(); render();
+  });
+
+  btnRow.append(cancelBtn, okBtn);
+  modal.appendChild(btnRow);
+  backdrop.appendChild(modal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
 }
 
 // ─────────────────────────────────────────────
@@ -3375,7 +3459,7 @@ document.getElementById('tasks-fp-collapse-btn').addEventListener('click', () =>
 document.getElementById('event-modal-close').addEventListener('click', closeEventModal);
 document.getElementById('ev-cancel-btn').addEventListener('click', closeEventModal);
 document.getElementById('ev-save-btn').addEventListener('click', saveEvent);
-document.getElementById('ev-delete-btn').addEventListener('click', () => { if (editingEventId) deleteEvent(editingEventId); });
+document.getElementById('ev-delete-btn').addEventListener('click', () => { if (editingEventId) deleteEvent(editingEventId, popoverInstanceDate); });
 document.getElementById('ev-allday-toggle').addEventListener('click', () => {
   editingEventAllDay = !editingEventAllDay;
   updateAlldayToggle(editingEventAllDay);
@@ -3577,11 +3661,13 @@ function makeDraggable(modalEl, handleEl) {
 // EVENT DETAIL POPOVER
 // ─────────────────────────────────────────────
 let popoverEventId = null;
+let popoverInstanceDate = null;
 
-function openEventPopover(eventId, clickX, clickY) {
+function openEventPopover(eventId, clickX, clickY, instanceDate) {
   const ev = STATE.events.find(e => e.id === eventId);
   if (!ev) return;
   popoverEventId = eventId;
+  popoverInstanceDate = instanceDate || ev.start;
   const popover = document.getElementById('event-popover');
 
   // Color bar
@@ -4756,7 +4842,7 @@ function init() {
     const id = popoverEventId; closeEventPopover(); openEventModal(id);
   });
   document.getElementById('popover-delete-btn').addEventListener('click', () => {
-    if (popoverEventId && confirm('Delete this event?')) { deleteEvent(popoverEventId); closeEventPopover(); }
+    if (popoverEventId) { deleteEvent(popoverEventId, popoverInstanceDate); closeEventPopover(); }
   });
 
   // Close popover on outside click
