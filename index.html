@@ -7,7 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
 <style>
   :root {
     /* ── Design tokens (Timebox wireframe palette) ── */
@@ -118,22 +117,6 @@
   }
   #plan-panel.sidebar-collapsed { width: 44px; min-width: 44px; }
   #plan-panel.sidebar-collapsed .sidebar-hide { display: none !important; }
-  .sidebar-collapse-btn {
-    display: flex; align-items: center; justify-content: center;
-    width: 100%; padding: 8px 0; border: none; background: none; cursor: pointer;
-    color: var(--on-surface-variant); border-top: 1px solid var(--surface-container);
-    flex-shrink: 0; transition: background 0.15s;
-  }
-  .sidebar-collapse-btn:hover { background: var(--surface-low); }
-  .sidebar-section { padding: 12px; }
-  .create-btn {
-    width: 100%; height: 40px; border-radius: 20px;
-    background: var(--primary); color: white; border: none;
-    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 14px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: background 0.15s; box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.3);
-  }
-  .create-btn:hover { background: var(--primary-dark); }
 
   .icon-btn {
     width: 32px; height: 32px; border: none; background: none; cursor: pointer;
@@ -448,6 +431,7 @@
   }
   .task-list-badge .material-symbols-outlined { font-size: 13px; }
   /* Status badge */
+  /* status-dot: defined for the Tasks page, wired up in pass 2 */
   .status-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
@@ -876,23 +860,6 @@
   .popover-linked-task { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
   .popover-hint { font-size: 10px; color: var(--text-tertiary); line-height: 1.4; }
 
-  /* Task sections */
-  .task-section-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 10px 4px; cursor: pointer; user-select: none;
-  }
-  .task-section-header:hover { background: var(--surface-low); border-radius: 8px; }
-  .task-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--on-surface-variant); display: flex; align-items: center; gap: 6px; }
-  .task-section-count { background: var(--surface-container); color: var(--on-surface-variant); border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 600; }
-  .task-section-count.overdue { background: #fde8e8; color: #c62828; }
-  .task-section-body { overflow: hidden; transition: max-height 0.2s ease; }
-  .task-section-body.collapsed { max-height: 0 !important; }
-  .task-section-chevron { font-size: 18px; transition: transform 0.2s; color: var(--on-surface-variant); }
-  .task-section-chevron.collapsed { transform: rotate(-90deg); }
-
-  /* Empty state */
-  .empty-state { padding: 32px 16px; text-align: center; color: var(--on-surface-variant); font-size: 13px; }
-  .empty-state .material-symbols-outlined { font-size: 36px; margin-bottom: 8px; opacity: 0.5; }
 
   /* Week/day scrolling sync */
   .time-grid-scroll { scroll-behavior: smooth; }
@@ -1068,12 +1035,7 @@
       <button class="icon-btn" id="settings-modal-close"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="modal-body" style="gap:0;">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:12px;">Appearance</div>
-      <div class="toggle-row" style="margin-bottom:16px;">
-        <span class="toggle-label">Dark Mode</span>
-        <div class="toggle" id="s-dark-mode"></div>
-      </div>
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:12px;border-top:1px solid var(--surface-container);padding-top:16px;">Calendar</div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:12px;">Calendar</div>
       <div class="toggle-row" style="margin-bottom:16px;">
         <span class="toggle-label">Week starts on Sunday</span>
         <div class="toggle" id="s-week-sun"></div>
@@ -1400,9 +1362,12 @@ function isoWeekKey(d) {
 }
 function isoWeekNum(d) { return parseInt(isoWeekKey(d).slice(-2), 10); }
 function formatTime(d) {
-  let h = d.getHours(), m = d.getMinutes(), ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+  const m = String(d.getMinutes()).padStart(2, '0');
+  if (STATE && STATE.settings && STATE.settings.use24h) {
+    return `${String(d.getHours()).padStart(2, '0')}:${m}`;
+  }
+  const h = d.getHours();
+  return `${h % 12 || 12}:${m} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 // Notification helpers: store as minutes string, display as num+unit
 function notifToMinutes(num, unit) {
@@ -1486,7 +1451,7 @@ let STATE = {
   weeklyFocus: {},
   ui: { overdueOpen: false, unscheduledOpen: false, weeklyFocusOpen: false, planCollapsed: false },
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' },
-  settings: { darkMode: false, weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
+  settings: { weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
 };
 
 function normalizeTopThree(v) {
@@ -1553,7 +1518,7 @@ function loadState() {
     STATE.calendars = s.calendars || [];
     STATE.lists = s.lists || [];
     STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' }, s.taskViewConfig || {});
-    STATE.settings = Object.assign({ darkMode: false, weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
+    STATE.settings = Object.assign({ weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
     // Migrate tasks: ensure status and listId fields exist
     STATE.tasks.forEach(t => {
       if (!t.status) t.status = t.completed ? 'completed' : 'not_started';
@@ -1569,7 +1534,7 @@ function loadState() {
 // SAMPLE DATA (loaded once if no saved state)
 // ─────────────────────────────────────────────
 function loadSampleData() {
-  const today = new Date(2026, 3, 6); // April 6, 2026
+  const today = startOfDay(new Date()); // anchor the sample week to today
   const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
   const weekStart = addDays(today, mondayOffset);
 
@@ -1710,29 +1675,6 @@ function alldayEventsOnDay(day) {
 // ─────────────────────────────────────────────
 // LAYOUT: OVERLAPPING EVENTS
 // ─────────────────────────────────────────────
-function layoutEvents(events) {
-  // Sort by start
-  const sorted = [...events].sort((a,b) => a.start - b.start);
-  const columns = [];
-  const result = [];
-
-  for (const ev of sorted) {
-    let placed = false;
-    for (let c = 0; c < columns.length; c++) {
-      const last = columns[c][columns[c].length - 1];
-      // Get effective start/end for comparison (use today's date for recurring)
-      if (last._effEnd <= ev.start.getHours()*60 + ev.start.getMinutes()) {
-        columns[c].push(ev);
-        result.push({ev, col: c});
-        placed = true; break;
-      }
-    }
-    if (!placed) { columns.push([ev]); result.push({ev, col: columns.length-1}); }
-  }
-
-  // Assign total columns
-  return result.map(item => ({...item, totalCols: columns.length}));
-}
 
 function getEffMinutes(ev, day) {
   // For recurring, use the start/end time on the given day
@@ -4955,16 +4897,14 @@ function initPlanCapture() {
 // SETTINGS
 // ─────────────────────────────────────────────
 function applySettings() {
-  const s = STATE.settings;
-  document.documentElement.classList.toggle('dark', !!s.darkMode);
-  // Update formatTime if 24h
+  // Re-render so the 12/24-hour choice takes effect everywhere formatTime runs.
+  render();
 }
 
 function openSettingsModal() {
   renderCalendarList();
   const s = STATE.settings;
   const sync = (id, val) => { const el = document.getElementById(id); if (el) { el.classList.toggle('on', !!val); } };
-  sync('s-dark-mode', s.darkMode);
   sync('s-week-sun', s.weekStartsSun);
   sync('s-24h', s.use24h);
   sync('s-event-notifs', s.eventNotifs);
@@ -4983,7 +4923,6 @@ function closeSettingsModal() {
 function saveSettings() {
   const get = id => document.getElementById(id)?.classList.contains('on');
   STATE.settings = {
-    darkMode: get('s-dark-mode'),
     weekStartsSun: get('s-week-sun'),
     use24h: get('s-24h'),
     eventNotifs: get('s-event-notifs'),
@@ -5002,7 +4941,7 @@ function initSettings() {
     if (e.target === document.getElementById('settings-modal-backdrop')) closeSettingsModal();
   });
   // Toggle clicks
-  ['s-dark-mode','s-week-sun','s-24h','s-event-notifs','s-task-notifs'].forEach(id => {
+  ['s-week-sun','s-24h','s-event-notifs','s-task-notifs'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', () => el.classList.toggle('on'));
   });
