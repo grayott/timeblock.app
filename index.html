@@ -26,7 +26,6 @@
     --accent-amber: #f59e0b;
     --accent-red: #ef4444;
     --hour-height: 64px;
-    --col-min-width: 72px;
     --gutter-width: 56px;
     /* ── Legacy aliases: retire in pass 2 ── */
     --primary-light: var(--primary-subtle);
@@ -470,8 +469,8 @@
   .month-cell.other-month .month-cell-num { color: var(--outline-variant); }
   .month-cell-num { font-size: 13px; font-weight: 500; margin-bottom: 2px; display: inline-block; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
   .month-event {
-    font-size: 11px; padding: 1px 5px; border-radius: 3px; margin-bottom: 1px;
-    color: white; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11px; padding: 1px 5px; border-radius: 4px; margin-bottom: 1px;
+    font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     cursor: pointer;
   }
   .month-more { font-size: 11px; color: var(--primary); font-weight: 500; padding: 1px 4px; cursor: pointer; }
@@ -480,13 +479,13 @@
   #week-view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .week-header {
     background: white; border-bottom: 1px solid var(--surface-container);
-    display: flex; flex-shrink: 0;
+    display: flex; flex-shrink: 0; padding-right: var(--grid-sbw, 0px);
   }
   .time-gutter { width: var(--gutter-width); flex-shrink: 0; }
   .week-day-headers { flex: 1; display: flex; overflow: hidden; }
   .day-header-col {
-    flex: 1; text-align: center; padding: 8px 4px; border-left: 1px solid var(--surface-container);
-    min-width: var(--col-min-width);
+    flex: 1; min-width: 0; text-align: center; padding: 8px 4px;
+    border-left: 1px solid var(--surface-container);
   }
   .day-header-name { font-size: 11px; font-weight: 500; color: var(--on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px; }
   .day-header-num {
@@ -498,19 +497,18 @@
   .day-header-num.today { background: var(--primary); color: white; }
 
   /* All-day row */
-  .allday-row { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--surface-container); background: white; min-height: 28px; }
+  .allday-row { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--surface-container); background: white; min-height: 28px; padding-right: var(--grid-sbw, 0px); }
   .allday-gutter { width: var(--gutter-width); flex-shrink: 0; font-size: 10px; color: var(--on-surface-variant); display: flex; align-items: flex-start; justify-content: flex-end; padding: 4px 6px 0 0; }
   .allday-cols { flex: 1; display: flex; overflow: hidden; position: relative; }
-  .allday-col { flex: 1; border-left: 1px solid var(--surface-container); min-height: 28px; position: relative; min-width: var(--col-min-width); }
+  .allday-col { flex: 1; min-width: 0; border-left: 1px solid var(--surface-container); min-height: 28px; position: relative; }
   .allday-event {
     position: absolute; left: 2px; right: 2px;
-    background: var(--primary); color: white;
     font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 4px;
     cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
   /* Time Grid */
-  .time-grid-scroll { flex: 1; overflow: auto; position: relative; scrollbar-gutter: stable; }
+  .time-grid-scroll { flex: 1; overflow-x: hidden; overflow-y: auto; position: relative; scrollbar-gutter: stable; }
   .time-grid { display: flex; height: calc(24 * var(--hour-height)); position: relative; }
   .time-labels { width: var(--gutter-width); flex-shrink: 0; position: relative; }
   .time-label {
@@ -519,8 +517,8 @@
   }
   .time-grid-cols { flex: 1; display: flex; position: relative; }
   .day-col {
-    flex: 1; border-left: 1px solid var(--surface-container);
-    position: relative; min-width: var(--col-min-width);
+    flex: 1; min-width: 0; border-left: 1px solid var(--surface-container);
+    position: relative;
   }
   .day-col.today-col { background: rgba(var(--primary-rgb), 0.02); }
   .hour-line {
@@ -1714,6 +1712,7 @@ function render() {
       document.getElementById('month-view').style.display = 'none';
       document.getElementById('week-view').style.display = 'flex';
       renderWeekDay();
+      syncGridScrollbarGutter();
     }
   }
 }
@@ -1773,7 +1772,8 @@ function renderMonth() {
     dayEvs.forEach(ev => {
       const evEl = document.createElement('div');
       evEl.className = 'month-event';
-      evEl.style.background = ev.color || '#2563eb';
+      const mc = ev.color || EVENT_COLORS[0];
+      evEl.style.cssText = `background:${mc}1f; border:1px solid ${mc}3d; color:${mc};`;
       evEl.textContent = (ev.allDay ? '' : formatTime(ev.start) + ' ') + ev.title;
       evEl.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, date); });
       cell.appendChild(evEl);
@@ -1816,6 +1816,15 @@ function renderMonth() {
 // ─────────────────────────────────────────────
 // WEEK / DAY / NDAY VIEW
 // ─────────────────────────────────────────────
+// Keep the day headers exactly over their columns: the grid body reserves
+// scrollbar width inside itself, the header rows must reserve the same.
+function syncGridScrollbarGutter() {
+  const sc = document.getElementById('time-grid-scroll');
+  if (!sc) return;
+  const w = Math.max(0, sc.offsetWidth - sc.clientWidth);
+  document.documentElement.style.setProperty('--grid-sbw', w + 'px');
+}
+
 function renderWeekDay() {
   const days = getViewDays();
   const today = new Date();
@@ -1855,7 +1864,8 @@ function renderAlldayRow(days) {
     alldayEventsOnDay(day).forEach((ev, i) => {
       const el = document.createElement('div');
       el.className = 'allday-event';
-      el.style.background = ev.color || '#2563eb';
+      const ac = ev.color || EVENT_COLORS[0];
+      el.style.cssText = `background:${ac}1f; border:1px solid ${ac}3d; color:${ac};`;
       el.style.top = `${i * 26 + 4}px`;
       el.textContent = ev.title;
       el.addEventListener('click', e => { openEventPopover(ev.id, e.clientX, e.clientY, day); });
@@ -4897,8 +4907,8 @@ function initPlanCapture() {
 // SETTINGS
 // ─────────────────────────────────────────────
 function applySettings() {
-  // Re-render so the 12/24-hour choice takes effect everywhere formatTime runs.
-  render();
+  // Nothing to apply eagerly: formatTime reads STATE.settings.use24h directly,
+  // and saveSettings() re-renders after a change.
 }
 
 function openSettingsModal() {
@@ -4928,8 +4938,8 @@ function saveSettings() {
     eventNotifs: get('s-event-notifs'),
     taskNotifs: get('s-task-notifs'),
   };
-  applySettings();
   saveState();
+  render();
   closeSettingsModal();
 }
 
@@ -4985,20 +4995,6 @@ function init() {
     });
   });
 
-  // Keep the week header aligned with the grid when it scrolls horizontally.
-  // .time-grid-scroll is overflow:auto but the header rows are overflow:hidden,
-  // so without this the columns slide out from under their day labels.
-  const gridScroll = document.getElementById('time-grid-scroll');
-  if (gridScroll) {
-    gridScroll.addEventListener('scroll', () => {
-      const x = gridScroll.scrollLeft;
-      const h = document.getElementById('week-day-headers');
-      const a = document.getElementById('allday-cols');
-      if (h) h.scrollLeft = x;
-      if (a) a.scrollLeft = x;
-    });
-  }
-
   // Draggable event popover
   makeDraggable(document.getElementById('event-popover'), document.getElementById('event-popover-drag-handle'));
   makeDraggable(document.getElementById('quick-event-popover'), document.getElementById('qep-drag-handle'));
@@ -5038,11 +5034,15 @@ function init() {
     if (e.key === 'Escape' && document.getElementById('event-popover').classList.contains('visible')) closeEventPopover();
   }, true);
 
-  // Scroll to 7am
-  setTimeout(() => {
+  window.addEventListener('resize', syncGridScrollbarGutter);
+
+  // Open the grid near the start of the working day. Wait two frames so the
+  // flex layout has settled, and use scrollTo -- a bare scrollTop assignment
+  // gets clamped while the container is still being sized.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
     const scroll = document.getElementById('time-grid-scroll');
-    if (scroll) scroll.scrollTop = 7 * HOUR_HEIGHT - 32;
-  }, 50);
+    if (scroll) scroll.scrollTo({ top: 7 * HOUR_HEIGHT - 32, behavior: 'instant' });
+  }));
 
   // Schedule notifications if already granted
   if (Notification.permission === 'granted') scheduleNotifications();
