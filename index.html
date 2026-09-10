@@ -330,53 +330,183 @@
   /* Calendar Area */
   #cal-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
 
-  /* Full-page Tasks View */
-  #tasks-fullpage {
-    display: none; flex: 1; overflow-y: auto; padding: 32px 0;
-    background: var(--surface);
-  }
+  /* ── Tasks page: rail | database | inspector ── */
+  #tasks-fullpage { display: none; flex: 1; min-width: 0; background: var(--bg-canvas); }
   #tasks-fullpage.active { display: flex; }
-  .tasks-fp-container {
-    width: 100%; max-width: 720px; margin: 0 auto; padding: 0 24px;
+
+  /* left rail */
+  #tk-rail {
+    width: 232px; flex-shrink: 0; background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
+    display: flex; flex-direction: column; overflow: hidden;
   }
-  .tasks-fp-header {
-    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+  #tk-rail-scroll { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 18px; }
+  .tk-smart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tk-smart {
+    border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-canvas);
+    padding: 9px 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column;
+    gap: 10px; transition: all 0.12s;
   }
-  .tasks-fp-title {
-    font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 22px;
+  .tk-smart:hover { background: var(--bg-hover); }
+  .tk-smart.active { background: var(--primary-subtle); border-color: var(--primary); }
+  .tk-smart-top { display: flex; align-items: center; justify-content: space-between; }
+  .tk-smart-icon {
+    width: 22px; height: 22px; border-radius: 50%; color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
-  .tasks-fp-tabs {
-    display: flex; gap: 2px; background: var(--surface-low); border-radius: 10px; padding: 3px;
+  .tk-smart-icon .material-symbols-outlined { font-size: 14px; }
+  .tk-smart-num { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+  .tk-smart.active .tk-smart-num { color: var(--primary); }
+  .tk-smart-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+  .tk-smart.active .tk-smart-label { color: var(--text-primary); font-weight: 600; }
+
+  .tk-rail-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 4px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-tertiary);
   }
-  .tasks-fp-tab {
-    height: 30px; padding: 0 16px; border-radius: 7px; border: none; background: none;
-    font-size: 13px; font-weight: 500; cursor: pointer; color: var(--on-surface-variant);
-    transition: all 0.15s;
+  .tk-rail-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px;
+    cursor: pointer; font-size: 13px; color: var(--text-secondary); transition: all 0.12s;
   }
-  .tasks-fp-tab.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-  .tasks-fp-section {
-    background: white; border-radius: 14px; border: 1px solid var(--surface-container);
-    padding: 4px 0; margin-bottom: 16px;
+  .tk-rail-row:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .tk-rail-row.active { background: var(--primary-subtle); color: var(--text-primary); font-weight: 500; }
+  .tk-rail-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tk-rail-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tk-rail-count { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--text-tertiary); }
+  .tk-rail-name-input {
+    flex: 1; min-width: 0; border: 1px solid var(--primary); border-radius: 5px;
+    padding: 2px 5px; font-family: inherit; font-size: 13px; outline: none; background: var(--bg-surface);
   }
-  .tasks-fp-section .task-item { padding: 12px 16px; }
-  .tasks-fp-section .task-title { font-size: 14px; }
-  .tasks-fp-section .task-meta { font-size: 12px; }
-  .tasks-fp-section .task-inline-detail { margin: 0 8px 8px; border-radius: 0 0 10px 10px; }
-  .tasks-fp-section .task-item.task-expanded { margin-left: 8px; margin-right: 8px; border-radius: 10px 10px 0 0; }
-  .tasks-fp-focus { display: none; }
-  .tasks-fp-focus.active { display: block; }
-  .tasks-fp-all { display: none; }
-  .tasks-fp-all.active { display: block; }
-  .tasks-fp-focus-label {
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
-    color: var(--on-surface-variant); margin-bottom: 10px; padding-left: 4px;
+  .tk-tag-wrap { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 4px; }
+  .tk-tag {
+    padding: 2px 7px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--bg-canvas); font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; color: var(--text-secondary); cursor: pointer; transition: all 0.12s;
   }
-  .tasks-fp-brain-dump-wrap {
-    background: white; border-radius: 14px; border: 1px solid var(--surface-container);
-    padding: 12px 16px; margin-bottom: 16px;
+  .tk-tag:hover { background: var(--bg-hover); }
+  .tk-tag.active { background: var(--primary-subtle); border-color: var(--primary); color: var(--primary); }
+  #tk-rail-footer {
+    flex-shrink: 0; padding: 9px 14px; border-top: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--text-tertiary);
   }
-  .tasks-fp-brain-dump-wrap .brain-dump-input-wrap { margin-bottom: 8px; }
-  .tasks-fp-brain-dump-wrap .brain-dump-input { font-size: 14px; height: 38px; }
+
+  /* centre database pane */
+  #tk-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #tk-head { flex-shrink: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); padding: 14px 20px 0; }
+  .tk-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .tk-h1 { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+  .tk-openpill {
+    padding: 2px 9px; border-radius: 9999px; background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle); color: var(--text-secondary);
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px;
+  }
+  .tk-tabs { display: flex; align-items: center; gap: 3px; overflow-x: auto; }
+  .tk-tab {
+    display: flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 7px 7px 0 0;
+    border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 500;
+    color: var(--text-secondary); white-space: nowrap; border-bottom: 2px solid transparent;
+    transition: all 0.12s;
+  }
+  .tk-tab:hover { color: var(--text-primary); background: var(--bg-canvas); }
+  .tk-tab.active { color: var(--text-primary); font-weight: 600; border-bottom-color: var(--primary); }
+  .tk-tab-x { display: flex; opacity: 0; color: var(--text-tertiary); }
+  .tk-tab:hover .tk-tab-x { opacity: 1; }
+  .tk-tab-x:hover { color: var(--accent-red); }
+
+  #tk-controls {
+    flex-shrink: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle);
+    padding: 8px 20px; display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; flex-wrap: wrap;
+  }
+  #tk-scroll { flex: 1; overflow-y: auto; padding: 16px 20px 40px; }
+  .tk-sheet { max-width: 860px; margin: 0 auto; }
+  .tk-group-head {
+    display: flex; align-items: center; gap: 8px; padding: 14px 4px 6px;
+    font-size: 12px; font-weight: 600; color: var(--text-primary);
+  }
+  .tk-group-count { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--text-tertiary); font-weight: 400; }
+  .tk-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px; overflow: hidden; }
+  .tk-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; cursor: pointer;
+    border-left: 2px solid transparent; transition: background 0.1s;
+  }
+  .tk-row + .tk-row { border-top: 1px solid var(--border-subtle); }
+  .tk-row:hover { background: var(--bg-canvas); }
+  .tk-row.selected { background: var(--primary-subtle); border-left-color: var(--primary); }
+  .tk-row-body { flex: 1; min-width: 0; }
+  .tk-row-title { font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tk-row-title.done { text-decoration: line-through; color: var(--text-tertiary); }
+  .tk-row-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tk-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .tk-pill {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px;
+    padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-subtle);
+    background: var(--bg-canvas); color: var(--text-secondary); white-space: nowrap;
+  }
+  .tk-pill.due-over { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+  .tk-pill.due-today { color: var(--primary); background: var(--primary-subtle); border-color: #bfdbfe; }
+  .tk-pill.sched { color: #6d28d9; background: #f5f3ff; border-color: #ddd6fe; }
+  .tk-pill.ghost { border-style: dashed; color: var(--text-tertiary); background: none; cursor: pointer; }
+  .tk-pill.ghost:hover { color: var(--primary); border-color: var(--primary); }
+  .tk-tagchip { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--text-secondary); background: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; }
+  .tk-prio { font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .tk-prio.p1 { color: #dc2626; } .tk-prio.p2 { color: #d97706; } .tk-prio.p3 { color: var(--text-tertiary); }
+  .tk-listbadge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-secondary); }
+  .tk-addrow {
+    display: flex; align-items: center; gap: 9px; padding: 10px 12px; width: 100%;
+    border: none; background: none; cursor: text; color: var(--text-tertiary); font-size: 13px;
+    font-family: inherit; text-align: left;
+  }
+  .tk-addrow:hover { background: var(--bg-canvas); }
+  .tk-addinput { flex: 1; border: none; outline: none; background: none; font-family: inherit; font-size: 13px; color: var(--text-primary); }
+  .tk-syntax { display: flex; align-items: center; gap: 5px; padding: 6px 12px 8px; flex-wrap: wrap; }
+  .tk-syntax-hint { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--text-tertiary); background: var(--bg-canvas); border: 1px solid var(--border-subtle); padding: 1px 5px; border-radius: 4px; }
+  .tk-empty { text-align: center; padding: 44px 16px; color: var(--text-tertiary); font-size: 13px; }
+  .tk-empty .material-symbols-outlined { font-size: 34px; display: block; margin-bottom: 8px; opacity: 0.4; }
+
+  /* right inspector */
+  #tk-inspector {
+    width: 316px; flex-shrink: 0; background: var(--bg-surface);
+    border-left: 1px solid var(--border-subtle); display: none; flex-direction: column; overflow: hidden;
+  }
+  #tk-inspector.open { display: flex; }
+  .tk-insp-head { flex-shrink: 0; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; }
+  .tk-insp-tag { padding: 2px 9px; border-radius: 9999px; background: var(--primary-subtle); color: var(--primary); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; font-weight: 500; }
+  #tk-insp-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .tk-insp-title {
+    width: 100%; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 600;
+    color: var(--text-primary); background: none; outline: none;
+  }
+  .tk-insp-title:hover { border-color: var(--border-subtle); }
+  .tk-insp-title:focus { border-color: var(--primary); background: var(--bg-surface); }
+  .tk-insp-desc {
+    width: 100%; min-height: 54px; resize: vertical; border: 1px solid var(--border-subtle);
+    border-radius: 6px; padding: 6px 8px; font-family: inherit; font-size: 12px; line-height: 1.5;
+    color: var(--text-secondary); background: var(--bg-canvas); outline: none;
+  }
+  .tk-insp-desc:focus { border-color: var(--primary); background: var(--bg-surface); }
+  .tk-insp-block { border: 1px solid #ddd6fe; background: #f5f3ff; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .tk-insp-block-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 500; color: #6d28d9; }
+  .tk-insp-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--border-subtle); font-size: 12px; }
+  .tk-insp-field:last-of-type { border-bottom: none; }
+  .tk-insp-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); flex-shrink: 0; }
+  .tk-insp-label .material-symbols-outlined { font-size: 15px; color: var(--text-tertiary); }
+  .tk-insp-val { flex: 1; text-align: right; min-width: 0; }
+  .tk-insp-input {
+    border: 1px solid transparent; border-radius: 5px; padding: 3px 6px; font-family: inherit;
+    font-size: 12px; background: none; outline: none; color: var(--text-primary); text-align: right;
+    max-width: 100%;
+  }
+  .tk-insp-input:hover { border-color: var(--border-subtle); }
+  .tk-insp-input:focus { border-color: var(--primary); background: var(--bg-surface); }
+  select.tk-insp-input { text-align: left; cursor: pointer; }
+  .tk-insp-sub { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .tk-insp-subtext { flex: 1; min-width: 0; font-size: 12px; border: none; outline: none; background: none; font-family: inherit; color: var(--text-primary); }
+  .tk-insp-subtext.done { text-decoration: line-through; color: var(--text-tertiary); }
+  #tk-insp-footer { flex-shrink: 0; padding: 9px 14px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; }
   /* Task toolbar (Sort / Filter / Group) */
   .tasks-fp-toolbar {
     display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
@@ -987,39 +1117,69 @@
     </div>
     <!-- Full-page Tasks View -->
     <div id="tasks-fullpage">
-      <div class="tasks-fp-container">
-        <div class="tasks-fp-header">
-          <h2 class="tasks-fp-title heading">Tasks</h2>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div class="tasks-fp-tabs">
-              <button class="tasks-fp-tab active" data-fptab="all">All Tasks</button>
-              <button class="tasks-fp-tab" data-fptab="focus">Focus</button>
+      <!-- Left rail: smart lists, my lists, tags -->
+      <aside id="tk-rail">
+        <div id="tk-rail-scroll">
+          <div class="tk-smart-grid" id="tk-smart"></div>
+          <div>
+            <div class="tk-rail-head">
+              <span>My Lists</span>
+              <button class="plan-icon-act" id="tk-add-list" title="New list"><span class="material-symbols-outlined" style="font-size:15px;">add</span></button>
             </div>
-            <button class="icon-btn" id="tasks-fp-collapse-btn" title="Back to calendar" style="flex-shrink:0;">
-              <span class="material-symbols-outlined" style="font-size:20px;">close_fullscreen</span>
-            </button>
+            <div id="tk-lists"></div>
+          </div>
+          <div>
+            <div class="tk-rail-head"><span>Tags</span></div>
+            <div class="tk-tag-wrap" id="tk-tags"></div>
           </div>
         </div>
-        <div id="tasks-fp-toolbar" class="tasks-fp-toolbar"></div>
-        <div id="tasks-fp-filter-chips" class="fp-filter-chips" style="margin-bottom:12px;"></div>
-        <!-- All Tasks tab -->
-        <div class="tasks-fp-all active" id="tasks-fp-all-content">
-          <div id="tasks-fp-groups"></div>
+        <div id="tk-rail-footer">
+          <span style="display:flex;align-items:center;gap:5px;"><span class="plan-dot"></span>Synced with calendar</span>
+          <button class="plan-act" id="tasks-fp-collapse-btn" title="Back to calendar">Calendar</button>
         </div>
-        <!-- Focus tab -->
-        <div class="tasks-fp-focus" id="tasks-fp-focus-content">
-          <div class="tasks-fp-focus-label">⭐ Top Three</div>
-          <div class="tasks-fp-section" id="tasks-fp-top-three"></div>
-          <div class="tasks-fp-focus-label" style="margin-top:16px;">🧠 Brain Dump</div>
-          <div class="tasks-fp-brain-dump-wrap">
-            <div class="brain-dump-input-wrap">
-              <input type="text" class="brain-dump-input" id="fp-brain-dump-input" placeholder="Search tasks or create new…">
-              <div class="brain-dump-suggestions" id="fp-brain-dump-suggestions"></div>
-            </div>
-            <div id="fp-brain-dump-list" style="margin-top:6px;"></div>
+      </aside>
+
+      <!-- Centre: the database -->
+      <div id="tk-main">
+        <div id="tk-head">
+          <div class="tk-title-row">
+            <h2 class="tk-h1">Tasks</h2>
+            <span class="tk-openpill" id="tk-openpill"></span>
+          </div>
+          <div class="tk-tabs" id="tk-tabs"></div>
+        </div>
+        <div id="tk-controls">
+          <div id="tasks-fp-toolbar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+          <div style="position:relative;">
+            <span class="material-symbols-outlined" style="position:absolute;left:7px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-tertiary);pointer-events:none;">search</span>
+            <input type="text" id="tk-search" placeholder="Filter rows…" autocomplete="off"
+              style="width:180px;padding:4px 8px 4px 26px;font-family:inherit;font-size:12px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--bg-canvas);color:var(--text-primary);outline:none;">
+          </div>
+        </div>
+        <div id="tk-scroll">
+          <div class="tk-sheet">
+            <div id="tasks-fp-filter-chips" class="fp-filter-chips" style="margin-bottom:10px;"></div>
+            <div id="tasks-fp-groups"></div>
           </div>
         </div>
       </div>
+
+      <!-- Right: task inspector -->
+      <aside id="tk-inspector">
+        <div class="tk-insp-head">
+          <span class="tk-insp-tag">Selected task</span>
+          <div style="display:flex;gap:2px;">
+            <button class="icon-btn" id="tk-insp-timebox" title="Block time for this task" style="width:26px;height:26px;"><span class="material-symbols-outlined" style="font-size:16px;">schedule</span></button>
+            <button class="icon-btn" id="tk-insp-delete" title="Delete task" style="width:26px;height:26px;color:var(--accent-red);"><span class="material-symbols-outlined" style="font-size:16px;">delete</span></button>
+            <button class="icon-btn" id="tk-insp-close" title="Close" style="width:26px;height:26px;"><span class="material-symbols-outlined" style="font-size:16px;">close</span></button>
+          </div>
+        </div>
+        <div id="tk-insp-body"></div>
+        <div id="tk-insp-footer">
+          <span class="plan-meta mono" id="tk-insp-meta"></span>
+          <span class="plan-meta mono" style="display:flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:12px;">cloud_done</span>Autosaved</span>
+        </div>
+      </aside>
     </div>
   </div>
 
@@ -1448,7 +1608,9 @@ let STATE = {
   brainDumpDate: new Date().toDateString(),
   weeklyFocus: {},
   ui: { overdueOpen: false, unscheduledOpen: false, weeklyFocusOpen: false, planCollapsed: false },
-  taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' },
+  taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' },
+  views: [],            // user-saved [{ id, name, config }]
+  activeViewId: null,   // null = the built-in All Tasks view
   settings: { weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
 };
 
@@ -1488,6 +1650,8 @@ function saveState() {
     calendars: STATE.calendars || [],
     lists: STATE.lists || [],
     taskViewConfig: STATE.taskViewConfig || {},
+    views: STATE.views || [],
+    activeViewId: STATE.activeViewId || null,
     settings: STATE.settings || {},
   };
   localStorage.setItem('timebox_v3', JSON.stringify(s));
@@ -1515,7 +1679,11 @@ function loadState() {
     rolloverIfNewDay();
     STATE.calendars = s.calendars || [];
     STATE.lists = s.lists || [];
-    STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' }, s.taskViewConfig || {});
+    STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' }, s.taskViewConfig || {});
+    STATE.views = s.views || [];
+    STATE.activeViewId = s.activeViewId || null;
+    // Lists gained a colour; backfill from the palette by position.
+    STATE.lists.forEach((l, i) => { if (!l.color) l.color = CAL_COLORS[i % CAL_COLORS.length]; });
     STATE.settings = Object.assign({ weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
     // Migrate tasks: ensure status and listId fields exist
     STATE.tasks.forEach(t => {
@@ -3269,18 +3437,6 @@ document.querySelectorAll('.view-btn').forEach(btn => {
   });
 });
 
-// Full-page tasks tab switching
-document.querySelectorAll('.tasks-fp-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tasks-fp-tab').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.fptab;
-    document.getElementById('tasks-fp-all-content').classList.toggle('active', tab === 'all');
-    document.getElementById('tasks-fp-focus-content').classList.toggle('active', tab === 'focus');
-    if (tab === 'focus') renderTasksFullPageFocus();
-  });
-});
-
 
 // ─── Quick Event Popover ───────────────────────────────────────────────────
 let qepStart = null, qepEnd = null;
@@ -3871,9 +4027,7 @@ function closeEventPopover() {
 // ─────────────────────────────────────────────
 // FULL-PAGE TASKS VIEW
 // ─────────────────────────────────────────────
-let fpExpandedTaskId = null;
-let fpQuickAddActive = false;
-let fpBrainDumpInitialized = false;
+let selectedTaskId = null;   // the task open in the right-hand inspector
 
 // ─── Task helpers ──────────────────────────────────────────────
 function getTaskStatus(t) { return t.status || (t.completed ? 'completed' : 'not_started'); }
@@ -3895,27 +4049,309 @@ function parseTagsFromTitle(text) {
 
 // ─── Full-page render ──────────────────────────────────────────
 function renderTasksFullPage() {
+  PLAN_SCHED = buildScheduleMap();
+  renderTkRail();
+  renderTkTabs();
   renderFpToolbar();
   renderTasksFullPageAll();
-  if (document.getElementById('tasks-fp-focus-content').classList.contains('active')) {
-    renderTasksFullPageFocus();
+  renderTkInspector();
+  const open = STATE.tasks.filter(t => !t.completed).length;
+  document.getElementById('tk-openpill').textContent = `${open} open`;
+}
+
+// ─── Left rail ─────────────────────────────────────────────────
+// Smart lists are just filter presets, so they read straight off the same
+// taskViewConfig the toolbar writes -- no parallel notion of "current view".
+const TK_SMART = [
+  { id: 'today',     label: 'Today',     icon: 'wb_sunny',     color: 'var(--primary)' },
+  { id: 'upcoming',  label: 'Upcoming',  icon: 'calendar_month', color: 'var(--accent-red)' },
+  { id: 'someday',   label: 'Someday',   icon: 'inbox',        color: 'var(--text-secondary)' },
+  { id: 'completed', label: 'Completed', icon: 'check_circle', color: 'var(--accent-green)' },
+];
+
+function tkSmartCount(id) {
+  const today = startOfDay(new Date());
+  return STATE.tasks.filter(t => {
+    const d = toDueDate(t.dueDate);
+    switch (id) {
+      case 'today':     return !t.completed && d && startOfDay(d).getTime() <= today.getTime();
+      case 'upcoming':  return !t.completed && d && startOfDay(d).getTime() > today.getTime();
+      case 'someday':   return !t.completed && !d;
+      case 'completed': return !!t.completed;
+    }
+  }).length;
+}
+
+function renderTkRail() {
+  const cfg = STATE.taskViewConfig;
+  const f = cfg.filters || {};
+
+  // ── smart lists
+  const grid = document.getElementById('tk-smart');
+  grid.innerHTML = '';
+  TK_SMART.forEach(sm => {
+    const btn = document.createElement('button');
+    btn.className = 'tk-smart' + ((f.date || []).includes(sm.id) || (sm.id === 'completed' && (f.status || []).includes('completed')) ? ' active' : '');
+    btn.innerHTML =
+      `<div class="tk-smart-top">
+         <span class="tk-smart-icon" style="background:${sm.color};"><span class="material-symbols-outlined">${sm.icon}</span></span>
+         <span class="tk-smart-num">${tkSmartCount(sm.id)}</span>
+       </div>
+       <span class="tk-smart-label">${sm.label}</span>`;
+    btn.addEventListener('click', () => applySmartList(sm.id));
+    grid.appendChild(btn);
+  });
+
+  // ── my lists (inline CRUD; the rail replaces the old list-manager modal)
+  const lists = document.getElementById('tk-lists');
+  lists.innerHTML = '';
+  STATE.lists.forEach(l => {
+    const row = document.createElement('div');
+    row.className = 'tk-rail-row' + ((f.list || []).includes(l.id) ? ' active' : '');
+    const dot = document.createElement('span');
+    dot.className = 'tk-rail-dot';
+    dot.style.background = l.color || CAL_COLORS[0];
+    dot.title = 'Change colour';
+    dot.addEventListener('click', e => {
+      e.stopPropagation();
+      const i = CAL_COLORS.indexOf(l.color);
+      l.color = CAL_COLORS[(i + 1) % CAL_COLORS.length];
+      saveState(); renderTasksFullPage();
+    });
+    const name = document.createElement('span');
+    name.className = 'tk-rail-name';
+    name.textContent = l.name;
+    const count = document.createElement('span');
+    count.className = 'tk-rail-count';
+    count.textContent = STATE.tasks.filter(t => t.listId === l.id && !t.completed).length;
+    const del = document.createElement('button');
+    del.className = 'plan-icon-act';
+    del.title = 'Delete list';
+    del.style.opacity = '0';
+    del.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;">close</span>';
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      // Deleting a list must not delete its tasks; they fall back to no list.
+      STATE.tasks.forEach(t => { if (t.listId === l.id) t.listId = null; });
+      STATE.lists = STATE.lists.filter(x => x.id !== l.id);
+      if ((f.list || []).includes(l.id)) cfg.filters.list = (f.list || []).filter(x => x !== l.id);
+      saveState(); renderTasksFullPage();
+    });
+    row.addEventListener('mouseenter', () => { del.style.opacity = '1'; count.style.display = 'none'; });
+    row.addEventListener('mouseleave', () => { del.style.opacity = '0'; count.style.display = ''; });
+    // Double-click the name to rename in place.
+    name.addEventListener('dblclick', e => {
+      e.stopPropagation();
+      const inp = document.createElement('input');
+      inp.className = 'tk-rail-name-input';
+      inp.value = l.name;
+      const commit = () => { l.name = inp.value.trim() || l.name; saveState(); renderTasksFullPage(); };
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+        if (ev.key === 'Escape') renderTasksFullPage();
+      });
+      inp.addEventListener('click', ev => ev.stopPropagation());
+      row.replaceChild(inp, name);
+      inp.focus(); inp.select();
+    });
+    row.append(dot, name, count, del);
+    row.addEventListener('click', () => toggleFilter('list', l.id));
+    lists.appendChild(row);
+  });
+  if (!STATE.lists.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'font-size:12px;color:var(--text-tertiary);padding:4px 8px;';
+    empty.textContent = 'No lists yet';
+    lists.appendChild(empty);
+  }
+  const noList = document.createElement('div');
+  noList.className = 'tk-rail-row' + ((f.list || []).includes('__none__') ? ' active' : '');
+  noList.innerHTML = `<span class="material-symbols-outlined" style="font-size:15px;color:var(--text-tertiary);">inbox</span>
+    <span class="tk-rail-name">Inbox (no list)</span>
+    <span class="tk-rail-count">${STATE.tasks.filter(t => !t.listId && !t.completed).length}</span>`;
+  noList.addEventListener('click', () => toggleFilter('list', '__none__'));
+  lists.appendChild(noList);
+
+  // ── tags (shared across every list)
+  const tags = document.getElementById('tk-tags');
+  tags.innerHTML = '';
+  const all = getAllTags();
+  if (!all.length) {
+    tags.innerHTML = '<span style="font-size:12px;color:var(--text-tertiary);">No tags yet</span>';
+  } else {
+    all.forEach(tag => {
+      const el = document.createElement('button');
+      el.className = 'tk-tag' + ((f.tag || []).includes(tag) ? ' active' : '');
+      el.textContent = '#' + tag;
+      el.addEventListener('click', () => toggleFilter('tag', tag));
+      tags.appendChild(el);
+    });
   }
 }
 
+function toggleFilter(kind, val) {
+  const cfg = STATE.taskViewConfig;
+  cfg.filters = cfg.filters || {};
+  const arr = cfg.filters[kind] || [];
+  cfg.filters[kind] = arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val];
+  if (!cfg.filters[kind].length) delete cfg.filters[kind];
+  STATE.activeViewId = null;
+  saveState(); renderTasksFullPage();
+}
+
+function applySmartList(id) {
+  const cfg = STATE.taskViewConfig;
+  const already = (cfg.filters.date || []).includes(id) || (id === 'completed' && (cfg.filters.status || []).includes('completed'));
+  cfg.filters = {};
+  cfg.groupBy = 'none';
+  if (!already) {
+    if (id === 'completed') cfg.filters.status = ['completed'];
+    else { cfg.filters.date = [id]; cfg.filters.status = ['not_started', 'in_progress']; }
+    if (id === 'upcoming') cfg.groupBy = 'dueDate';
+  }
+  STATE.activeViewId = null;
+  saveState(); renderTasksFullPage();
+}
+
+// ─── View tabs: built-ins plus whatever the user saved ─────────
+const TK_BUILTIN_VIEWS = [
+  { id: null,           name: 'All Tasks', icon: 'list',            config: { filters: {}, sortBy: 'dueDate', sortDir: 'asc', groupBy: 'none' } },
+  { id: '__today__',    name: 'Today',     icon: 'view_agenda',     config: { filters: { date: ['today'], status: ['not_started', 'in_progress'] }, sortBy: 'priority', sortDir: 'asc', groupBy: 'none' } },
+  { id: '__unsched__',  name: 'Unscheduled', icon: 'drag_indicator', config: { filters: { date: ['someday'], status: ['not_started', 'in_progress'] }, sortBy: 'priority', sortDir: 'asc', groupBy: 'none' } },
+];
+
+function renderTkTabs() {
+  const host = document.getElementById('tk-tabs');
+  host.innerHTML = '';
+
+  const mk = (id, name, icon, badge, closable) => {
+    const btn = document.createElement('button');
+    btn.className = 'tk-tab' + (STATE.activeViewId === id ? ' active' : '');
+    btn.innerHTML = (icon ? `<span class="material-symbols-outlined" style="font-size:14px;">${icon}</span>` : '') +
+      `<span>${name}</span>` + (badge ? `<span class="plan-count">${badge}</span>` : '');
+    btn.addEventListener('click', () => activateView(id));
+    if (closable) {
+      const x = document.createElement('span');
+      x.className = 'material-symbols-outlined tk-tab-x';
+      x.style.fontSize = '13px';
+      x.textContent = 'close';
+      x.title = 'Delete view';
+      x.addEventListener('click', e => {
+        e.stopPropagation();
+        STATE.views = STATE.views.filter(v => v.id !== id);
+        if (STATE.activeViewId === id) STATE.activeViewId = null;
+        saveState(); renderTasksFullPage();
+      });
+      btn.appendChild(x);
+    }
+    host.appendChild(btn);
+  };
+
+  TK_BUILTIN_VIEWS.forEach(v => {
+    const badge = v.id === '__unsched__' ? tkSmartCount('someday') : null;
+    mk(v.id, v.name, v.icon, badge, false);
+  });
+  STATE.views.forEach(v => mk(v.id, v.name, 'bookmark', null, true));
+
+  // Save the current filter/sort/group combination as a new tab.
+  const add = document.createElement('button');
+  add.className = 'tk-tab';
+  add.style.color = 'var(--text-tertiary)';
+  add.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">add</span><span>New View</span>';
+  add.title = 'Save the current filters, sort and grouping as a view';
+  add.addEventListener('click', () => {
+    const name = prompt('Name this view:', 'My view');
+    if (!name) return;
+    const cfg = STATE.taskViewConfig;
+    const v = {
+      id: uid(),
+      name: name.trim().slice(0, 40),
+      config: { filters: JSON.parse(JSON.stringify(cfg.filters || {})), sortBy: cfg.sortBy, sortDir: cfg.sortDir, groupBy: cfg.groupBy },
+    };
+    STATE.views.push(v);
+    STATE.activeViewId = v.id;
+    saveState(); renderTasksFullPage();
+  });
+  host.appendChild(add);
+}
+
+function activateView(id) {
+  const v = TK_BUILTIN_VIEWS.find(x => x.id === id) || STATE.views.find(x => x.id === id);
+  STATE.activeViewId = id;
+  if (v) {
+    const cfg = STATE.taskViewConfig;
+    cfg.filters = JSON.parse(JSON.stringify(v.config.filters || {}));
+    cfg.sortBy = v.config.sortBy || 'dueDate';
+    cfg.sortDir = v.config.sortDir || 'asc';
+    cfg.groupBy = v.config.groupBy || 'none';
+  }
+  saveState(); renderTasksFullPage();
+}
+
+// ─── Controls bar: Filter / Sort / Group ────────────────────────
 function renderFpToolbar() {
   const toolbar = document.getElementById('tasks-fp-toolbar');
   const chips = document.getElementById('tasks-fp-filter-chips');
   toolbar.innerHTML = '';
   chips.innerHTML = '';
   const cfg = STATE.taskViewConfig;
+  const dropBtn = (label, icon, active, drop) => {
+    const btn = document.createElement('button');
+    btn.className = 'fp-toolbar-btn' + (active ? ' active' : '');
+    btn.innerHTML = `<span class="material-symbols-outlined">${icon}</span>${label}`;
+    btn.appendChild(drop);
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const wasOpen = drop.classList.contains('open');
+      closeAllDropdowns();
+      if (!wasOpen) drop.classList.add('open');
+    });
+    toolbar.appendChild(btn);
+    return btn;
+  };
 
-  // ── Sort button
+  // Filter -- date, status, priority, tag, list
+  const hasFilters = Object.keys(cfg.filters || {}).some(k => cfg.filters[k] && cfg.filters[k].length);
+  const items = [
+    { id: '__label__', label: 'DATE' },
+    { id: 'date:overdue',  label: 'Overdue',   icon: 'schedule' },
+    { id: 'date:today',    label: 'Today',     icon: 'wb_sunny' },
+    { id: 'date:tomorrow', label: 'Tomorrow',  icon: 'east' },
+    { id: 'date:week',     label: 'This week', icon: 'date_range' },
+    { id: 'date:upcoming', label: 'Upcoming',  icon: 'calendar_month' },
+    { id: 'date:someday',  label: 'No due date', icon: 'inbox' },
+    { id: '__divider__' },
+    { id: '__label__', label: 'STATUS' },
+    { id: 'status:not_started', label: 'Not started', icon: 'circle' },
+    { id: 'status:in_progress', label: 'In progress', icon: 'timelapse' },
+    { id: 'status:completed',   label: 'Completed',   icon: 'check_circle' },
+    { id: '__divider__' },
+    { id: '__label__', label: 'PRIORITY' },
+    { id: 'priority:high',   label: 'High',   icon: 'flag' },
+    { id: 'priority:medium', label: 'Medium', icon: 'flag' },
+    { id: 'priority:low',    label: 'Low',    icon: 'flag' },
+  ];
+  const allTags = getAllTags();
+  if (allTags.length) {
+    items.push({ id: '__divider__' }, { id: '__label__', label: 'TAGS' });
+    allTags.forEach(t => items.push({ id: 'tag:' + t, label: '#' + t, icon: 'tag' }));
+  }
+  if (STATE.lists.length) {
+    items.push({ id: '__divider__' }, { id: '__label__', label: 'LIST' });
+    STATE.lists.forEach(l => items.push({ id: 'list:' + l.id, label: l.name, icon: 'folder' }));
+    items.push({ id: 'list:__none__', label: 'No list', icon: 'folder_off' });
+  }
+  const active = flattenFilters(cfg.filters);
+  dropBtn('Filter', 'filter_list', hasFilters, buildMultiDropdown(items, active, sel => {
+    cfg.filters = unflattenFilters(sel);
+    STATE.activeViewId = null;
+    saveState(); renderTasksFullPage();
+  }));
+
+  // Sort
   const sortLabels = { dueDate: 'Due date', priority: 'Priority', title: 'Title', status: 'Status', list: 'List' };
-  const sortBtn = document.createElement('button');
-  sortBtn.className = 'fp-toolbar-btn' + (cfg.sortBy !== 'dueDate' ? ' active' : '');
-  sortBtn.innerHTML = `<span class="material-symbols-outlined">sort</span>Sort: ${sortLabels[cfg.sortBy] || cfg.sortBy}
-    ${cfg.sortDir === 'desc' ? '<span class="material-symbols-outlined" style="font-size:14px;">arrow_downward</span>' : '<span class="material-symbols-outlined" style="font-size:14px;">arrow_upward</span>'}`;
-  const sortDrop = buildDropdown([
+  dropBtn(`Sort: ${sortLabels[cfg.sortBy] || cfg.sortBy}${cfg.sortDir === 'desc' ? ' ↓' : ' ↑'}`, 'swap_vert', cfg.sortBy !== 'dueDate', buildDropdown([
     { id: 'dueDate', label: 'Due date', icon: 'calendar_today' },
     { id: 'priority', label: 'Priority', icon: 'flag' },
     { id: 'title', label: 'Title', icon: 'sort_by_alpha' },
@@ -3924,99 +4360,45 @@ function renderFpToolbar() {
     { id: '__divider__' },
     { id: '__dir__', label: cfg.sortDir === 'asc' ? 'Switch to descending' : 'Switch to ascending', icon: cfg.sortDir === 'asc' ? 'arrow_downward' : 'arrow_upward' },
   ], cfg.sortBy, val => {
-    if (val === '__dir__') { cfg.sortDir = cfg.sortDir === 'asc' ? 'desc' : 'asc'; }
-    else { cfg.sortBy = val; }
+    if (val === '__dir__') cfg.sortDir = cfg.sortDir === 'asc' ? 'desc' : 'asc';
+    else cfg.sortBy = val;
+    STATE.activeViewId = null;
     saveState(); renderTasksFullPage();
-  });
-  sortBtn.appendChild(sortDrop);
-  sortBtn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = sortDrop.classList.contains('open'); closeAllDropdowns(); if (!wasOpen) sortDrop.classList.add('open'); });
-  toolbar.appendChild(sortBtn);
+  }));
 
-  // ── Filter button
-  const filterBtn = document.createElement('button');
-  const hasFilters = Object.keys(cfg.filters).some(k => cfg.filters[k] && cfg.filters[k].length);
-  filterBtn.className = 'fp-toolbar-btn' + (hasFilters ? ' active' : '');
-  filterBtn.innerHTML = `<span class="material-symbols-outlined">filter_list</span>Filter${hasFilters ? '' : ''}`;
-  const filterItems = [
-    { id: '__label__', label: 'STATUS' },
-    { id: 'status:not_started', label: 'Not started', icon: 'circle' },
-    { id: 'status:in_progress', label: 'In progress', icon: 'timelapse' },
-    { id: 'status:completed', label: 'Completed', icon: 'check_circle' },
-    { id: '__divider__' },
-    { id: '__label__', label: 'PRIORITY' },
-    { id: 'priority:high', label: 'High', icon: 'flag' },
-    { id: 'priority:medium', label: 'Medium', icon: 'flag' },
-    { id: 'priority:low', label: 'Low', icon: 'flag' },
-  ];
-  const allTags = getAllTags();
-  if (allTags.length) {
-    filterItems.push({ id: '__divider__' });
-    filterItems.push({ id: '__label__', label: 'TAGS' });
-    allTags.forEach(tag => filterItems.push({ id: 'tag:' + tag, label: '#' + tag, icon: 'tag' }));
-  }
-  if (STATE.lists.length) {
-    filterItems.push({ id: '__divider__' });
-    filterItems.push({ id: '__label__', label: 'LIST' });
-    STATE.lists.forEach(l => filterItems.push({ id: 'list:' + l.id, label: l.name, icon: 'folder' }));
-    filterItems.push({ id: 'list:__none__', label: 'No list', icon: 'folder_off' });
-  }
-  const activeFilters = flattenFilters(cfg.filters);
-  const filterDrop = buildMultiDropdown(filterItems, activeFilters, selection => {
-    cfg.filters = unflattenFilters(selection);
-    saveState(); renderTasksFullPage();
-  });
-  filterBtn.appendChild(filterDrop);
-  filterBtn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = filterDrop.classList.contains('open'); closeAllDropdowns(); if (!wasOpen) filterDrop.classList.add('open'); });
-  toolbar.appendChild(filterBtn);
-
-  // ── Group button
-  const groupLabels = { none: 'None', status: 'Status', priority: 'Priority', dueDate: 'Due date', list: 'List', tag: 'Tag' };
-  const groupBtn = document.createElement('button');
-  groupBtn.className = 'fp-toolbar-btn' + (cfg.groupBy !== 'none' ? ' active' : '');
-  groupBtn.innerHTML = `<span class="material-symbols-outlined">view_agenda</span>Group: ${groupLabels[cfg.groupBy] || 'None'}`;
-  const groupDrop = buildDropdown([
+  // Group
+  const groupLabels = { none: 'None', status: 'Status', priority: 'Priority', dueDate: 'Date', list: 'List', tag: 'Tag' };
+  dropBtn(`Group: ${groupLabels[cfg.groupBy] || 'None'}`, 'splitscreen', cfg.groupBy !== 'none', buildDropdown([
     { id: 'none', label: 'None', icon: 'close' },
-    { id: 'status', label: 'Status', icon: 'radio_button_checked' },
-    { id: 'priority', label: 'Priority', icon: 'flag' },
-    { id: 'dueDate', label: 'Due date', icon: 'calendar_today' },
-    { id: 'list', label: 'List', icon: 'folder' },
+    { id: 'dueDate', label: 'Date', icon: 'calendar_today' },
     { id: 'tag', label: 'Tag', icon: 'tag' },
-  ], cfg.groupBy, val => { cfg.groupBy = val; saveState(); renderTasksFullPage(); });
-  groupBtn.appendChild(groupDrop);
-  groupBtn.addEventListener('click', e => { e.stopPropagation(); const wasOpen = groupDrop.classList.contains('open'); closeAllDropdowns(); if (!wasOpen) groupDrop.classList.add('open'); });
-  toolbar.appendChild(groupBtn);
+    { id: 'priority', label: 'Priority', icon: 'flag' },
+    { id: 'status', label: 'Status', icon: 'radio_button_checked' },
+    { id: 'list', label: 'List', icon: 'folder' },
+  ], cfg.groupBy, val => { cfg.groupBy = val; STATE.activeViewId = null; saveState(); renderTasksFullPage(); }));
 
-  // ── List manage button
-  const listBtn = document.createElement('button');
-  listBtn.className = 'fp-toolbar-btn';
-  listBtn.innerHTML = `<span class="material-symbols-outlined">folder</span>Lists`;
-  listBtn.addEventListener('click', e => { e.stopPropagation(); closeAllDropdowns(); openListManager(); });
-  toolbar.appendChild(listBtn);
-
-  // ── Active filter chips
-  if (hasFilters) {
-    activeFilters.forEach(f => {
-      const [type, val] = f.split(':');
-      let label = val;
-      if (type === 'status') label = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' }[val] || val;
-      if (type === 'priority') label = val.charAt(0).toUpperCase() + val.slice(1);
-      if (type === 'tag') label = '#' + val;
-      if (type === 'list') {
-        if (val === '__none__') label = 'No list';
-        else { const li = STATE.lists.find(l => l.id === val); label = li ? li.name : val; }
-      }
-      const chip = document.createElement('span');
-      chip.className = 'fp-filter-chip';
-      chip.innerHTML = `${label} <span class="material-symbols-outlined">close</span>`;
-      chip.addEventListener('click', () => {
-        const arr = activeFilters.filter(x => x !== f);
-        cfg.filters = unflattenFilters(arr);
-        saveState(); renderTasksFullPage();
-      });
-      chips.appendChild(chip);
+  // Active filter chips
+  active.forEach(f => {
+    const [type, val] = f.split(':');
+    let label = val;
+    if (type === 'date') label = { overdue: 'Overdue', today: 'Today', tomorrow: 'Tomorrow', week: 'This week', upcoming: 'Upcoming', someday: 'No due date' }[val] || val;
+    if (type === 'status') label = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' }[val] || val;
+    if (type === 'priority') label = val.charAt(0).toUpperCase() + val.slice(1);
+    if (type === 'tag') label = '#' + val;
+    if (type === 'list') {
+      if (val === '__none__') label = 'No list';
+      else { const li = STATE.lists.find(l => l.id === val); label = li ? li.name : val; }
+    }
+    const chip = document.createElement('span');
+    chip.className = 'fp-filter-chip';
+    chip.innerHTML = `${type.charAt(0).toUpperCase() + type.slice(1)}: ${label} <span class="material-symbols-outlined">close</span>`;
+    chip.addEventListener('click', () => {
+      cfg.filters = unflattenFilters(active.filter(x => x !== f));
+      STATE.activeViewId = null;
+      saveState(); renderTasksFullPage();
     });
-  }
-
+    chips.appendChild(chip);
+  });
 }
 
 function closeAllDropdowns(except) {
@@ -4099,6 +4481,29 @@ function getFilteredSortedTasks() {
     if (f.list.includes('__none__') && !t.listId) return true;
     return f.list.includes(t.listId);
   });
+  if (f.date && f.date.length) {
+    const today = startOfDay(new Date());
+    tasks = tasks.filter(t => {
+      const d = toDueDate(t.dueDate);
+      const diff = d ? Math.round((startOfDay(d) - today) / 86400000) : null;
+      return f.date.some(k => {
+        switch (k) {
+          case 'someday':  return d === null;
+          case 'overdue':  return diff !== null && diff < 0;
+          case 'today':    return diff !== null && diff <= 0;
+          case 'tomorrow': return diff === 1;
+          case 'week':     return diff !== null && diff >= 0 && diff <= 7;
+          case 'upcoming': return diff !== null && diff > 0;
+          default: return false;
+        }
+      });
+    });
+  }
+  const q = (cfg.search || '').trim().toLowerCase();
+  if (q) tasks = tasks.filter(t =>
+    t.title.toLowerCase().includes(q) ||
+    (t.description || '').toLowerCase().includes(q) ||
+    (t.tags || []).some(tg => tg.includes(q)));
 
   // Sort
   const dir = cfg.sortDir === 'desc' ? -1 : 1;
@@ -4174,467 +4579,406 @@ function groupTasks(tasks) {
 
   return sortedKeys.map(key => {
     let label = key;
-    if (cfg.groupBy === 'status') label = { not_started: '⭘ Not started', in_progress: '◉ In progress', completed: '✓ Completed' }[key] || key;
-    if (cfg.groupBy === 'priority') label = { high: '🔴 High', medium: '🟠 Medium', low: '🔵 Low' }[key] || key;
+    if (cfg.groupBy === 'status') label = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' }[key] || key;
+    if (cfg.groupBy === 'priority') label = { high: 'High priority', medium: 'Medium priority', low: 'Low priority' }[key] || key;
     if (cfg.groupBy === 'list') {
-      if (key === '__none__') label = '📁 No list';
-      else { const li = STATE.lists.find(l => l.id === key); label = '📁 ' + (li ? li.name : 'Unknown'); }
+      if (key === '__none__') label = 'Inbox (no list)';
+      else { const li = STATE.lists.find(l => l.id === key); label = li ? li.name : 'Unknown'; }
     }
-    if (cfg.groupBy === 'tag') label = (key === 'No tag') ? '🏷 No tag' : '🏷 #' + key;
+    if (cfg.groupBy === 'tag') label = (key === 'No tag') ? 'Untagged' : '#' + key;
     return { key, label, tasks: groups.get(key) };
   });
 }
+
+
+// ─── The database rows ──────────────────────────────────────────
+let tkAddActive = false;
 
 function renderTasksFullPageAll() {
   const container = document.getElementById('tasks-fp-groups');
   container.innerHTML = '';
 
   const tasks = getFilteredSortedTasks();
+
+  if (!STATE.tasks.length) {
+    const card = document.createElement('div');
+    card.className = 'tk-card';
+    card.innerHTML = '<div class="tk-empty"><span class="material-symbols-outlined">check_circle</span>No tasks yet.</div>';
+    card.appendChild(buildTkAddRow());
+    container.appendChild(card);
+    return;
+  }
+  if (!tasks.length) {
+    const card = document.createElement('div');
+    card.className = 'tk-card';
+    card.innerHTML = '<div class="tk-empty"><span class="material-symbols-outlined">filter_list_off</span>Nothing matches these filters.</div>';
+    container.appendChild(card);
+    return;
+  }
+
   const grouped = groupTasks(tasks);
-
-  if (tasks.length === 0 && STATE.tasks.length === 0) {
-    const section = document.createElement('div');
-    section.className = 'tasks-fp-section';
-    section.innerHTML = '<div style="text-align:center;padding:48px 16px;color:var(--on-surface-variant);font-size:14px;"><span class="material-symbols-outlined" style="font-size:40px;display:block;margin-bottom:8px;opacity:0.4;">check_circle</span>No tasks yet. Add one below!</div>';
-    renderFpQuickAdd(section);
-    container.appendChild(section);
-    return;
-  }
-
-  if (tasks.length === 0) {
-    const section = document.createElement('div');
-    section.className = 'tasks-fp-section';
-    section.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--on-surface-variant);font-size:14px;"><span class="material-symbols-outlined" style="font-size:32px;display:block;margin-bottom:8px;opacity:0.4;">filter_list_off</span>No tasks match current filters</div>';
-    container.appendChild(section);
-    return;
-  }
-
-  grouped.forEach((group, gIdx) => {
+  grouped.forEach((group, i) => {
     if (group.label) {
-      const header = document.createElement('div');
-      header.className = 'fp-group-header';
-      header.textContent = group.label;
-      const count = document.createElement('span');
-      count.style.cssText = 'font-size:11px;color:var(--outline-variant);font-weight:500;';
-      count.textContent = group.tasks.length;
-      header.appendChild(count);
-      container.appendChild(header);
+      const head = document.createElement('div');
+      head.className = 'tk-group-head';
+      head.innerHTML = `<span>${group.label}</span><span class="tk-group-count">${group.tasks.length}</span>`;
+      container.appendChild(head);
     }
-    const section = document.createElement('div');
-    section.className = 'tasks-fp-section';
-    group.tasks.forEach(task => section.appendChild(buildFpTaskItem(task)));
-    // Quick add on last group only
-    if (gIdx === grouped.length - 1) renderFpQuickAdd(section);
-    container.appendChild(section);
+    const card = document.createElement('div');
+    card.className = 'tk-card';
+    group.tasks.forEach(t => card.appendChild(buildTkRow(t)));
+    if (i === grouped.length - 1) card.appendChild(buildTkAddRow());
+    container.appendChild(card);
   });
-
-  if (fpExpandedTaskId) {
-    requestAnimationFrame(() => {
-      const detail = container.querySelector('.task-inline-detail');
-      if (detail) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
-  }
 }
 
-function buildFpTaskItem(task) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'task-item-wrapper';
-  const el = document.createElement('div');
-  el.className = 'task-item' + (fpExpandedTaskId === task.id ? ' task-expanded' : '');
-  el.draggable = true;
-  el.dataset.taskId = task.id;
+function buildTkRow(task) {
+  const row = document.createElement('div');
+  row.className = 'tk-row' + (selectedTaskId === task.id ? ' selected' : '');
+  row.dataset.taskId = task.id;
 
-  const status = getTaskStatus(task);
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
-  let meta = [];
-  if (task.dueDate) {
-    const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
-    const diff = Math.round((dd - todayD) / 86400000);
-    let label = dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    if (diff < 0 && !task.completed) label = `<span style="color:#c62828;">${Math.abs(diff)}d overdue</span>`;
-    else if (diff === 0) label = '<span style="color:var(--primary);">Today</span>';
-    else if (diff === 1) label = 'Tomorrow';
-    meta.push(label);
-    if (task.dueTime) meta.push(task.dueTime);
+  const cb = document.createElement('div');
+  cb.className = 'plan-check' + (task.completed ? ' checked' : '');
+  cb.style.marginTop = '1px';
+  cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
+  row.appendChild(cb);
+
+  const body = document.createElement('div');
+  body.className = 'tk-row-body';
+  const title = document.createElement('div');
+  title.className = 'tk-row-title' + (task.completed ? ' done' : '');
+  title.textContent = task.title;
+  body.appendChild(title);
+  if (task.description) {
+    const d = document.createElement('div');
+    d.className = 'tk-row-desc';
+    d.textContent = task.description;
+    body.appendChild(d);
   }
-  if (task.priority && task.priority !== 'low') {
-    const col = task.priority === 'high' ? '#c62828' : '#ef6c00';
-    meta.push(`<span style="color:${col};font-weight:600;">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span>`);
+  row.appendChild(body);
+
+  const right = document.createElement('div');
+  right.className = 'tk-row-right';
+
+  // Scheduled block, else the due date, else an invitation to block time.
+  const ev = PLAN_SCHED.get(task.id);
+  if (ev) {
+    const p = document.createElement('span');
+    p.className = 'tk-pill sched';
+    p.textContent = `${formatTime(ev.start)} (${fmtDur(Math.round((ev.end - ev.start) / 60000))})`;
+    right.appendChild(p);
+  } else if (!task.completed) {
+    const p = document.createElement('span');
+    p.className = 'tk-pill ghost';
+    p.textContent = '+ Slot';
+    p.title = 'Block time for this task';
+    p.addEventListener('click', e => { e.stopPropagation(); timeboxTask(task.id, e.clientX, e.clientY); });
+    right.appendChild(p);
   }
-  // List badge
+
+  const due = toDueDate(task.dueDate);
+  if (due) {
+    const today = startOfDay(new Date());
+    const diff = Math.round((startOfDay(due) - today) / 86400000);
+    const p = document.createElement('span');
+    p.className = 'tk-pill' + (diff < 0 && !task.completed ? ' due-over' : diff === 0 ? ' due-today' : '');
+    p.textContent = relDayLabel(due) + (task.dueTime ? ' ' + task.dueTime : '');
+    right.appendChild(p);
+  }
+
+  (task.tags || []).slice(0, 2).forEach(tg => {
+    const s = document.createElement('span');
+    s.className = 'tk-tagchip';
+    s.textContent = '#' + tg;
+    right.appendChild(s);
+  });
+
   if (task.listId) {
-    const listName = getTaskListName(task);
-    if (listName !== 'No list') meta.push(`<span class="task-list-badge"><span class="material-symbols-outlined">folder</span>${listName}</span>`);
-  }
-  // Tags
-  const tagHtml = (task.tags||[]).map(t => `<span class="task-tag-chip">#${t}</span>`).join('');
-
-  el.innerHTML = `
-    <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
-    <div class="task-content">
-      <div class="task-title ${task.completed?'done':''}">${task.title}</div>
-      <div class="task-meta">${meta.length ? meta.join(' · ') : ''}${tagHtml ? (meta.length ? ' ' : '') + tagHtml : ''}</div>
-    </div>
-    <button class="icon-btn task-delete" style="width:24px;height:24px;" title="Delete">
-      <span class="material-symbols-outlined" style="font-size:16px;">delete</span>
-    </button>
-  `;
-
-  el.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderTasksFullPage(); });
-  el.querySelector('.task-delete').addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); renderTasksFullPage(); });
-  el.addEventListener('click', () => {
-    fpExpandedTaskId = fpExpandedTaskId === task.id ? null : task.id;
-    renderTasksFullPageAll();
-  });
-
-  // dragstart is handled by the delegated listener in init(); this element
-  // only needs draggable + data-task-id (set above).
-  el.addEventListener('dragend', () => el.style.opacity = '');
-
-  wrapper.appendChild(el);
-  if (fpExpandedTaskId === task.id) {
-    wrapper.appendChild(buildFpInlineDetail(task));
-  }
-  return wrapper;
-}
-
-function buildFpInlineDetail(task) {
-  // Reuse the same inline detail builder but wire saves to fp re-render
-  const detail = buildInlineDetail(task);
-  // Override save/cancel/delete to re-render full-page view
-  const saveBtn = detail.querySelector('.inline-save-btn') || detail.querySelectorAll('button')[0];
-  const cancelBtn = detail.querySelector('.inline-cancel-btn') || detail.querySelectorAll('button')[1];
-  if (cancelBtn) {
-    const newCancel = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
-    newCancel.addEventListener('click', e => { e.stopPropagation(); fpExpandedTaskId = null; renderTasksFullPageAll(); });
-  }
-  if (saveBtn) {
-    const newSave = saveBtn.cloneNode(true);
-    saveBtn.parentNode.replaceChild(newSave, saveBtn);
-    newSave.addEventListener('click', e => {
-      e.stopPropagation();
-      const titleInput = detail.querySelector('input[type="text"]');
-      const dateInput = detail.querySelector('input[type="date"]');
-      const timeInput = detail.querySelector('input[type="time"]');
-      const selects = detail.querySelectorAll('select');
-      const descArea = detail.querySelector('textarea');
-      if (titleInput) task.title = titleInput.value.trim() || task.title;
-      if (dateInput) task.dueDate = toDueDate(dateInput.value);
-      if (timeInput) task.dueTime = timeInput.value || null;
-      // Priority is first select, status is second
-      if (selects[0]) task.priority = selects[0].value;
-      if (selects[1]) { task.status = selects[1].value; task.completed = selects[1].value === 'completed'; }
-      const listSel = detail.querySelector('select[data-field="listId"]');
-      if (listSel) task.listId = listSel.value || null;
-      if (descArea) task.description = descArea.value;
-      fpExpandedTaskId = null;
-      saveState();
-      renderTasks();
-      renderTasksFullPage();
-    });
-  }
-  // Override delete
-  const deleteBtn = detail.querySelectorAll('button')[2];
-  if (deleteBtn && deleteBtn.textContent.includes('delete')) {
-    const newDel = deleteBtn.cloneNode(true);
-    deleteBtn.parentNode.replaceChild(newDel, deleteBtn);
-    newDel.addEventListener('click', e => {
-      e.stopPropagation();
-      deleteTask(task.id);
-      fpExpandedTaskId = null;
-      renderTasksFullPage();
-    });
-  }
-  return detail;
-}
-
-function renderFpQuickAdd(container) {
-  if (fpQuickAddActive) {
-    const row = document.createElement('div');
-    row.className = 'task-item';
-    row.style.cssText = 'padding:8px 16px;';
-    row.innerHTML = `
-      <div class="task-checkbox" style="visibility:hidden;"></div>
-      <div class="task-content" style="display:flex;flex-direction:column;gap:4px;">
-        <input type="text" placeholder="Task name… (natural language dates supported)" style="border:none;outline:none;font-size:14px;font-weight:500;background:transparent;width:100%;font-family:Inter,sans-serif;">
-        <div class="nlp-chip-preview" style="font-size:11px;color:var(--primary);min-height:14px;"></div>
-      </div>
-    `;
-    container.appendChild(row);
-    const input = row.querySelector('input');
-    const chipPreview = row.querySelector('.nlp-chip-preview');
-    input.focus();
-    input.addEventListener('input', () => {
-      const parsed = parseNLPDate(input.value);
-      if (parsed && parsed.date) {
-        let chipText = parsed.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-        if (parsed.hasTime) chipText += ' · ' + parsed.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-        chipPreview.textContent = '📅 ' + chipText;
-      } else { chipPreview.textContent = ''; }
-    });
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && input.value.trim()) {
-        const parsed = parseNLPDate(input.value);
-        let rawTitle = (parsed && parsed.date) ? parsed.cleanTitle : input.value.trim();
-        const { title, tags } = parseTagsFromTitle(rawTitle);
-        if (!title) return;
-        const newTask = { id: uid(), title, completed: false, status: 'not_started', priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags, subtasks: [], listId: null };
-        if (parsed && parsed.date) {
-          newTask.dueDate = toDueDate(parsed.date);
-          if (parsed.hasTime) newTask.dueTime = parsed.date.toTimeString().slice(0, 5);
-        }
-        STATE.tasks.push(newTask);
-        saveState();
-        input.value = '';
-        chipPreview.textContent = '';
-        renderTasks();
-        renderTasksFullPage();
-        requestAnimationFrame(() => {
-          const newInput = document.querySelector('#tasks-fp-groups input[placeholder^="Task name"]');
-          if (newInput) newInput.focus();
-        });
-      }
-      if (e.key === 'Escape') { fpQuickAddActive = false; renderTasksFullPageAll(); }
-    });
-    input.addEventListener('blur', () => {
-      setTimeout(() => { if (fpQuickAddActive && !input.value.trim()) { fpQuickAddActive = false; renderTasksFullPageAll(); } }, 200);
-    });
-  } else {
-    const addBtn = document.createElement('div');
-    addBtn.style.cssText = 'padding:10px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--on-surface-variant);font-size:13px;font-weight:500;border-radius:0 0 14px 14px;transition:background 0.15s;';
-    addBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;color:var(--primary);">add</span> Add task';
-    addBtn.addEventListener('mouseenter', () => addBtn.style.background = 'var(--surface-low)');
-    addBtn.addEventListener('mouseleave', () => addBtn.style.background = '');
-    addBtn.addEventListener('click', () => { fpQuickAddActive = true; fpExpandedTaskId = null; renderTasksFullPageAll(); });
-    container.appendChild(addBtn);
-  }
-}
-
-function renderTasksFullPageFocus() {
-  // Top Three
-  const container = document.getElementById('tasks-fp-top-three');
-  if (!container) return;
-  container.innerHTML = '';
-  for (let i = 0; i < 3; i++) {
-    const tid = STATE.topThree[i];
-    const task = tid ? STATE.tasks.find(t => t.id === tid) : null;
-    const slot = document.createElement('div');
-    if (task) {
-      slot.className = 'task-item';
-      slot.style.cssText = 'padding:12px 16px;';
-      const todayD = new Date(); todayD.setHours(0,0,0,0);
-      let meta = [];
-      if (task.dueDate) {
-        const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
-        const diff = Math.round((dd - todayD) / 86400000);
-        let label = dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        if (diff < 0 && !task.completed) label = `<span style="color:#c62828;">${Math.abs(diff)}d overdue</span>`;
-        else if (diff === 0) label = '<span style="color:var(--primary);">Today</span>';
-        meta.push(label);
-      }
-      slot.innerHTML = `
-        <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
-        <div class="task-content">
-          <div class="task-title ${task.completed?'done':''}">${task.title}</div>
-          ${meta.length ? `<div class="task-meta">${meta.join(' · ')}</div>` : ''}
-        </div>
-        <button class="icon-btn" title="Remove" style="width:24px;height:24px;">
-          <span class="material-symbols-outlined" style="font-size:16px;">close</span>
-        </button>
-      `;
-      slot.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderTasksFullPageFocus(); renderTasks(); });
-      slot.querySelector('.icon-btn').addEventListener('click', e => { e.stopPropagation(); STATE.topThree[i] = null; STATE.topThree = normalizeTopThree(STATE.topThree); saveState(); renderTasksFullPageFocus(); });
-    } else {
-      slot.style.cssText = 'padding:12px 16px;display:flex;align-items:center;gap:8px;color:var(--outline-variant);font-size:13px;border:1px dashed var(--surface-container);border-radius:8px;margin:4px 8px;';
-      slot.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">star</span> Slot ${i+1} — drag a task here`;
+    const l = STATE.lists.find(x => x.id === task.listId);
+    if (l) {
+      const s = document.createElement('span');
+      s.className = 'tk-listbadge';
+      s.innerHTML = `<span class="tk-rail-dot" style="background:${l.color || CAL_COLORS[0]};"></span>${l.name}`;
+      right.appendChild(s);
     }
-    // Drop listeners belong to every slot, filled or not -- they used to live
-    // inside the else, so an occupied slot could not be replaced by a drop.
-    slot.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; slot.style.borderColor = 'var(--primary)'; slot.style.background = 'var(--primary-light)'; });
-    slot.addEventListener('dragleave', () => { slot.style.borderColor = ''; slot.style.background = ''; });
-    slot.addEventListener('drop', e => {
-      e.preventDefault();
-      const taskId = getDraggedTaskId(e);
-      if (taskId) {
-        STATE.topThree = normalizeTopThree(STATE.topThree).map(id => (id === taskId ? null : id));
-        STATE.topThree[i] = taskId;
-        STATE.topThreeDate = new Date().toDateString();
-        saveState();
-        renderTasksFullPageFocus();
-        renderTopThree();
-      }
-      slot.style.borderColor = ''; slot.style.background = '';
-    });
-    container.appendChild(slot);
   }
 
-  // Brain dump
-  renderFpBrainDump();
+  if (task.priority && task.priority !== 'low') {
+    const s = document.createElement('span');
+    s.className = 'tk-prio ' + (task.priority === 'high' ? 'p1' : 'p2');
+    s.textContent = task.priority === 'high' ? 'P1' : 'P2';
+    right.appendChild(s);
+  }
+
+  const subs = task.subtasks || [];
+  if (subs.length) {
+    const s = document.createElement('span');
+    s.className = 'tk-pill';
+    s.textContent = `${subs.filter(x => x.done).length}/${subs.length}`;
+    right.appendChild(s);
+  }
+
+  row.appendChild(right);
+  // A row click selects into the inspector rather than expanding inline --
+  // one editing surface for the whole page.
+  row.addEventListener('click', () => {
+    selectedTaskId = selectedTaskId === task.id ? null : task.id;
+    renderTasksFullPage();
+  });
+  return row;
 }
 
-function renderFpBrainDump() {
-  const list = document.getElementById('fp-brain-dump-list');
-  if (!list) return;
-  list.innerHTML = '';
-  STATE.brainDump.forEach(tid => {
-    const task = STATE.tasks.find(t => t.id === tid);
-    if (!task) return;
-    const item = document.createElement('div');
-    item.className = 'brain-dump-item';
-    item.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 4px;border-radius:8px;';
-    item.innerHTML = `
-      <div class="task-checkbox ${task.completed?'checked':''}" data-id="${task.id}"></div>
-      <span style="flex:1;font-size:13px;font-weight:500;${task.completed?'text-decoration:line-through;color:var(--on-surface-variant);':''}">${task.title}</span>
-      <button class="icon-btn" title="Remove" style="width:22px;height:22px;"><span class="material-symbols-outlined" style="font-size:14px;">close</span></button>
-    `;
-    item.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderFpBrainDump(); renderBrainDump(); renderTasks(); });
-    item.querySelector('.icon-btn').addEventListener('click', e => { e.stopPropagation(); STATE.brainDump = STATE.brainDump.filter(id => id !== tid); saveState(); renderFpBrainDump(); renderBrainDump(); });
-    list.appendChild(item);
-  });
-  if (!fpBrainDumpInitialized) {
-    initFpBrainDump();
-    fpBrainDumpInitialized = true;
+// Quick add. Same NLP + #tag parsing as the Brain Dump, so one syntax works
+// everywhere: "Draft user flow friday 2pm #work".
+function buildTkAddRow() {
+  const wrap = document.createElement('div');
+  if (!tkAddActive) {
+    const btn = document.createElement('button');
+    btn.className = 'tk-addrow';
+    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">add</span>Add task…';
+    btn.addEventListener('click', () => { tkAddActive = true; renderTasksFullPageAll(); requestAnimationFrame(() => { const i = document.getElementById('tk-add-input'); if (i) i.focus(); }); });
+    wrap.appendChild(btn);
+    return wrap;
   }
+  const rowEl = document.createElement('div');
+  rowEl.className = 'tk-addrow';
+  rowEl.style.cursor = 'default';
+  rowEl.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;color:var(--text-tertiary);">add</span>';
+  const inp = document.createElement('input');
+  inp.className = 'tk-addinput';
+  inp.id = 'tk-add-input';
+  inp.placeholder = "Add task… try 'Draft user flow friday 2pm #work'";
+  inp.autocomplete = 'off';
+  const chip = document.createElement('span');
+  chip.className = 'tk-pill';
+  chip.style.display = 'none';
+  const refresh = () => {
+    const nlp = parseNLPDate(inp.value);
+    if (nlp && nlp.date) { chip.style.display = ''; chip.textContent = formatNLPPreview(nlp.date, nlp.hasTime); }
+    else chip.style.display = 'none';
+  };
+  const submit = () => {
+    const v = inp.value.trim();
+    if (!v) { tkAddActive = false; renderTasksFullPageAll(); return; }
+    // Inherit whatever the current view is filtered to, so adding inside
+    // "Work" or "#admin" lands where you are looking.
+    const f = STATE.taskViewConfig.filters || {};
+    const t = createTaskFromText(v, { toTray: false });
+    if ((f.list || []).length === 1 && f.list[0] !== '__none__') t.listId = f.list[0];
+    if ((f.tag || []).length === 1 && !t.tags.includes(f.tag[0])) t.tags.push(f.tag[0]);
+    if ((f.priority || []).length === 1) t.priority = f.priority[0];
+    if (!t.dueDate && (f.date || []).includes('today')) t.dueDate = toDueDate(new Date());
+    inp.value = ''; chip.style.display = 'none';
+    saveState(); renderTasksFullPage();
+    requestAnimationFrame(() => { const i = document.getElementById('tk-add-input'); if (i) i.focus(); });
+  };
+  inp.addEventListener('input', refresh);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    if (e.key === 'Escape') { tkAddActive = false; renderTasksFullPageAll(); }
+  });
+  inp.addEventListener('blur', () => { if (!inp.value.trim()) { tkAddActive = false; renderTasksFullPageAll(); } });
+  rowEl.append(inp, chip);
+  wrap.appendChild(rowEl);
+
+  const hints = document.createElement('div');
+  hints.className = 'tk-syntax';
+  hints.innerHTML = '<span style="font-size:10px;color:var(--text-tertiary);">Syntax</span>' +
+    ['today', 'tomorrow 3pm', 'friday', '#work', 'in 3 days'].map(h => `<span class="tk-syntax-hint">${h}</span>`).join('');
+  wrap.appendChild(hints);
+  return wrap;
 }
 
-function initFpBrainDump() {
-  const input = document.getElementById('fp-brain-dump-input');
-  const suggestionsEl = document.getElementById('fp-brain-dump-suggestions');
-  if (!input || !suggestionsEl) return;
-  let activeIdx = -1;
+// ─── Right inspector ───────────────────────────────────────────
+function renderTkInspector() {
+  const insp = document.getElementById('tk-inspector');
+  const body = document.getElementById('tk-insp-body');
+  const task = selectedTaskId ? STATE.tasks.find(t => t.id === selectedTaskId) : null;
+  if (!task) { insp.classList.remove('open'); selectedTaskId = null; return; }
+  insp.classList.add('open');
+  body.innerHTML = '';
 
-  function createAndAddTask(title) {
-    const newTask = { id: uid(), title, completed: false, priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags: [], subtasks: [] };
-    STATE.tasks.push(newTask);
-    STATE.brainDump.push(newTask.id);
-    saveState(); renderFpBrainDump(); renderBrainDump(); renderTasks();
+  const commit = (mutate) => { mutate(); saveState(); renderTasksFullPage(); };
+
+  // title + description
+  const title = document.createElement('input');
+  title.className = 'tk-insp-title'; title.dataset.field = 'title';
+  title.value = task.title;
+  title.addEventListener('change', () => commit(() => { task.title = title.value.trim() || task.title; }));
+  body.appendChild(title);
+
+  const desc = document.createElement('textarea');
+  desc.className = 'tk-insp-desc'; desc.dataset.field = 'description';
+  desc.placeholder = 'Add a description…';
+  desc.value = task.description || '';
+  desc.addEventListener('change', () => commit(() => { task.description = desc.value; }));
+  body.appendChild(desc);
+
+  // the calendar block this task is slotted into, if any
+  const ev = PLAN_SCHED.get(task.id);
+  const block = document.createElement('div');
+  block.className = 'tk-insp-block';
+  if (ev) {
+    const mins = Math.round((ev.end - ev.start) / 60000);
+    block.innerHTML =
+      `<div class="tk-insp-block-head">
+         <span style="display:flex;align-items:center;gap:5px;"><span class="material-symbols-outlined" style="font-size:14px;">event_available</span>Calendar scheduled</span>
+         <span class="mono" style="font-size:10px;">${DAYS[ev.start.getDay()]}</span>
+       </div>
+       <div class="mono" style="font-size:13px;font-weight:600;color:var(--text-primary);">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>
+       <div style="font-size:11px;color:#6d28d9;">${fmtDur(mins)} allocated · ${ev.title}</div>`;
+    const acts = document.createElement('div');
+    acts.style.cssText = 'display:flex;gap:6px;margin-top:2px;';
+    const go = document.createElement('button');
+    go.className = 'popover-ghost-btn';
+    go.textContent = 'Show on calendar';
+    go.addEventListener('click', () => {
+      STATE.currentDate = new Date(ev.start);
+      goToRoute('calendar');
+    });
+    const unlink = document.createElement('button');
+    unlink.className = 'popover-danger-btn';
+    unlink.textContent = 'Unlink';
+    unlink.addEventListener('click', () => commit(() => {
+      ev.linkedTaskIds = (ev.linkedTaskIds || []).filter(id => id !== task.id);
+    }));
+    acts.append(go, unlink);
+    block.appendChild(acts);
+  } else {
+    block.style.cssText = 'border-color:var(--border-subtle);background:var(--bg-canvas);';
+    block.innerHTML = `<div class="tk-insp-block-head" style="color:var(--text-secondary);">
+        <span style="display:flex;align-items:center;gap:5px;"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span>Not on the calendar</span>
+      </div>`;
+    const b = document.createElement('button');
+    b.className = 'popover-ghost-btn';
+    b.textContent = 'Block time';
+    b.addEventListener('click', e => timeboxTask(task.id, e.clientX, e.clientY));
+    block.appendChild(b);
   }
+  body.appendChild(block);
 
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    if (!q) { suggestionsEl.style.display = 'none'; activeIdx = -1; return; }
-    const matches = STATE.tasks
-      .filter(t => !t.completed && !STATE.brainDump.includes(t.id) && t.title.toLowerCase().includes(q))
-      .sort((a, b) => {
-        const aP = a.title.toLowerCase().startsWith(q) ? 0 : 1;
-        const bP = b.title.toLowerCase().startsWith(q) ? 0 : 1;
-        if (aP !== bP) return aP - bP;
-        const po = { high: 0, medium: 1, low: 2 };
-        return (po[a.priority] || 2) - (po[b.priority] || 2);
-      })
-      .slice(0, 8);
-    suggestionsEl.innerHTML = '';
-    if (!matches.length && !q) { suggestionsEl.style.display = 'none'; return; }
-    const todayD = new Date(); todayD.setHours(0,0,0,0);
-    matches.forEach((task, idx) => {
-      const item = document.createElement('div');
-      item.className = 'brain-dump-suggestion' + (idx === 0 ? ' active' : '');
-      const titleHtml = task.title.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'), '<strong>$1</strong>');
-      let metaParts = [];
-      if (task.priority && task.priority !== 'low') {
-        const col = task.priority === 'high' ? '#c62828' : '#ef6c00';
-        metaParts.push(`<span style="color:${col};font-weight:600;">${task.priority.charAt(0).toUpperCase()+task.priority.slice(1)}</span>`);
-      }
-      if (task.dueDate) {
-        const dd = new Date(task.dueDate); dd.setHours(0,0,0,0);
-        const diff = Math.round((dd - todayD) / 86400000);
-        if (diff < 0) metaParts.push(`<span style="color:#c62828;">${Math.abs(diff)}d overdue</span>`);
-        else if (diff === 0) metaParts.push(`<span style="color:var(--primary);">Today</span>`);
-        else metaParts.push(dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-      }
-      item.innerHTML = `<div style="font-size:13px;">${titleHtml}</div>${metaParts.length ? `<div style="font-size:11px;color:var(--on-surface-variant);margin-top:1px;">${metaParts.join(' · ')}</div>` : ''}`;
-      item.addEventListener('mousedown', e => {
-        e.preventDefault();
-        if (!STATE.brainDump.includes(task.id)) { STATE.brainDump.push(task.id); saveState(); }
-        input.value = ''; suggestionsEl.style.display = 'none'; activeIdx = -1;
-        renderFpBrainDump(); renderBrainDump(); renderTasks();
-      });
-      suggestionsEl.appendChild(item);
-    });
-    // Create new option
-    const createOpt = document.createElement('div');
-    createOpt.className = 'brain-dump-suggestion brain-dump-create-option';
-    createOpt.innerHTML = `<div style="font-size:13px;">Create '<strong>${q}</strong>' (new task)</div>`;
-    createOpt.addEventListener('mousedown', e => {
-      e.preventDefault();
-      createAndAddTask(input.value.trim());
-      input.value = ''; suggestionsEl.style.display = 'none'; activeIdx = -1;
-    });
-    suggestionsEl.appendChild(createOpt);
-    activeIdx = matches.length ? 0 : -1;
-    suggestionsEl.style.display = 'block';
+  // fields
+  const field = (icon, label, control) => {
+    const r = document.createElement('div');
+    r.className = 'tk-insp-field';
+    r.innerHTML = `<span class="tk-insp-label"><span class="material-symbols-outlined">${icon}</span>${label}</span>`;
+    const v = document.createElement('span');
+    v.className = 'tk-insp-val';
+    v.appendChild(control);
+    r.appendChild(v);
+    body.appendChild(r);
+  };
+
+  const dateInp = document.createElement('input');
+  dateInp.type = 'date';
+  dateInp.className = 'tk-insp-input'; dateInp.dataset.field = 'dueDate';
+  dateInp.value = toDueDate(task.dueDate) ? formatDateInput(toDueDate(task.dueDate)) : '';
+  dateInp.addEventListener('change', () => commit(() => { task.dueDate = toDueDate(dateInp.value); }));
+  field('calendar_today', 'Due date', dateInp);
+
+  const timeInp = document.createElement('input');
+  timeInp.type = 'time';
+  timeInp.className = 'tk-insp-input'; timeInp.dataset.field = 'dueTime';
+  timeInp.value = task.dueTime || '';
+  timeInp.addEventListener('change', () => commit(() => { task.dueTime = timeInp.value || null; }));
+  field('schedule', 'Due time', timeInp);
+
+  const prio = document.createElement('select');
+  prio.className = 'tk-insp-input'; prio.dataset.field = 'priority';
+  [['high', 'P1 · High'], ['medium', 'P2 · Medium'], ['low', 'P3 · Low']].forEach(([v, l]) => {
+    const o = document.createElement('option'); o.value = v; o.textContent = l;
+    if ((task.priority || 'low') === v) o.selected = true;
+    prio.appendChild(o);
   });
-  input.addEventListener('keydown', e => {
-    const items = suggestionsEl.querySelectorAll('.brain-dump-suggestion');
-    if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); items.forEach((it, i) => it.classList.toggle('active', i === activeIdx)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); items.forEach((it, i) => it.classList.toggle('active', i === activeIdx)); }
-    else if (e.key === 'Enter') {
-      e.preventDefault();
-      const title = input.value.trim(); if (!title) return;
-      if (activeIdx >= 0 && items[activeIdx]) { items[activeIdx].dispatchEvent(new MouseEvent('mousedown')); }
-      else if (items.length) { items[0].dispatchEvent(new MouseEvent('mousedown')); }
-      else { createAndAddTask(title); input.value = ''; suggestionsEl.style.display = 'none'; }
-    } else if (e.key === 'Escape') { suggestionsEl.style.display = 'none'; activeIdx = -1; }
+  prio.addEventListener('change', () => commit(() => { task.priority = prio.value; }));
+  field('flag', 'Priority', prio);
+
+  const status = document.createElement('select');
+  status.className = 'tk-insp-input'; status.dataset.field = 'status';
+  [['not_started', 'Not started'], ['in_progress', 'In progress'], ['completed', 'Completed']].forEach(([v, l]) => {
+    const o = document.createElement('option'); o.value = v; o.textContent = l;
+    if (getTaskStatus(task) === v) o.selected = true;
+    status.appendChild(o);
   });
-  document.addEventListener('click', e => { if (!input.contains(e.target) && !suggestionsEl.contains(e.target)) suggestionsEl.style.display = 'none'; });
-}
+  status.addEventListener('change', () => commit(() => {
+    task.status = status.value;
+    task.completed = status.value === 'completed';
+  }));
+  field('radio_button_checked', 'Status', status);
 
-// ─────────────────────────────────────────────
-// LIST MANAGER
-// ─────────────────────────────────────────────
-function openListManager() {
-  // Simple modal-like overlay for managing lists
-  let overlay = document.getElementById('list-manager-overlay');
-  if (overlay) overlay.remove();
-  overlay = document.createElement('div');
-  overlay.id = 'list-manager-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:500;display:flex;align-items:center;justify-content:center;';
-  const modal = document.createElement('div');
-  modal.style.cssText = 'background:white;border-radius:14px;padding:20px;width:360px;max-height:500px;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.15);';
+  const listSel = document.createElement('select');
+  listSel.className = 'tk-insp-input'; listSel.dataset.field = 'listId';
+  const none = document.createElement('option');
+  none.value = ''; none.textContent = 'Inbox (no list)';
+  if (!task.listId) none.selected = true;
+  listSel.appendChild(none);
+  STATE.lists.forEach(l => {
+    const o = document.createElement('option'); o.value = l.id; o.textContent = l.name;
+    if (task.listId === l.id) o.selected = true;
+    listSel.appendChild(o);
+  });
+  listSel.addEventListener('change', () => commit(() => { task.listId = listSel.value || null; }));
+  field('folder', 'List', listSel);
 
-  function renderListModal() {
-    modal.innerHTML = '';
-    const title = document.createElement('div');
-    title.style.cssText = 'font-family:Plus Jakarta Sans,sans-serif;font-weight:700;font-size:16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;';
-    title.innerHTML = 'Manage Lists <button class="icon-btn" id="list-mgr-close"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>';
-    modal.appendChild(title);
-    title.querySelector('#list-mgr-close').addEventListener('click', () => overlay.remove());
+  // tags — free text, comma separated, shared across every list
+  const tagInp = document.createElement('input');
+  tagInp.className = 'tk-insp-input'; tagInp.dataset.field = 'tags';
+  tagInp.placeholder = 'work, admin';
+  tagInp.value = (task.tags || []).join(', ');
+  tagInp.addEventListener('change', () => commit(() => {
+    task.tags = tagInp.value.split(',').map(t => t.trim().replace(/^#/, '').toLowerCase()).filter(Boolean);
+  }));
+  field('tag', 'Tags', tagInp);
 
-    STATE.lists.forEach(list => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 4px;border-radius:8px;';
-      row.innerHTML = `
-        <span class="material-symbols-outlined" style="font-size:18px;color:var(--on-surface-variant);">folder</span>
-        <input type="text" value="${list.name}" style="flex:1;border:none;outline:none;font-size:14px;font-family:Inter,sans-serif;background:transparent;">
-        <span style="font-size:11px;color:var(--outline-variant);">${STATE.tasks.filter(t=>t.listId===list.id).length}</span>
-        <button class="icon-btn" style="width:24px;height:24px;" title="Delete list"><span class="material-symbols-outlined" style="font-size:16px;">delete</span></button>
-      `;
-      const nameInput = row.querySelector('input');
-      nameInput.addEventListener('blur', () => { list.name = nameInput.value.trim() || list.name; saveState(); });
-      nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
-      row.querySelector('button').addEventListener('click', () => {
-        STATE.tasks.forEach(t => { if (t.listId === list.id) t.listId = null; });
-        STATE.lists = STATE.lists.filter(l => l.id !== list.id);
-        saveState(); renderListModal(); renderTasksFullPage();
-      });
-      modal.appendChild(row);
-    });
+  const recur = document.createElement('select');
+  recur.className = 'tk-insp-input'; recur.dataset.field = 'recurring';
+  [['none', 'Never'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly']].forEach(([v, l]) => {
+    const o = document.createElement('option'); o.value = v; o.textContent = l;
+    if ((task.recurring || 'none') === v) o.selected = true;
+    recur.appendChild(o);
+  });
+  recur.addEventListener('change', () => commit(() => { task.recurring = recur.value; }));
+  field('repeat', 'Repeats', recur);
 
-    const addRow = document.createElement('div');
-    addRow.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 4px;cursor:pointer;color:var(--primary);font-size:13px;font-weight:500;margin-top:4px;';
-    addRow.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">add</span> New list';
-    addRow.addEventListener('click', () => {
-      STATE.lists.push({ id: uid(), name: 'New list' });
-      saveState(); renderListModal();
-    });
-    modal.appendChild(addRow);
-  }
+  // subtasks
+  const subs = task.subtasks || [];
+  const subHead = document.createElement('div');
+  subHead.className = 'popover-subhead';
+  subHead.style.marginTop = '4px';
+  subHead.innerHTML = `<span>Subtasks</span><span class="mono">${subs.filter(s => s.done).length}/${subs.length}</span>`;
+  body.appendChild(subHead);
 
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-  renderListModal();
+  subs.forEach((st, i) => {
+    const r = document.createElement('div');
+    r.className = 'tk-insp-sub';
+    const c = document.createElement('div');
+    c.className = 'plan-check' + (st.done ? ' checked' : '');
+    c.addEventListener('click', () => commit(() => { st.done = !st.done; }));
+    const txt = document.createElement('input');
+    txt.className = 'tk-insp-subtext' + (st.done ? ' done' : '');
+    txt.value = st.text;
+    txt.addEventListener('change', () => commit(() => { st.text = txt.value; }));
+    const rm = document.createElement('button');
+    rm.className = 'plan-icon-act';
+    rm.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;">close</span>';
+    rm.addEventListener('click', () => commit(() => { task.subtasks.splice(i, 1); }));
+    r.append(c, txt, rm);
+    body.appendChild(r);
+  });
+
+  const addSub = document.createElement('button');
+  addSub.className = 'plan-act';
+  addSub.style.alignSelf = 'flex-start';
+  addSub.textContent = '+ Add subtask';
+  addSub.addEventListener('click', () => commit(() => {
+    task.subtasks = task.subtasks || [];
+    task.subtasks.push({ id: uid(), text: 'New subtask', done: false });
+  }));
+  body.appendChild(addSub);
+
+  document.getElementById('tk-insp-meta').textContent = subs.length
+    ? `${subs.filter(s => s.done).length} of ${subs.length} done`
+    : getTaskListName(task);
 }
 
 // ─────────────────────────────────────────────
@@ -4984,6 +5328,33 @@ function init() {
   // Draggable modals
   makeDraggable(document.getElementById('event-modal'), document.querySelector('#event-modal .modal-drag-handle'));
   makeDraggable(document.getElementById('task-modal'), document.querySelector('#task-modal .modal-drag-handle'));
+
+  // ── Tasks page controls ──
+  document.getElementById('tk-add-list').addEventListener('click', () => {
+    const l = { id: uid(), name: 'New list', color: CAL_COLORS[STATE.lists.length % CAL_COLORS.length] };
+    STATE.lists.push(l);
+    saveState(); renderTasksFullPage();
+  });
+  const tkSearch = document.getElementById('tk-search');
+  tkSearch.addEventListener('input', () => {
+    STATE.taskViewConfig.search = tkSearch.value;
+    renderTasksFullPageAll();   // rows only: re-rendering the head would steal focus
+    document.getElementById('tk-openpill').textContent =
+      `${STATE.tasks.filter(t => !t.completed).length} open`;
+  });
+  document.getElementById('tk-insp-close').addEventListener('click', () => {
+    selectedTaskId = null; renderTasksFullPage();
+  });
+  document.getElementById('tk-insp-delete').addEventListener('click', () => {
+    if (!selectedTaskId) return;
+    const id = selectedTaskId;
+    selectedTaskId = null;
+    deleteTask(id);
+    renderTasksFullPage();
+  });
+  document.getElementById('tk-insp-timebox').addEventListener('click', e => {
+    if (selectedTaskId) timeboxTask(selectedTaskId, e.clientX, e.clientY);
+  });
 
   // Delegated task dragging: any element carrying data-task-id is draggable.
   ['plan-panel', 'tasks-fullpage'].forEach(id => {
