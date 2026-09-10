@@ -108,15 +108,16 @@
   /* Main Layout */
   #main { display: flex; flex: 1; overflow: hidden; }
 
-  /* Left Sidebar */
-  #left-sidebar {
-    width: 256px; flex-shrink: 0; background: white;
-    border-right: 1px solid var(--surface-container);
+  /* Planning Panel (left, ~48%) */
+  #plan-panel {
+    width: 48%; flex-shrink: 0; min-width: 380px; max-width: 760px;
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
     display: flex; flex-direction: column; overflow: hidden;
-    transition: width 0.25s ease;
+    transition: width 0.2s ease, min-width 0.2s ease;
   }
-  #left-sidebar.sidebar-collapsed { width: 40px; }
-  #left-sidebar.sidebar-collapsed .sidebar-hide { display: none !important; }
+  #plan-panel.sidebar-collapsed { width: 44px; min-width: 44px; }
+  #plan-panel.sidebar-collapsed .sidebar-hide { display: none !important; }
   .sidebar-collapse-btn {
     display: flex; align-items: center; justify-content: center;
     width: 100%; padding: 8px 0; border: none; background: none; cursor: pointer;
@@ -134,60 +135,12 @@
   }
   .create-btn:hover { background: var(--primary-dark); }
 
-  /* Mini Calendar */
-  #mini-cal { padding: 8px 12px 12px; }
-  .mini-cal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .mini-cal-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 13px; }
-  .mini-nav-btn {
-    width: 24px; height: 24px; border: none; background: none; cursor: pointer;
-    border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    color: var(--on-surface-variant); transition: background 0.15s; font-size: 18px;
-  }
-  .mini-nav-btn:hover { background: var(--surface-low); }
-  .mini-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
-  .mini-day-label {
-    text-align: center; font-size: 11px; font-weight: 500;
-    color: var(--on-surface-variant); padding: 4px 0;
-  }
-  .mini-day {
-    text-align: center; font-size: 12px; padding: 4px 2px;
-    border-radius: 50%; cursor: pointer; color: var(--on-surface);
-    transition: all 0.1s; width: 28px; height: 28px;
-    display: flex; align-items: center; justify-content: center; margin: 0 auto;
-  }
-  .mini-day:hover { background: var(--surface-low); }
-  .mini-day.today { background: var(--primary); color: white; font-weight: 600; }
-  .mini-day.in-view { background: var(--primary-light); color: var(--primary); border-radius: 0; }
-  .mini-day.in-view.week-start { border-radius: 50% 0 0 50%; }
-  .mini-day.in-view.week-end { border-radius: 0 50% 50% 0; }
-  .mini-day.today.in-view { background: var(--primary); color: white; border-radius: 50%; }
-  .mini-day.other-month { color: var(--outline-variant); }
-  .mini-day.has-events::after {
-    content: ''; display: block; width: 4px; height: 4px;
-    border-radius: 50%; background: var(--primary); margin: 1px auto 0;
-  }
-
-  /* Right Task Panel */
-  #right-panel {
-    width: 288px; flex-shrink: 0; background: white;
-    border-left: 1px solid var(--surface-container);
-    display: flex; flex-direction: column; overflow: hidden;
-  }
-  .panel-header {
-    padding: 16px; border-bottom: 1px solid var(--surface-container);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .panel-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 15px; }
   .icon-btn {
     width: 32px; height: 32px; border: none; background: none; cursor: pointer;
     border-radius: 8px; display: flex; align-items: center; justify-content: center;
     color: var(--on-surface-variant); transition: background 0.15s;
   }
   .icon-btn:hover { background: var(--surface-low); }
-  #tasks-list { padding: 8px; }
   .task-item {
     display: flex; align-items: flex-start; gap: 10px;
     padding: 10px; border-radius: 10px; cursor: pointer;
@@ -219,12 +172,6 @@
   .task-delete { opacity: 0; transition: opacity 0.15s; }
   .task-item:hover .task-delete { opacity: 1; }
 
-  /* Right panel collapse */
-  #right-panel { transition: width 0.25s ease; }
-  #right-panel.panel-collapsed { width: 40px; }
-  #right-panel.panel-collapsed .panel-hide { display: none !important; }
-  #right-panel.panel-collapsed .panel-header { justify-content: center; padding: 8px 4px; border-bottom: none; }
-
   /* Inline task detail */
   .task-item-wrapper { margin-bottom: 4px; }
   .task-item.task-expanded {
@@ -248,6 +195,155 @@
   .task-inline-row .task-inline-input { flex: 1; min-width: 0; }
   .task-inline-actions { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
   .task-inline-actions .spacer { flex: 1; }
+
+  /* ── Planning panel components ── */
+  #plan-scroll { flex: 1; overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 26px; }
+  .plan-section { display: flex; flex-direction: column; gap: 9px; }
+  .plan-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .plan-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+  .plan-note { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
+  .plan-meta { font-size: 11px; color: var(--text-tertiary); }
+  .plan-h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: var(--text-primary); }
+  .plan-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0; }
+
+  /* rows */
+  .plan-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border: 1px solid var(--border-subtle); border-radius: 8px;
+    background: var(--bg-surface); transition: border-color 0.12s, background 0.12s;
+  }
+  .plan-row:hover { border-color: #cbd5e1; }
+  .plan-row.is-dashed { border-style: dashed; background: color-mix(in srgb, var(--bg-canvas) 55%, transparent); }
+  .plan-row.is-sunk { background: var(--bg-canvas); }
+  .plan-row.is-sunk:hover { background: var(--bg-surface); }
+  .plan-row.is-done { opacity: 0.6; }
+  .plan-row[draggable="true"] { cursor: grab; }
+  .plan-row[draggable="true"]:active { cursor: grabbing; }
+  .plan-handle { font-size: 16px; color: var(--text-tertiary); flex-shrink: 0; cursor: grab; }
+  .plan-row-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plan-row-title.is-done { text-decoration: line-through; color: var(--text-secondary); }
+  .plan-row-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+
+  /* checkbox */
+  .plan-check {
+    width: 16px; height: 16px; border: 1.5px solid var(--text-tertiary); border-radius: 50%;
+    flex-shrink: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+  }
+  .plan-row:hover .plan-check { border-color: var(--text-primary); }
+  .plan-check.checked { background: var(--accent-green); border-color: var(--accent-green); }
+  .plan-check.checked::after {
+    content: ''; width: 4px; height: 7px; border: 1.5px solid #fff;
+    border-top: none; border-left: none; transform: rotate(45deg) translateY(-1px);
+  }
+
+  /* right-hand chips */
+  .plan-chip {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums;
+    font-size: 10px; color: var(--text-secondary); background: var(--bg-canvas);
+    border: 1px solid var(--border-subtle); padding: 2px 6px; border-radius: 4px;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .plan-chip.is-muted { color: var(--text-tertiary); }
+  .plan-chip.is-warn { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+  .plan-chip.is-ghost { border-style: dashed; color: var(--text-tertiary); background: none; cursor: pointer; }
+  .plan-chip.is-ghost:hover { color: var(--text-secondary); border-color: var(--text-tertiary); }
+  .plan-act {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px;
+    border: none; background: none; cursor: pointer; color: var(--text-tertiary);
+    padding: 2px 4px; border-radius: 4px; flex-shrink: 0; white-space: nowrap;
+  }
+  .plan-act:hover { color: var(--primary); background: var(--primary-subtle); }
+  .plan-icon-act { border: none; background: none; cursor: pointer; color: var(--text-tertiary); display: flex; align-items: center; padding: 2px; border-radius: 4px; flex-shrink: 0; }
+  .plan-icon-act:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+  /* capture input */
+  .plan-input-wrap { position: relative; }
+  .plan-input {
+    width: 100%; padding: 9px 62px 9px 12px; font-size: 13px; font-family: inherit;
+    background: var(--bg-canvas); border: 1px solid var(--border-subtle); border-radius: 8px;
+    color: var(--text-primary); outline: none; transition: all 0.12s;
+  }
+  .plan-input:focus { border-color: var(--text-primary); background: var(--bg-surface); }
+  .plan-kbd {
+    position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px;
+    color: var(--text-tertiary); background: var(--bg-surface);
+    border: 1px solid var(--border-subtle); padding: 2px 5px; border-radius: 4px;
+    pointer-events: none;
+  }
+
+  /* collapsible cards (Overdue / Pull List / Weekly Focus) */
+  .plan-card { border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface); overflow: hidden; }
+  .plan-card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 9px 11px; cursor: pointer; user-select: none; transition: background 0.12s;
+  }
+  .plan-card-head:hover { background: var(--bg-canvas); }
+  .plan-card-head-left { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .plan-card-title { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+  .plan-card-body { padding: 4px 8px 8px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border-subtle); }
+  .plan-count {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px;
+    padding: 1px 6px; border-radius: 9999px; background: var(--bg-subtle); color: var(--text-secondary);
+  }
+  .plan-count.is-warn { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+  .plan-chev { font-size: 16px; color: var(--text-tertiary); transition: transform 0.15s; }
+  .plan-chev.is-closed { transform: rotate(-90deg); }
+
+  /* numbered Top Three slots */
+  .plan-slot { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--bg-surface); transition: border-color 0.12s; }
+  .plan-slot:hover { border-color: #cbd5e1; }
+  .plan-slot.is-empty { border-style: dashed; }
+  .plan-slot.drop-target { border-color: var(--primary); background: var(--primary-subtle); }
+  .plan-slot-num {
+    width: 19px; height: 19px; border-radius: 4px; border: 1px solid var(--border-subtle);
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-tertiary); flex-shrink: 0;
+  }
+  .plan-slot:hover .plan-slot-num { color: var(--text-primary); border-color: #94a3b8; }
+
+  /* weekly focus */
+  .plan-focus-text { font-size: 12px; color: var(--text-primary); line-height: 1.5; white-space: pre-wrap; }
+  .plan-focus-area {
+    width: 100%; min-height: 58px; resize: vertical; font-family: inherit; font-size: 12px;
+    line-height: 1.5; padding: 8px 9px; border: 1px solid var(--border-subtle); border-radius: 6px;
+    background: var(--bg-canvas); color: var(--text-primary); outline: none;
+  }
+  .plan-focus-area:focus { border-color: var(--primary); background: var(--bg-surface); }
+
+  .plan-empty { font-size: 12px; color: var(--text-tertiary); padding: 8px 2px; }
+  .plan-footer {
+    flex-shrink: 0; padding: 10px 22px; border-top: 1px solid var(--border-subtle);
+    background: var(--bg-canvas); display: flex; align-items: center; justify-content: space-between;
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--text-tertiary);
+  }
+  .plan-header {
+    flex-shrink: 0; height: 44px; padding: 0 12px 0 22px; border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  }
+
+  /* ── Top nav additions ── */
+  .logo-mark {
+    width: 22px; height: 22px; border-radius: 5px; background: var(--text-primary); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .route-switcher { display: flex; gap: 2px; background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: 7px; padding: 2px; }
+  .route-btn {
+    padding: 4px 11px; border-radius: 5px; border: none; background: none; cursor: pointer;
+    font-size: 12px; font-weight: 500; color: var(--text-secondary); transition: all 0.12s;
+  }
+  .route-btn:hover { color: var(--text-primary); }
+  .route-btn.active { background: var(--bg-surface); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .nav-group { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border-subtle); border-radius: 7px; padding: 2px; background: var(--bg-surface); }
+  .add-btn {
+    height: 30px; padding: 0 12px; border-radius: 7px; border: none; cursor: pointer;
+    background: var(--text-primary); color: #fff; font-size: 12px; font-weight: 500;
+    display: flex; align-items: center; gap: 5px; transition: background 0.12s;
+  }
+  .add-btn:hover { background: #000; }
+  .nav-sep { width: 1px; height: 16px; background: var(--border-subtle); flex-shrink: 0; }
 
   /* Calendar Area */
   #cal-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
@@ -656,8 +752,6 @@
   .brain-dump-item:hover { background: var(--surface-low); }
 
   /* Panel view */
-  .panel-view { display: none; flex: 1; overflow-y: auto; padding: 8px; flex-direction: column; }
-  .panel-view.active { display: flex; }
 
   /* Calendar management sidebar */
   .cal-list-section { padding: 8px 12px 4px; }
@@ -803,55 +897,89 @@
 
 <!-- Top Nav -->
 <nav id="topnav">
-  <span class="logo">Timebox</span>
-  <div class="nav-arrows">
-    <button class="nav-btn" id="prev-btn" title="Previous (←)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_left</span></button>
-    <button class="nav-btn" id="next-btn" title="Next (→)"><span class="material-symbols-outlined" style="font-size:20px;">chevron_right</span></button>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="logo-mark"><span class="material-symbols-outlined" style="font-size:14px;">calendar_today</span></span>
+      <span class="logo">Timebox</span>
+    </div>
+    <div class="route-switcher" id="route-switcher">
+      <button class="route-btn" data-route="calendar" type="button">Calendar</button>
+      <button class="route-btn" data-route="tasks" type="button">Tasks</button>
+    </div>
   </div>
-  <span id="nav-title" class="heading"></span>
   <div style="flex:1"></div>
-  <div style="display:flex;gap:6px;align-items:center;">
-    <button class="today-btn" id="today-btn">Today</button>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="nav-group">
+      <button class="today-btn" id="today-btn" style="height:26px;padding:0 10px;border:none;background:none;">Today</button>
+      <div class="nav-sep"></div>
+      <div class="nav-arrows">
+        <button class="nav-btn" id="prev-btn" title="Previous (←)" style="padding:3px;"><span class="material-symbols-outlined" style="font-size:18px;">chevron_left</span></button>
+        <button class="nav-btn" id="next-btn" title="Next (→)" style="padding:3px;"><span class="material-symbols-outlined" style="font-size:18px;">chevron_right</span></button>
+      </div>
+    </div>
+    <span id="nav-title" class="heading" style="font-size:14px;"></span>
+  </div>
+  <div style="flex:1"></div>
+  <div style="display:flex;align-items:center;gap:10px;">
     <div class="view-switcher">
       <button class="view-btn" data-view="day">Day</button>
       <button class="view-btn" data-view="week">Week</button>
       <button class="view-btn" data-view="month">Month</button>
     </div>
+    <button class="add-btn" id="add-btn" title="Add (c)">
+      <span class="material-symbols-outlined" style="font-size:15px;">add</span>Add
+    </button>
+    <div class="nav-sep"></div>
+    <button class="nav-btn" id="notif-btn" title="Enable Notifications"><span class="material-symbols-outlined" style="font-size:19px;">notifications</span></button>
+    <button class="nav-btn" id="settings-btn" title="Settings"><span class="material-symbols-outlined" style="font-size:19px;">settings</span></button>
   </div>
-  <button class="nav-btn" id="notif-btn" title="Enable Notifications"><span class="material-symbols-outlined" style="font-size:20px;">notifications</span></button>
-  <button class="nav-btn" id="settings-btn" title="Settings"><span class="material-symbols-outlined" style="font-size:20px;">settings</span></button>
 </nav>
 
 <!-- Main -->
 <div id="main">
-  <!-- Left Sidebar -->
-  <aside id="left-sidebar">
-    <div class="sidebar-section sidebar-hide">
-      <button class="create-btn" id="create-event-btn">
-        <span class="material-symbols-outlined" style="font-size:18px;">add</span>
-        New Event
+  <!-- Planning Panel -->
+  <aside id="plan-panel">
+    <div class="plan-header">
+      <span class="plan-h2 sidebar-hide" id="plan-date-label"></span>
+      <button class="icon-btn" id="left-sidebar-collapse-btn" title="Collapse panel" style="width:28px;height:28px;">
+        <span class="material-symbols-outlined" style="font-size:18px;" id="left-sidebar-collapse-icon">left_panel_close</span>
       </button>
     </div>
-    <div id="mini-cal" class="sidebar-hide">
-      <div class="mini-cal-header">
-        <span class="mini-cal-title" id="mini-cal-title"></span>
-        <div style="display:flex;gap:2px;">
-          <button class="mini-nav-btn" id="mini-prev"><span class="material-symbols-outlined" style="font-size:18px;">chevron_left</span></button>
-          <button class="mini-nav-btn" id="mini-next"><span class="material-symbols-outlined" style="font-size:18px;">chevron_right</span></button>
+    <div id="plan-scroll" class="sidebar-hide">
+      <!-- 1. Brain Dump -->
+      <section class="plan-section" id="plan-braindump">
+        <div class="plan-section-head">
+          <span class="plan-label">Brain Dump</span>
         </div>
-      </div>
-      <div class="mini-cal-grid" id="mini-cal-grid"></div>
+        <div class="plan-input-wrap">
+          <input type="text" class="plan-input" id="brain-dump-input" placeholder="Dump a thought, task, or type a date (e.g. tom 2pm)…" autocomplete="off">
+          <span class="plan-kbd">Enter</span>
+          <div class="brain-dump-suggestions" id="brain-dump-suggestions"></div>
+        </div>
+        <div id="brain-dump-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </section>
+      <!-- 2. Weekly Focus -->
+      <section class="plan-section" id="plan-weekly"></section>
+      <!-- 3. Top Three -->
+      <section class="plan-section" id="plan-topthree">
+        <div class="plan-section-head">
+          <div>
+            <div class="plan-h2">Top Three</div>
+            <div class="plan-note">This is your list in the calendar view.</div>
+          </div>
+          <span class="plan-meta mono">Resets at 12:00 AM</span>
+        </div>
+        <div id="top-three-slots" style="display:flex;flex-direction:column;gap:7px;"></div>
+      </section>
+      <!-- 4-6. Today / Overdue / Pull List -->
+      <div id="tasks-list" style="display:flex;flex-direction:column;gap:22px;"></div>
     </div>
-    <div class="cal-list-section sidebar-hide" style="flex:1;overflow-y:auto;">
-      <div class="cal-list-label">
-        Calendars
-        <button class="icon-btn" id="add-calendar-btn" style="width:22px;height:22px;" title="Add calendar"><span class="material-symbols-outlined" style="font-size:16px;">add</span></button>
-      </div>
-      <div id="calendar-list"></div>
+    <div class="plan-footer sidebar-hide">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span class="material-symbols-outlined" style="font-size:13px;">touch_app</span>
+        Drag any task onto the calendar grid to timeblock
+      </span>
     </div>
-    <button class="sidebar-collapse-btn" id="left-sidebar-collapse-btn" title="Toggle sidebar">
-      <span class="material-symbols-outlined" style="font-size:20px;" id="left-sidebar-collapse-icon">chevron_left</span>
-    </button>
   </aside>
 
   <!-- Calendar Area -->
@@ -919,38 +1047,6 @@
     </div>
   </div>
 
-  <!-- Right Task Panel -->
-  <aside id="right-panel">
-    <div class="panel-header">
-      <span class="panel-title heading panel-hide">Tasks</span>
-      <div style="display:flex;gap:4px;" class="panel-hide">
-        <button class="icon-btn" id="add-task-btn" title="Add task"><span class="material-symbols-outlined" style="font-size:20px;">add</span></button>
-      </div>
-      <button class="icon-btn panel-hide" id="panel-expand-btn" title="Full page tasks"><span class="material-symbols-outlined" style="font-size:20px;">open_in_full</span></button>
-      <button class="icon-btn" id="panel-collapse-btn" title="Toggle tasks panel"><span class="material-symbols-outlined" style="font-size:20px;" id="panel-collapse-icon">chevron_right</span></button>
-    </div>
-    <!-- Single scrollable view -->
-    <div class="panel-view active panel-hide" id="panel-all" style="gap:0;">
-      <!-- Top Three -->
-      <div style="padding:8px 4px 4px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">⭐ Top Three</div>
-        <div id="top-three-slots"></div>
-      </div>
-      <!-- Brain Dump -->
-      <div style="padding:8px 4px 4px;border-top:1px solid var(--surface-container);margin-top:4px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:8px;">🧠 Brain Dump</div>
-        <div class="brain-dump-input-wrap">
-          <input type="text" class="brain-dump-input" id="brain-dump-input" placeholder="Search tasks or create new…">
-          <div class="brain-dump-suggestions" id="brain-dump-suggestions"></div>
-        </div>
-        <div id="brain-dump-list" style="margin-top:6px;"></div>
-      </div>
-      <!-- Today & Overdue -->
-      <div style="padding:4px 0 0;border-top:1px solid var(--surface-container);margin-top:4px;">
-        <div id="tasks-list"></div>
-      </div>
-    </div>
-  </aside>
 </div>
 
 <!-- Settings Modal -->
@@ -974,6 +1070,13 @@
       <div class="toggle-row" style="margin-bottom:16px;">
         <span class="toggle-label">24-hour time</span>
         <div class="toggle" id="s-24h"></div>
+      </div>
+      <div class="cal-list-section" style="margin-bottom:16px;">
+        <div class="cal-list-label">
+          Calendars
+          <button class="icon-btn" id="add-calendar-btn" style="width:22px;height:22px;" title="Add calendar"><span class="material-symbols-outlined" style="font-size:16px;">add</span></button>
+        </div>
+        <div id="calendar-list"></div>
       </div>
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:12px;border-top:1px solid var(--surface-container);padding-top:16px;">Notifications</div>
       <div class="toggle-row" style="margin-bottom:16px;">
@@ -1339,7 +1442,6 @@ let STATE = {
   view: 'week',
   nDays: 7,
   currentDate: new Date(),
-  miniCalDate: new Date(),
   topThree: [null, null, null],
   topThreeDate: new Date().toDateString(),
   brainDump: [],
@@ -1377,7 +1479,6 @@ function saveState() {
     view: STATE.view,
     nDays: STATE.nDays,
     currentDate: STATE.currentDate.toISOString(),
-    miniCalDate: STATE.miniCalDate.toISOString(),
     topThree: STATE.topThree || [null, null, null],
     topThreeDate: STATE.topThreeDate || new Date().toDateString(),
     brainDump: STATE.brainDump || [],
@@ -1402,7 +1503,6 @@ function loadState() {
     STATE.view = s.view || 'week';
     STATE.nDays = Math.min(s.nDays || 7, 7);
     STATE.currentDate = s.currentDate ? new Date(s.currentDate) : new Date();
-    STATE.miniCalDate = s.miniCalDate ? new Date(s.miniCalDate) : new Date();
     // topThree is positional: always exactly 3 slots. Older saves punched null holes
     // (or shifted slots up via splice), so repair the shape on load.
     STATE.topThree = normalizeTopThree(s.topThree);
@@ -1511,7 +1611,6 @@ function navigate(dir) {
 
 function goToday() {
   STATE.currentDate = new Date();
-  STATE.miniCalDate = new Date();
   saveState(); render();
 }
 
@@ -1615,21 +1714,19 @@ function getEffMinutes(ev, day) {
 // ─────────────────────────────────────────────
 function render() {
   renderNavTitle();
-  renderMiniCal();
-  renderTasks();
+  if (STATE.view !== 'tasks') renderTasks();
   renderViewButtons();
-  renderCalendarList();
-  const rightPanel = document.getElementById('right-panel');
+  const planPanel = document.getElementById('plan-panel');
   const tasksFullpage = document.getElementById('tasks-fullpage');
   if (STATE.view === 'tasks') {
     document.getElementById('month-view').style.display = 'none';
     document.getElementById('week-view').style.display = 'none';
     tasksFullpage.classList.add('active');
-    rightPanel.style.display = 'none';
+    planPanel.style.display = 'none';
     renderTasksFullPage();
   } else {
     tasksFullpage.classList.remove('active');
-    rightPanel.style.display = '';
+    planPanel.style.display = '';
     if (STATE.view === 'month') {
       document.getElementById('month-view').style.display = 'flex';
       document.getElementById('week-view').style.display = 'none';
@@ -1652,87 +1749,13 @@ function renderViewButtons() {
     btn.classList.toggle('active', v === STATE.view || (v === 'week' && STATE.view === 'nday'));
   });
   const isTasksView = STATE.view === 'tasks';
-  // Hide/show nav controls that don't apply to tasks view
-  document.getElementById('prev-btn').parentElement.style.display = isTasksView ? 'none' : '';
-  document.getElementById('nav-title').style.display = isTasksView ? 'none' : '';
-  // Update expand button icon to reflect current state
-  const expandBtn = document.getElementById('panel-expand-btn');
-  if (expandBtn) {
-    expandBtn.querySelector('.material-symbols-outlined').textContent = isTasksView ? 'close_fullscreen' : 'open_in_full';
-    expandBtn.title = isTasksView ? 'Back to calendar' : 'Full page tasks';
-  }
-}
-
-// ─────────────────────────────────────────────
-// MINI CALENDAR
-// ─────────────────────────────────────────────
-function renderMiniCal() {
-  const mc = STATE.miniCalDate;
-  document.getElementById('mini-cal-title').textContent = `${MONTHS[mc.getMonth()].slice(0,3)} ${mc.getFullYear()}`;
-
-  // Respect weekStartsSun setting
-  const weekStartDay = STATE.settings.weekStartsSun ? 0 : 1; // 0=Sun, 1=Mon
-  const orderedDays = [...DAYS.slice(weekStartDay), ...DAYS.slice(0, weekStartDay)];
-
-  const grid = document.getElementById('mini-cal-grid');
-  grid.innerHTML = '';
-  orderedDays.forEach(d => {
-    const el = document.createElement('div');
-    el.className = 'mini-day-label'; el.textContent = d[0];
-    grid.appendChild(el);
+  document.querySelectorAll('.route-btn').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.route === 'tasks') === isTasksView);
   });
-
-  const first = new Date(mc.getFullYear(), mc.getMonth(), 1);
-  // Adjust startDay relative to week start
-  const startDay = (first.getDay() - weekStartDay + 7) % 7;
-  const daysInMonth = new Date(mc.getFullYear(), mc.getMonth()+1, 0).getDate();
-  const today = new Date();
-
-  // Compute which dates are "in view" (current week/day in main calendar)
-  const viewDays = getViewDays();
-  const viewDayStrings = new Set(viewDays.map(d => d.toDateString()));
-  const viewStart = viewDays[0];
-  const viewEnd = viewDays[viewDays.length - 1];
-
-  function buildDayEl(date, extraClass) {
-    const el = document.createElement('div');
-    el.className = 'mini-day' + (extraClass ? ' ' + extraClass : '');
-    if (isSameDay(date, today)) el.classList.add('today');
-    if (viewDayStrings.has(date.toDateString())) {
-      el.classList.add('in-view');
-      if (isSameDay(date, viewStart)) el.classList.add('week-start');
-      if (isSameDay(date, viewEnd)) el.classList.add('week-end');
-    }
-    const hasEv = STATE.events.some(e => isSameDay(e.start, date));
-    if (hasEv) el.classList.add('has-events');
-    el.textContent = date.getDate();
-    el.addEventListener('click', () => {
-      STATE.currentDate = date;
-      // In week view: navigate to that week without switching view
-      // In day view: navigate to that day
-      // In month view: stay in month
-      if (STATE.view !== 'month' && STATE.view !== 'day') {
-        // keep week/nday view, just update anchor
-      } else if (STATE.view !== 'month') {
-        // day view — stays as day view
-      }
-      STATE.miniCalDate = new Date(date.getFullYear(), date.getMonth(), 1);
-      saveState(); render();
-    });
-    return el;
-  }
-
-  // Cells before month starts (prev month days)
-  for (let i = 0; i < startDay; i++) {
-    const prev = new Date(mc.getFullYear(), mc.getMonth(), -startDay + i + 1);
-    grid.appendChild(buildDayEl(prev, 'other-month'));
-  }
-
-  // Current month days
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(mc.getFullYear(), mc.getMonth(), d);
-    grid.appendChild(buildDayEl(date, ''));
-  }
+  // Date navigation and the view switcher don't apply to the Tasks route.
+  document.querySelector('.nav-group').style.display = isTasksView ? 'none' : '';
+  document.querySelector('.view-switcher').style.display = isTasksView ? 'none' : '';
+  document.getElementById('nav-title').style.display = isTasksView ? 'none' : '';
 }
 
 // ─────────────────────────────────────────────
@@ -3337,12 +3360,6 @@ document.querySelectorAll('.tasks-fp-tab').forEach(btn => {
   });
 });
 
-document.getElementById('mini-prev').addEventListener('click', () => {
-  STATE.miniCalDate = addMonths(STATE.miniCalDate, -1); renderMiniCal();
-});
-document.getElementById('mini-next').addEventListener('click', () => {
-  STATE.miniCalDate = addMonths(STATE.miniCalDate, 1); renderMiniCal();
-});
 
 // ─── Quick Event Popover ───────────────────────────────────────────────────
 let qepStart = null, qepEnd = null;
@@ -3489,33 +3506,38 @@ document.getElementById('qep-title').addEventListener('keydown', e => {
   if (e.key === 'Escape') closeQuickEventPopover();
 });
 
-document.getElementById('create-event-btn').addEventListener('click', (e) => openQuickEventPopover(null, null, e.clientX, e.clientY));
-document.getElementById('add-task-btn').addEventListener('click', () => openTaskModal(null));
-
-// Panel collapse
-document.getElementById('panel-collapse-btn').addEventListener('click', () => {
-  const panel = document.getElementById('right-panel');
-  const icon = document.getElementById('panel-collapse-icon');
-  const collapsed = panel.classList.toggle('panel-collapsed');
-  icon.textContent = collapsed ? 'checklist' : 'chevron_right';
+// One context-sensitive Add control replaces the old per-panel + buttons.
+document.getElementById('add-btn').addEventListener('click', (e) => {
+  if (STATE.view === 'tasks') openTaskModal(null);
+  else openQuickEventPopover(null, null, e.clientX, e.clientY);
 });
 
-document.getElementById('left-sidebar-collapse-btn').addEventListener('click', () => {
-  const sidebar = document.getElementById('left-sidebar');
+function applyPlanCollapsed() {
+  const panel = document.getElementById('plan-panel');
   const icon = document.getElementById('left-sidebar-collapse-icon');
-  const collapsed = sidebar.classList.toggle('sidebar-collapsed');
-  icon.textContent = collapsed ? 'chevron_right' : 'chevron_left';
+  const collapsed = !!(STATE.ui && STATE.ui.planCollapsed);
+  panel.classList.toggle('sidebar-collapsed', collapsed);
+  icon.textContent = collapsed ? 'left_panel_open' : 'left_panel_close';
+  document.getElementById('left-sidebar-collapse-btn').title = collapsed ? 'Expand panel' : 'Collapse panel';
+}
+document.getElementById('left-sidebar-collapse-btn').addEventListener('click', () => {
+  STATE.ui.planCollapsed = !STATE.ui.planCollapsed;
+  applyPlanCollapsed(); saveState();
 });
 
 let _prevView = 'week';
-document.getElementById('panel-expand-btn').addEventListener('click', () => {
-  if (STATE.view === 'tasks') {
-    STATE.view = _prevView;
-  } else {
-    _prevView = STATE.view;
+function goToRoute(route) {
+  if (route === 'tasks') {
+    if (STATE.view !== 'tasks') _prevView = STATE.view;
     STATE.view = 'tasks';
+  } else if (STATE.view === 'tasks') {
+    STATE.view = _prevView;
   }
   saveState(); render();
+}
+document.getElementById('route-switcher').addEventListener('click', (e) => {
+  const btn = e.target.closest('.route-btn');
+  if (btn) goToRoute(btn.dataset.route);
 });
 
 document.getElementById('tasks-fp-collapse-btn').addEventListener('click', () => {
@@ -4815,11 +4837,6 @@ function initBrainDump() {
 }
 
 // Panel tabs
-function initPanelTabs() {
-  // Panel tabs removed — single unified view now
-  // Top Three + Brain Dump + Today/Overdue all in one panel
-}
-
 // ─────────────────────────────────────────────
 // SETTINGS
 // ─────────────────────────────────────────────
@@ -4830,6 +4847,7 @@ function applySettings() {
 }
 
 function openSettingsModal() {
+  renderCalendarList();
   const s = STATE.settings;
   const sync = (id, val) => { const el = document.getElementById(id); if (el) { el.classList.toggle('on', !!val); } };
   sync('s-dark-mode', s.darkMode);
@@ -4887,8 +4905,8 @@ function init() {
   rolloverIfNewDay();
   scheduleMidnightReset();
   render();
+  applyPlanCollapsed();
   initDragCreate();
-  initPanelTabs();
   initBrainDump();
 
   // Calendar management
