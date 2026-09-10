@@ -6,23 +6,42 @@
 <title>Timebox</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   :root {
-    --primary: #0058ba;
-    --primary-light: #d0e4ff;
-    --primary-dark: #003f8a;
-    --surface: #f5f7f8;
-    --surface-low: #eef1f2;
-    --surface-container: #e5e9ea;
-    --on-surface: #2c2f30;
-    --on-surface-variant: #595c5d;
-    --outline-variant: #abadae;
+    /* ── Design tokens (Timebox wireframe palette) ── */
+    --border-subtle: #e5e9ea;
+    --bg-canvas: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --bg-hover: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-tertiary: #94a3b8;
+    --primary: #2563eb;
+    --primary-rgb: 37, 99, 235;
+    --primary-hover: #1d4ed8;
+    --primary-subtle: #eff6ff;
+    --accent-green: #10b981;
+    --accent-amber: #f59e0b;
+    --accent-red: #ef4444;
     --hour-height: 64px;
     --col-min-width: 80px;
+    /* ── Legacy aliases: retire in pass 2 ── */
+    --primary-light: var(--primary-subtle);
+    --primary-dark: var(--primary-hover);
+    --surface: var(--bg-canvas);
+    --surface-low: var(--bg-subtle);
+    --surface-container: var(--border-subtle);
+    --on-surface: var(--text-primary);
+    --on-surface-variant: var(--text-secondary);
+    --outline-variant: var(--text-tertiary);
+    --error: var(--accent-red);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  ::placeholder { color: var(--text-tertiary); opacity: 1; }
   body {
     font-family: 'Inter', sans-serif;
     background: var(--surface);
@@ -39,6 +58,7 @@
     line-height: 1;
   }
   .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
 
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -109,7 +129,7 @@
     background: var(--primary); color: white; border: none;
     font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 14px;
     cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: background 0.15s; box-shadow: 0 2px 6px rgba(0,88,186,0.3);
+    transition: background 0.15s; box-shadow: 0 2px 6px rgba(var(--primary-rgb), 0.3);
   }
   .create-btn:hover { background: var(--primary-dark); }
 
@@ -220,7 +240,7 @@
     padding: 6px 8px; font-size: 13px; font-family: inherit; background: white;
     color: var(--on-surface); outline: none; box-sizing: border-box;
   }
-  .task-inline-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,88,186,0.1); }
+  .task-inline-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1); }
   select.task-inline-input { cursor: pointer; }
   textarea.task-inline-input { resize: vertical; min-height: 56px; }
   .task-inline-row { display: flex; gap: 6px; }
@@ -335,7 +355,7 @@
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
   .status-dot.not_started { background: var(--outline-variant); }
-  .status-dot.in_progress { background: #0058ba; }
+  .status-dot.in_progress { background: var(--primary); }
   .status-dot.completed { background: #2e7d32; }
 
   /* Month View */
@@ -421,7 +441,7 @@
     flex: 1; border-left: 1px solid var(--surface-container);
     position: relative; min-width: var(--col-min-width);
   }
-  .day-col.today-col { background: rgba(0,88,186,0.02); }
+  .day-col.today-col { background: rgba(var(--primary-rgb), 0.02); }
   .hour-line {
     position: absolute; left: 0; right: 0; border-top: 1px solid var(--surface-container);
   }
@@ -433,11 +453,11 @@
   /* Current time indicator */
   .current-time-line {
     position: absolute; left: 0; right: 0; height: 2px;
-    background: #e53935; z-index: 10; pointer-events: none;
+    background: var(--accent-red); z-index: 10; pointer-events: none;
   }
   .current-time-line::before {
     content: ''; position: absolute; left: -5px; top: -4px;
-    width: 10px; height: 10px; background: #e53935; border-radius: 50%;
+    width: 10px; height: 10px; background: var(--accent-red); border-radius: 50%;
   }
 
   /* Event blocks */
@@ -455,7 +475,7 @@
 
   /* Drag selection overlay */
   #drag-overlay {
-    position: absolute; background: rgba(0,88,186,0.2);
+    position: absolute; background: rgba(var(--primary-rgb), 0.2);
     border: 2px solid var(--primary); border-radius: 6px;
     pointer-events: none; z-index: 20; display: none;
   }
@@ -466,7 +486,7 @@
   }
 
   /* Drop zone highlight */
-  .drop-active { background: rgba(0,88,186,0.08) !important; }
+  .drop-active { background: rgba(var(--primary-rgb), 0.08) !important; }
 
   /* Modals */
   .modal-backdrop {
@@ -600,9 +620,9 @@
     padding: 8px 10px; border-radius: 10px; border: 1.5px dashed var(--outline-variant);
     margin-bottom: 4px; min-height: 40px; transition: all 0.15s; cursor: pointer;
   }
-  .top-three-slot.filled { border-style: solid; border-color: var(--primary-light); background: rgba(0,88,186,0.03); }
+  .top-three-slot.filled { border-style: solid; border-color: var(--primary-light); background: rgba(var(--primary-rgb), 0.03); }
   .top-three-slot.filled:hover { background: var(--surface-low); }
-  .top-three-slot.drop-target { border-color: var(--primary); background: rgba(0,88,186,0.06); }
+  .top-three-slot.drop-target { border-color: var(--primary); background: rgba(var(--primary-rgb), 0.06); }
   .top-three-num { font-size: 11px; font-weight: 700; color: var(--outline-variant); width: 16px; flex-shrink: 0; }
   .top-three-slot.filled .top-three-num { color: var(--primary); }
   .top-three-task-title { font-size: 13px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1234,7 +1254,7 @@
 // ─────────────────────────────────────────────
 const HOUR_HEIGHT = 64;
 const SNAP = 15; // minutes
-const EVENT_COLORS = ['#0058ba','#7c3aed','#059669','#d97706','#dc2626','#db2777','#0891b2','#65a30d'];
+const EVENT_COLORS = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#db2777','#0891b2','#65a30d'];
 const COLOR_NAMES = ['Blue','Purple','Green','Amber','Red','Pink','Cyan','Lime'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1247,6 +1267,14 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); retu
 function addMonths(d, n) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
 function isSameDay(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
 function isSameMonth(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
+function isoWeekKey(d) {
+  const x = startOfDay(d);
+  x.setDate(x.getDate() + 3 - ((x.getDay() + 6) % 7));   // Thursday of this ISO week
+  const jan4 = new Date(x.getFullYear(), 0, 4);
+  const wk = 1 + Math.round(((x - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+  return x.getFullYear() + '-W' + String(wk).padStart(2, '0');
+}
+function isoWeekNum(d) { return parseInt(isoWeekKey(d).slice(-2), 10); }
 function formatTime(d) {
   let h = d.getHours(), m = d.getMinutes(), ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
@@ -1285,6 +1313,15 @@ function formatDateInput(d) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 function parseDatetimeLocal(s) { if (!s) return null; return new Date(s); }
+// dueDate invariant: always a Date at LOCAL midnight, or null. Time-of-day lives in dueTime.
+// Bare 'YYYY-MM-DD' must not go through new Date() directly -- that parses as UTC midnight,
+// which is the previous day everywhere west of Greenwich.
+function toDueDate(v) {
+  if (!v) return null;
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) v = v + 'T00:00:00';
+  const d = new Date(v);
+  return isNaN(d) ? null : startOfDay(d);
+}
 function minutesToY(min) { return (min / 60) * HOUR_HEIGHT; }
 function yToMinutes(y, totalHeight) { return clamp(Math.round((y / totalHeight) * 24 * 60 / SNAP) * SNAP, 0, 24*60-SNAP); }
 function snapMinutes(m) { return Math.round(m / SNAP) * SNAP; }
@@ -1301,24 +1338,50 @@ let STATE = {
   nDays: 7,
   currentDate: new Date(),
   miniCalDate: new Date(),
-  topThree: [],
+  topThree: [null, null, null],
+  topThreeDate: new Date().toDateString(),
   brainDump: [],
   brainDumpDate: new Date().toDateString(),
+  weeklyFocus: {},
+  ui: { overdueOpen: false, unscheduledOpen: false, weeklyFocusOpen: false, planCollapsed: false },
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' },
   settings: { darkMode: false, weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
 };
 
+function normalizeTopThree(v) {
+  const out = [null, null, null];
+  (Array.isArray(v) ? v : []).slice(0, 3).forEach((id, i) => { out[i] = id || null; });
+  return out;
+}
+
+// Brain Dump and Top Three are both "for today only" and reset at midnight.
+function rolloverIfNewDay() {
+  const today = new Date().toDateString();
+  if (STATE.brainDumpDate !== today) { STATE.brainDump = []; STATE.brainDumpDate = today; }
+  if (STATE.topThreeDate !== today) { STATE.topThree = [null, null, null]; STATE.topThreeDate = today; }
+}
+
+// Self-rescheduling so a tab left open overnight still clears at 12:00 AM.
+function scheduleMidnightReset() {
+  const now = new Date();
+  const delay = (startOfDay(addDays(now, 1)) - now) + 1000;
+  setTimeout(() => { rolloverIfNewDay(); saveState(); render(); scheduleMidnightReset(); }, delay);
+}
+
 function saveState() {
   const s = {
     events: STATE.events.map(e => ({...e, start: e.start.toISOString(), end: e.end.toISOString()})),
-    tasks: STATE.tasks.map(t => ({...t, dueDate: t.dueDate ? t.dueDate.toISOString() : null})),
+    tasks: STATE.tasks.map(t => ({...t, dueDate: toDueDate(t.dueDate) ? toDueDate(t.dueDate).toISOString() : null})),
     view: STATE.view,
     nDays: STATE.nDays,
     currentDate: STATE.currentDate.toISOString(),
     miniCalDate: STATE.miniCalDate.toISOString(),
-    topThree: STATE.topThree || [],
+    topThree: STATE.topThree || [null, null, null],
+    topThreeDate: STATE.topThreeDate || new Date().toDateString(),
     brainDump: STATE.brainDump || [],
     brainDumpDate: STATE.brainDumpDate || new Date().toDateString(),
+    weeklyFocus: STATE.weeklyFocus || {},
+    ui: STATE.ui || {},
     calendars: STATE.calendars || [],
     lists: STATE.lists || [],
     taskViewConfig: STATE.taskViewConfig || {},
@@ -1333,19 +1396,21 @@ function loadState() {
     if (!raw) return false;
     const s = JSON.parse(raw);
     STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
-    STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: t.dueDate ? new Date(t.dueDate) : null}));
+    STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: toDueDate(t.dueDate)}));
     STATE.view = s.view || 'week';
     STATE.nDays = Math.min(s.nDays || 7, 7);
     STATE.currentDate = s.currentDate ? new Date(s.currentDate) : new Date();
     STATE.miniCalDate = s.miniCalDate ? new Date(s.miniCalDate) : new Date();
-    STATE.topThree = s.topThree || [];
+    // topThree is positional: always exactly 3 slots. Older saves punched null holes
+    // (or shifted slots up via splice), so repair the shape on load.
+    STATE.topThree = normalizeTopThree(s.topThree);
+    STATE.topThreeDate = s.topThreeDate || new Date().toDateString();
     STATE.brainDump = s.brainDump || [];
     STATE.brainDumpDate = s.brainDumpDate || new Date().toDateString();
-    // Reset brain dump daily
-    if (STATE.brainDumpDate !== new Date().toDateString()) {
-      STATE.brainDump = [];
-      STATE.brainDumpDate = new Date().toDateString();
-    }
+    STATE.weeklyFocus = s.weeklyFocus || {};
+    STATE.ui = Object.assign({ overdueOpen: false, unscheduledOpen: false, weeklyFocusOpen: false, planCollapsed: false }, s.ui || {});
+    // Daily rollover for the tab-was-closed case; scheduleMidnightReset() covers a tab left open.
+    rolloverIfNewDay();
     STATE.calendars = s.calendars || [];
     STATE.lists = s.lists || [];
     STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none' }, s.taskViewConfig || {});
@@ -1354,6 +1419,7 @@ function loadState() {
     STATE.tasks.forEach(t => {
       if (!t.status) t.status = t.completed ? 'completed' : 'not_started';
       if (t.listId === undefined) t.listId = null;
+      if (t.dueDate) t.dueDate = toDueDate(t.dueDate);
       if (!t.tags) t.tags = [];
     });
     return true;
@@ -1370,7 +1436,7 @@ function loadSampleData() {
 
   STATE.events = [
     {
-      id: uid(), title: 'Team Standup', color: '#0058ba',
+      id: uid(), title: 'Team Standup', color: '#2563eb',
       start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 0),
       end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 9, 30),
       allDay: false, description: 'Daily team sync', location: 'Zoom', recurring: 'daily', notification: '5', linkedTaskIds: []
@@ -1703,7 +1769,7 @@ function renderMonth() {
     dayEvs.forEach(ev => {
       const evEl = document.createElement('div');
       evEl.className = 'month-event';
-      evEl.style.background = ev.color || '#0058ba';
+      evEl.style.background = ev.color || '#2563eb';
       evEl.textContent = (ev.allDay ? '' : formatTime(ev.start) + ' ') + ev.title;
       evEl.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, day); });
       cell.appendChild(evEl);
@@ -1735,7 +1801,7 @@ function renderMonth() {
       if (!task) return;
       const start = new Date(date); start.setHours(9,0,0,0);
       const end = new Date(date); end.setHours(10,0,0,0);
-      STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#0058ba', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
+      STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#2563eb', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
       saveState(); render();
     });
 
@@ -1784,7 +1850,7 @@ function renderAlldayRow(days) {
     alldayEventsOnDay(day).forEach((ev, i) => {
       const el = document.createElement('div');
       el.className = 'allday-event';
-      el.style.background = ev.color || '#0058ba';
+      el.style.background = ev.color || '#2563eb';
       el.style.top = `${i * 26 + 4}px`;
       el.textContent = ev.title;
       el.addEventListener('click', e => { openEventPopover(ev.id, e.clientX, e.clientY, day); });
@@ -1860,7 +1926,7 @@ function renderTimeGrid(days, today) {
       const mins = snapMinutes(yToMinutes(y, 1536));
       const start = new Date(day); start.setHours(Math.floor(mins/60), mins%60, 0, 0);
       const end = new Date(start); end.setMinutes(end.getMinutes() + 60);
-      STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#0058ba', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
+      STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#2563eb', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
       saveState(); render();
     });
 
@@ -1876,7 +1942,7 @@ function renderTimeGrid(days, today) {
 
       const el = document.createElement('div');
       el.className = 'cal-event';
-      el.style.cssText = `top:${top}px; height:${height}px; left:${left}; width:${width}; background:${ev.color||'#0058ba'};`;
+      el.style.cssText = `top:${top}px; height:${height}px; left:${left}; width:${width}; background:${ev.color||'#2563eb'};`;
       el.innerHTML = `<div class="cal-event-title">${ev.title}</div>` +
         (height > 30 ? `<div class="cal-event-time">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>` : '') +
         (ev.linkedTaskIds && ev.linkedTaskIds.length ? `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>${ev.linkedTaskIds.length} task${ev.linkedTaskIds.length > 1 ? 's' : ''}</div>` : '');
@@ -2003,7 +2069,7 @@ function renderTasks() {
     rescheduleBtn.addEventListener('click', e => {
       e.stopPropagation();
       // Reschedule all overdue to today
-      overdue.forEach(t => { t.dueDate = todayD.toISOString(); });
+      overdue.forEach(t => { t.dueDate = toDueDate(new Date()); });
       saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
     });
 
@@ -2707,7 +2773,7 @@ function buildInlineDetail(task) {
     const t = STATE.tasks.find(t => t.id === task.id);
     if (t) {
       t.title = titleInput.value.trim() || t.title;
-      t.dueDate = dateInput.value ? new Date(dateInput.value + 'T00:00:00') : null;
+      t.dueDate = toDueDate(dateInput.value);
       t.dueTime = timeInput.value || null;
       t.priority = prioritySelect.value;
       t.status = statusSelect.value;
@@ -3056,7 +3122,7 @@ function saveTask() {
   const title = document.getElementById('task-title-input').value.trim();
   if (!title) { document.getElementById('task-title-input').focus(); return; }
   const dateVal = document.getElementById('task-due-date').value;
-  const dueDate = dateVal ? new Date(dateVal + 'T00:00:00') : null;
+  const dueDate = toDueDate(dateVal);
   const dueTime = document.getElementById('task-due-time').value;
   const description = document.getElementById('task-description').value.trim();
   const notification = getNotifValue('task-notif-num', 'task-notif-unit');
@@ -3150,13 +3216,13 @@ function updateDragOverlay(startMin, endMin) {
   const left = colRect.left - gridRect.left;
   const width = colRect.width;
 
-  overlay.style.cssText = `display:block; position:absolute; top:${top}px; left:${left}px; width:${width}px; height:${height}px; background:rgba(0,88,186,0.2); border:2px solid #0058ba; border-radius:6px; pointer-events:none; z-index:20;`;
+  overlay.style.cssText = `display:block; position:absolute; top:${top}px; left:${left}px; width:${width}px; height:${height}px; background:rgba(var(--primary-rgb), 0.2); border:2px solid var(--primary); border-radius:6px; pointer-events:none; z-index:20;`;
 
   const startH = Math.floor(startMin/60), startM = startMin%60;
   const endH = Math.floor(endMin/60), endM = endMin%60;
   const fmtMin = (h,m) => { const ap = h>=12?'PM':'AM'; const hh=h%12||12; return `${hh}:${String(m).padStart(2,'0')} ${ap}`; };
   tooltip.textContent = `${fmtMin(startH,startM)} – ${fmtMin(endH,endM)}`;
-  tooltip.style.cssText = `display:block; position:absolute; top:${top-24}px; left:${left}px; background:#0058ba; color:white; font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; pointer-events:none; z-index:21; white-space:nowrap;`;
+  tooltip.style.cssText = `display:block; position:absolute; top:${top-24}px; left:${left}px; background:var(--primary); color:white; font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; pointer-events:none; z-index:21; white-space:nowrap;`;
 }
 
 // ─────────────────────────────────────────────
@@ -3516,9 +3582,9 @@ document.addEventListener('keydown', e => {
 // ─────────────────────────────────────────────
 // CALENDAR MANAGEMENT
 // ─────────────────────────────────────────────
-const CAL_COLORS = ['#0058ba','#7c3aed','#059669','#d97706','#dc2626','#db2777','#0891b2','#65a30d','#9333ea','#f97316'];
+const CAL_COLORS = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#db2777','#0891b2','#65a30d','#9333ea','#f97316'];
 const DEFAULT_CALENDARS = [
-  { id: 'personal', name: 'Personal', color: '#0058ba', visible: true, isDefault: true },
+  { id: 'personal', name: 'Personal', color: '#2563eb', visible: true, isDefault: true },
   { id: 'work',     name: 'Work',     color: '#059669', visible: true, isDefault: true },
 ];
 
@@ -3671,7 +3737,7 @@ function openEventPopover(eventId, clickX, clickY, instanceDate) {
   const popover = document.getElementById('event-popover');
 
   // Color bar
-  document.getElementById('popover-color-bar').style.background = ev.color || '#0058ba';
+  document.getElementById('popover-color-bar').style.background = ev.color || '#2563eb';
   document.getElementById('popover-title').textContent = ev.title;
 
   // Body
@@ -4213,7 +4279,7 @@ function buildFpInlineDetail(task) {
       const selects = detail.querySelectorAll('select');
       const descArea = detail.querySelector('textarea');
       if (titleInput) task.title = titleInput.value.trim() || task.title;
-      if (dateInput) task.dueDate = dateInput.value || null;
+      if (dateInput) task.dueDate = toDueDate(dateInput.value);
       if (timeInput) task.dueTime = timeInput.value || null;
       // Priority is first select, status is second
       if (selects[0]) task.priority = selects[0].value;
@@ -4260,7 +4326,7 @@ function renderFpQuickAdd(container) {
     input.focus();
     input.addEventListener('input', () => {
       const parsed = parseNLPDate(input.value);
-      if (parsed.date) {
+      if (parsed && parsed.date) {
         let chipText = parsed.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         if (parsed.hasTime) chipText += ' · ' + parsed.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
         chipPreview.textContent = '📅 ' + chipText;
@@ -4269,12 +4335,12 @@ function renderFpQuickAdd(container) {
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && input.value.trim()) {
         const parsed = parseNLPDate(input.value);
-        let rawTitle = parsed.date ? parsed.cleanTitle : input.value.trim();
+        let rawTitle = (parsed && parsed.date) ? parsed.cleanTitle : input.value.trim();
         const { title, tags } = parseTagsFromTitle(rawTitle);
         if (!title) return;
         const newTask = { id: uid(), title, completed: false, status: 'not_started', priority: 'low', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags, subtasks: [], listId: null };
-        if (parsed.date) {
-          newTask.dueDate = parsed.date.toISOString().split('T')[0];
+        if (parsed && parsed.date) {
+          newTask.dueDate = toDueDate(parsed.date);
           if (parsed.hasTime) newTask.dueTime = parsed.date.toTimeString().slice(0, 5);
         }
         STATE.tasks.push(newTask);
@@ -4337,7 +4403,7 @@ function renderTasksFullPageFocus() {
         </button>
       `;
       slot.querySelector('.task-checkbox').addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderTasksFullPageFocus(); renderTasks(); });
-      slot.querySelector('.icon-btn').addEventListener('click', e => { e.stopPropagation(); STATE.topThree[i] = null; saveState(); renderTasksFullPageFocus(); });
+      slot.querySelector('.icon-btn').addEventListener('click', e => { e.stopPropagation(); STATE.topThree[i] = null; STATE.topThree = normalizeTopThree(STATE.topThree); saveState(); renderTasksFullPageFocus(); });
     } else {
       slot.style.cssText = 'padding:12px 16px;display:flex;align-items:center;gap:8px;color:var(--outline-variant);font-size:13px;border:1px dashed var(--surface-container);border-radius:8px;margin:4px 8px;';
       slot.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">star</span> Slot ${i+1} — drag a task here`;
@@ -4816,6 +4882,8 @@ function initSettings() {
 function init() {
   const hasData = loadState();
   if (!hasData) loadSampleData();
+  rolloverIfNewDay();
+  scheduleMidnightReset();
   render();
   initDragCreate();
   initPanelTabs();
