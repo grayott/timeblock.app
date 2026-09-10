@@ -561,14 +561,17 @@
   .cal-event {
     position: absolute; border-radius: 6px;
     padding: 3px 6px; cursor: pointer; overflow: hidden;
-    border: none; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 2px rgba(15,23,42,0.06);
     transition: filter 0.1s, box-shadow 0.1s; z-index: 5;
     display: flex; flex-direction: column;
   }
-  .cal-event:hover { filter: brightness(0.9); box-shadow: 0 2px 6px rgba(0,0,0,0.2); z-index: 6; }
-  .cal-event-title { font-size: 12px; font-weight: 600; color: white; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cal-event-time { font-size: 10px; color: rgba(255,255,255,0.85); margin-top: 1px; }
-  .cal-event-linked { font-size: 10px; color: rgba(255,255,255,0.85); display: flex; align-items: center; gap: 2px; }
+  .cal-event:hover { box-shadow: 0 2px 8px rgba(15,23,42,0.13); z-index: 6; filter: saturate(1.15); }
+  .cal-event-title { font-size: 12px; font-weight: 600; color: inherit; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-event-time { font-size: 10px; color: inherit; opacity: 0.75; margin-top: 1px; }
+  .cal-event-linked { font-size: 10px; color: inherit; opacity: 0.75; display: flex; align-items: center; gap: 2px; }
+  .cal-event-sub { font-size: 10px; color: inherit; opacity: 0.8; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-event-sub.is-done { text-decoration: line-through; opacity: 0.5; }
+  .cal-event.drop-into-event { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Drag selection overlay */
   #drag-overlay {
@@ -588,10 +591,11 @@
   /* Modals */
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-    z-index: 500; display: flex; align-items: center; justify-content: center;
+    z-index: 500; display: none; align-items: center; justify-content: center;
     backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
   }
-  .modal-backdrop.visible { opacity: 1; }
+  .modal-backdrop.visible { opacity: 1; pointer-events: auto; }
   .modal {
     background: rgba(255,255,255,0.97); backdrop-filter: blur(24px);
     border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,0.2);
@@ -1431,6 +1435,24 @@ function minutesToY(min) { return (min / 60) * HOUR_HEIGHT; }
 function yToMinutes(y, totalHeight) { return clamp(Math.round((y / totalHeight) * 24 * 60 / SNAP) * SNAP, 0, 24*60-SNAP); }
 function snapMinutes(m) { return Math.round(m / SNAP) * SNAP; }
 
+// ── Task drag payload ──
+function setTaskDragData(e, taskId) {
+  e.dataTransfer.setData('text/task-id', taskId);
+  e.dataTransfer.setData('text/plain', taskId);
+  e.dataTransfer.effectAllowed = 'copy';
+  const task = STATE.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const ghost = document.createElement('div');
+  ghost.className = 'drag-ghost';
+  ghost.textContent = task.title;
+  document.body.appendChild(ghost);
+  try { e.dataTransfer.setDragImage(ghost, 0, 0); } catch (err) {}
+  setTimeout(() => ghost.remove(), 0);
+}
+function getDraggedTaskId(e) {
+  return e.dataTransfer.getData('text/task-id') || e.dataTransfer.getData('text/plain');
+}
+
 // ─────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────
@@ -1820,7 +1842,7 @@ function renderMonth() {
     cell.addEventListener('drop', e => {
       e.preventDefault();
       cell.classList.remove('drop-active');
-      const taskId = e.dataTransfer.getData('text/task-id');
+      const taskId = getDraggedTaskId(e);
       if (!taskId) return;
       const task = STATE.tasks.find(t => t.id === taskId);
       if (!task) return;
@@ -1943,7 +1965,7 @@ function renderTimeGrid(days, today) {
     col.addEventListener('drop', e => {
       e.preventDefault();
       col.classList.remove('drop-active');
-      const taskId = e.dataTransfer.getData('text/task-id');
+      const taskId = getDraggedTaskId(e);
       if (!taskId) return;
       const task = STATE.tasks.find(t => t.id === taskId);
       if (!task) return;
@@ -1952,6 +1974,9 @@ function renderTimeGrid(days, today) {
       const mins = snapMinutes(yToMinutes(y, DAY_HEIGHT));
       const start = new Date(day); start.setHours(Math.floor(mins/60), mins%60, 0, 0);
       const end = new Date(start); end.setMinutes(end.getMinutes() + 60);
+      // Don't spill past midnight -- the block would paint below the grid.
+      const endOfGrid = new Date(day); endOfGrid.setHours(23, 59, 0, 0);
+      if (end > endOfGrid) end.setTime(Math.max(endOfGrid.getTime(), start.getTime() + 15 * 60000));
       STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#2563eb', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
       saveState(); render();
     });
@@ -1966,13 +1991,56 @@ function renderTimeGrid(days, today) {
       const width = `calc(${100/totalCols}% - 4px)`;
       const left = `calc(${(c/totalCols)*100}% + 2px)`;
 
+      const evColor = ev.color || '#2563eb';
       const el = document.createElement('div');
       el.className = 'cal-event';
-      el.style.cssText = `top:${top}px; height:${height}px; left:${left}; width:${width}; background:${ev.color||'#2563eb'};`;
-      el.innerHTML = `<div class="cal-event-title">${ev.title}</div>` +
-        (height > 30 ? `<div class="cal-event-time">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>` : '') +
-        (ev.linkedTaskIds && ev.linkedTaskIds.length ? `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>${ev.linkedTaskIds.length} task${ev.linkedTaskIds.length > 1 ? 's' : ''}</div>` : '');
+      el.style.cssText = `top:${top}px; height:${height}px; left:${left}; width:${width};` +
+        `background:${evColor}1f; border:1px solid ${evColor}3d; border-left:3px solid ${evColor}; color:${evColor};`;
+      const linked = (ev.linkedTaskIds || []).map(id => STATE.tasks.find(t => t.id === id)).filter(Boolean);
+      let inner = `<div class="cal-event-title">${ev.title}</div>`;
+      if (height > 30) inner += `<div class="cal-event-time mono">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>`;
+      if (linked.length) {
+        // Room for the sub-task lines themselves once the block is tall enough.
+        const rows = Math.floor((height - 34) / 13);
+        if (height > 62 && rows >= 1) {
+          inner += linked.slice(0, rows).map(t =>
+            `<div class="cal-event-sub${t.completed ? ' is-done' : ''}">• ${t.title}</div>`).join('');
+          if (linked.length > rows) inner += `<div class="cal-event-sub">+${linked.length - rows} more</div>`;
+        } else {
+          inner += `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>${linked.length} task${linked.length > 1 ? 's' : ''}</div>`;
+        }
+      }
+      el.innerHTML = inner;
       el.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, day); });
+
+      // ── Drop a task onto an existing block to link it in ──
+      // .cal-event is a child of .day-col and drag events bubble, so BOTH
+      // stopPropagation calls are load-bearing: without them the column would
+      // also light up and also create a second, duplicate block on drop.
+      const isRecurring = ev.recurring && ev.recurring !== 'none';
+      el.addEventListener('dragover', e => {
+        // Recurrence instances are virtual -- eventsOnDay() hands back the same
+        // object for every matching day, so linking here would attach the task
+        // to every occurrence. Refuse rather than write bad data.
+        if (isRecurring) return;
+        e.preventDefault(); e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+        el.classList.add('drop-into-event');
+      });
+      el.addEventListener('dragleave', () => el.classList.remove('drop-into-event'));
+      el.addEventListener('drop', e => {
+        if (isRecurring) return;
+        e.preventDefault(); e.stopPropagation();
+        el.classList.remove('drop-into-event');
+        const taskId = getDraggedTaskId(e);
+        if (!taskId) return;
+        if (!ev.linkedTaskIds) ev.linkedTaskIds = [];
+        if (!ev.linkedTaskIds.includes(taskId)) ev.linkedTaskIds.push(taskId);
+        const t = STATE.tasks.find(x => x.id === taskId);
+        if (t && !toDueDate(t.dueDate)) t.dueDate = startOfDay(day);
+        saveState(); render();
+      });
+
       col.appendChild(el);
     });
 
@@ -2031,128 +2099,401 @@ function categorizeTasks() {
   return cats;
 }
 
-let quickAddActive = false;
 
-function renderTasks() {
-  const list = document.getElementById('tasks-list');
-  list.innerHTML = '';
+// ─────────────────────────────────────────────
+// PLANNING PANEL
+// ─────────────────────────────────────────────
+// The panel is a funnel: capture into Brain Dump, commit to a Top Three,
+// then place work on the grid. Overdue and the undated backlog stay collapsed
+// so the day doesn't read as a pile of debt.
 
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
-  const tomorrowD = new Date(todayD); tomorrowD.setDate(tomorrowD.getDate() + 1);
+// A task is "scheduled" iff some event links it. Derived per render rather than
+// denormalized onto the task, because the alternative means maintaining a field
+// across event create/update/delete/unlink/recurrence-edit -- eight write sites
+// and a permanent drift risk -- to save eight lines.
+function buildScheduleMap() {
+  const m = new Map();
+  for (const ev of STATE.events) {
+    for (const tid of (ev.linkedTaskIds || [])) {
+      const prev = m.get(tid);
+      if (!prev || ev.start < prev.start) m.set(tid, ev);
+    }
+  }
+  return m;
+}
+function isTaskScheduled(taskId) {
+  return STATE.events.some(e => (e.linkedTaskIds || []).includes(taskId));
+}
+let PLAN_SCHED = new Map();
 
-  // Split into overdue vs today
-  const overdue = [];
-  const today = [];
-  STATE.tasks.forEach(t => {
-    if (t.completed || !t.dueDate) return;
-    const dd = new Date(t.dueDate); dd.setHours(0,0,0,0);
-    if (dd < todayD) overdue.push(t);
-    else if (dd < tomorrowD) today.push(t);
+function fmtDur(mins) {
+  if (mins < 60) return `${mins} min`;
+  if (mins % 60 === 0) return `${mins / 60}h`;
+  return `${Math.floor(mins / 60)}h${mins % 60}`;
+}
+// For a recurring block ev.start is the original occurrence, but only the
+// time-of-day is shown here and that is identical across instances.
+function scheduleChipText(ev) {
+  const mins = Math.round((ev.end - ev.start) / 60000);
+  return `${formatTime(ev.start)} (${fmtDur(mins)})`;
+}
+
+function relDayLabel(d) {
+  const day = startOfDay(d), today = startOfDay(new Date());
+  const diff = Math.round((day - today) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === -1) return 'Yesterday';
+  if (diff === 1) return 'Tomorrow';
+  return `${MONTHS[day.getMonth()].slice(0, 3)} ${day.getDate()}`;
+}
+
+// One pass, four buckets. The Brain Dump tray is "captured today and still
+// undated" -- explicit membership in STATE.brainDump is what distinguishes it
+// from the Pull List, which is every undated task from any list.
+function bucketTasks() {
+  const today = startOfDay(new Date());
+  const out = { today: [], overdue: [], unscheduled: [], dump: [] };
+  const dumpIds = new Set(STATE.brainDump || []);
+  for (const t of STATE.tasks) {
+    const due = toDueDate(t.dueDate);
+    if (!due) {
+      if (t.completed) continue;
+      if (dumpIds.has(t.id)) out.dump.push(t);
+      else out.unscheduled.push(t);
+      continue;
+    }
+    const d = startOfDay(due);
+    if (d < today) { if (!t.completed) out.overdue.push(t); }
+    else if (d.getTime() === today.getTime()) out.today.push(t);
+  }
+  const byPriority = (a, b) => (PRIORITY_ORDER[a.priority || 'low'] || 2) - (PRIORITY_ORDER[b.priority || 'low'] || 2);
+  out.today.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0) || byPriority(a, b));
+  out.overdue.sort((a, b) => toDueDate(a.dueDate) - toDueDate(b.dueDate) || byPriority(a, b));
+  out.unscheduled.sort(byPriority);
+  // Preserve capture order for the tray.
+  out.dump.sort((a, b) => (STATE.brainDump.indexOf(a.id)) - (STATE.brainDump.indexOf(b.id)));
+  return out;
+}
+
+// "Today" here always means the real today, never STATE.currentDate -- otherwise
+// items would vanish from the panel whenever the calendar navigates elsewhere.
+function pullToToday(id) {
+  const t = STATE.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.dueDate = toDueDate(new Date());
+  saveState(); renderTasks();
+}
+
+// ── The one row builder for every list section ──
+// Part B's delegated dragstart listener needs only draggable + data-task-id.
+function buildPlanRow(task, opts) {
+  opts = opts || {};
+  const wrap = document.createElement('div');
+
+  const row = document.createElement('div');
+  row.className = 'plan-row' + (opts.dashed ? ' is-dashed' : '') + (opts.sunk ? ' is-sunk' : '') +
+                  (task.completed ? ' is-done' : '');
+  row.setAttribute('draggable', 'true');
+  row.dataset.taskId = task.id;
+
+  const handle = document.createElement('span');
+  handle.className = 'material-symbols-outlined plan-handle';
+  handle.textContent = 'drag_indicator';
+  row.appendChild(handle);
+
+  if (opts.check !== false) {
+    const cb = document.createElement('div');
+    cb.className = 'plan-check' + (task.completed ? ' checked' : '');
+    cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
+    row.appendChild(cb);
+  }
+
+  const titleWrap = document.createElement('div');
+  titleWrap.style.cssText = 'flex:1;min-width:0;';
+  const title = document.createElement('div');
+  title.className = 'plan-row-title' + (task.completed ? ' is-done' : '');
+  title.textContent = task.title;
+  titleWrap.appendChild(title);
+  if (opts.sub) {
+    const sub = document.createElement('div');
+    sub.className = 'plan-row-sub';
+    sub.textContent = opts.sub;
+    titleWrap.appendChild(sub);
+  }
+  row.appendChild(titleWrap);
+
+  if (opts.chip) {
+    const chip = document.createElement('span');
+    chip.className = 'plan-chip' + (opts.chip.cls ? ' ' + opts.chip.cls : '');
+    chip.textContent = opts.chip.text;
+    if (opts.chip.onClick) {
+      chip.addEventListener('click', e => { e.stopPropagation(); opts.chip.onClick(); });
+    }
+    row.appendChild(chip);
+  }
+
+  if (opts.action) {
+    let btn;
+    if (opts.action.icon) {
+      btn = document.createElement('button');
+      btn.className = 'plan-icon-act';
+      btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">${opts.action.icon}</span>`;
+    } else {
+      btn = document.createElement('button');
+      btn.className = 'plan-act';
+      btn.textContent = opts.action.label;
+    }
+    btn.title = opts.action.title || '';
+    btn.addEventListener('click', e => { e.stopPropagation(); opts.action.onClick(); });
+    row.appendChild(btn);
+  }
+
+  // Clicking the row opens the shared inline editor -- which is how the Pull
+  // List gets "add a date and time" with no new UI.
+  row.addEventListener('click', () => {
+    expandedTaskId = expandedTaskId === task.id ? null : task.id;
+    renderTasks();
   });
 
-  const sortByDatePriority = (a, b) => {
-    const aDate = new Date(a.dueDate).setHours(0,0,0,0);
-    const bDate = new Date(b.dueDate).setHours(0,0,0,0);
-    if (aDate !== bDate) return aDate - bDate;
-    return (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
-  };
-  overdue.sort(sortByDatePriority);
-  today.sort(sortByDatePriority);
+  wrap.appendChild(row);
+  if (task.id === expandedTaskId) wrap.appendChild(buildInlineDetail(task));
+  return wrap;
+}
 
-  const totalCount = overdue.length + today.length;
+function planSectionHead(label, rightText, dot) {
+  const head = document.createElement('div');
+  head.className = 'plan-section-head';
+  const l = document.createElement('span');
+  l.className = 'plan-label';
+  if (dot) { const d = document.createElement('span'); d.className = 'plan-dot'; l.appendChild(d); }
+  l.appendChild(document.createTextNode(label));
+  head.appendChild(l);
+  if (rightText) {
+    const r = document.createElement('span');
+    r.className = 'plan-meta mono';
+    r.textContent = rightText;
+    head.appendChild(r);
+  }
+  return head;
+}
 
-  // Task count header
-  const countHeader = document.createElement('div');
-  countHeader.style.cssText = 'padding:8px 12px 4px;font-size:11px;color:var(--on-surface-variant);';
-  countHeader.textContent = totalCount === 0 ? 'No tasks due' : `${totalCount} task${totalCount !== 1 ? 's' : ''}`;
-  list.appendChild(countHeader);
+// Collapse state lives in STATE.ui, not a closure. It used to live in
+// taskList.style.display, which renderTasks() threw away -- so the section
+// sprang back open on every checkbox tick.
+function buildCollapsibleCard(o) {
+  const card = document.createElement('div');
+  card.className = 'plan-card';
+  const head = document.createElement('div');
+  head.className = 'plan-card-head';
+  const left = document.createElement('div');
+  left.className = 'plan-card-head-left';
+  left.innerHTML =
+    `<span class="material-symbols-outlined" style="font-size:15px;color:${o.iconColor || 'var(--text-tertiary)'};">${o.icon}</span>` +
+    `<span class="plan-card-title">${o.title}</span>` +
+    `<span class="plan-count${o.warn ? ' is-warn' : ''}">${o.count}</span>`;
+  const right = document.createElement('div');
+  right.style.cssText = 'display:flex;align-items:center;gap:4px;';
+  if (o.headAction) {
+    const a = document.createElement('button');
+    a.className = 'plan-act';
+    a.textContent = o.headAction.label;
+    a.addEventListener('click', e => { e.stopPropagation(); o.headAction.onClick(); });
+    right.appendChild(a);
+  }
+  const chev = document.createElement('span');
+  chev.className = 'material-symbols-outlined plan-chev' + (o.open ? '' : ' is-closed');
+  chev.textContent = 'expand_more';
+  right.appendChild(chev);
+  head.append(left, right);
+  head.addEventListener('click', () => { o.onToggle(); saveState(); renderTasks(); });
+  card.appendChild(head);
+  if (o.open) {
+    const body = document.createElement('div');
+    body.className = 'plan-card-body';
+    o.rows.forEach(r => body.appendChild(r));
+    card.appendChild(body);
+  }
+  return card;
+}
 
-  // ── Overdue section (collapsible) ──
-  if (overdue.length > 0) {
-    const section = document.createElement('div');
-    section.className = 'tasks-section-overdue';
+// ── 2. Weekly Focus: one editable block per ISO week ──
+function renderWeeklyFocus() {
+  const host = document.getElementById('plan-weekly');
+  if (!host) return;
+  host.innerHTML = '';
+  const key = isoWeekKey(new Date());
+  const wf = STATE.weeklyFocus[key] || { text: '', targetHrs: 0 };
+  const open = !!STATE.ui.weeklyFocusOpen;
 
-    const header = document.createElement('div');
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 12px;cursor:pointer;user-select:none;';
-    const left = document.createElement('div');
-    left.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--on-surface);';
-    const arrow = document.createElement('span');
-    arrow.className = 'material-symbols-outlined';
-    arrow.style.cssText = 'font-size:16px;transition:transform 0.15s;color:var(--on-surface-variant);';
-    arrow.textContent = 'expand_more';
-    const label = document.createElement('span');
-    label.textContent = `Overdue`;
-    const badge = document.createElement('span');
-    badge.style.cssText = 'font-size:11px;font-weight:500;color:var(--error);';
-    badge.textContent = `${overdue.length}`;
-    left.append(arrow, label, badge);
+  const card = document.createElement('div');
+  card.className = 'plan-card';
+  const head = document.createElement('div');
+  head.className = 'plan-card-head';
+  head.innerHTML =
+    `<div class="plan-card-head-left">
+       <span class="material-symbols-outlined plan-chev${open ? '' : ' is-closed'}" style="font-size:16px;">expand_more</span>
+       <span class="plan-label" style="letter-spacing:0.06em;">Weekly Focus</span>
+     </div>
+     <span class="plan-meta mono">Week ${isoWeekNum(new Date())}</span>`;
+  head.addEventListener('click', () => {
+    STATE.ui.weeklyFocusOpen = !STATE.ui.weeklyFocusOpen; saveState(); renderWeeklyFocus();
+  });
+  card.appendChild(head);
 
-    const rescheduleBtn = document.createElement('button');
-    rescheduleBtn.textContent = 'Reschedule';
-    rescheduleBtn.style.cssText = 'border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:var(--primary);padding:2px 6px;border-radius:4px;';
-    rescheduleBtn.addEventListener('mouseenter', () => rescheduleBtn.style.background = 'var(--surface-low)');
-    rescheduleBtn.addEventListener('mouseleave', () => rescheduleBtn.style.background = 'none');
-    rescheduleBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      // Reschedule all overdue to today
-      overdue.forEach(t => { t.dueDate = toDueDate(new Date()); });
-      saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
+  if (open) {
+    const body = document.createElement('div');
+    body.className = 'plan-card-body';
+    const ta = document.createElement('textarea');
+    ta.className = 'plan-focus-area';
+    ta.placeholder = "This week's objectives…";
+    ta.value = wf.text || '';
+    const commit = () => {
+      STATE.weeklyFocus[key] = { text: ta.value, targetHrs: wf.targetHrs || 0 };
+      saveState();
+    };
+    ta.addEventListener('blur', commit);
+    body.appendChild(ta);
+
+    const targetRow = document.createElement('div');
+    targetRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+    const scheduled = deepWorkHoursThisWeek();
+    targetRow.innerHTML = `<span class="plan-label" style="font-size:10px;">Deep work target</span>`;
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.min = '0'; inp.step = '1';
+    inp.value = wf.targetHrs || '';
+    inp.placeholder = '0';
+    inp.style.cssText = 'width:52px;padding:3px 6px;font-family:inherit;font-size:11px;border:1px solid var(--border-subtle);border-radius:4px;background:var(--bg-canvas);outline:none;';
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('change', () => {
+      STATE.weeklyFocus[key] = { text: ta.value, targetHrs: parseInt(inp.value) || 0 };
+      saveState(); renderWeeklyFocus();
     });
+    const readout = document.createElement('span');
+    readout.className = 'plan-chip';
+    readout.textContent = `${scheduled} / ${wf.targetHrs || 0} hrs`;
+    const rightBits = document.createElement('div');
+    rightBits.style.cssText = 'display:flex;align-items:center;gap:6px;';
+    rightBits.append(inp, readout);
+    targetRow.appendChild(rightBits);
+    body.appendChild(targetRow);
+    card.appendChild(body);
+  }
+  host.appendChild(card);
+}
 
-    header.append(left, rescheduleBtn);
-    section.appendChild(header);
-
-    const taskList = document.createElement('div');
-    taskList.style.cssText = 'padding:0 4px;';
-    overdue.forEach(t => taskList.appendChild(buildTaskItem(t)));
-    section.appendChild(taskList);
-
-    // Collapse toggle
-    header.addEventListener('click', () => {
-      const collapsed = taskList.style.display === 'none';
-      taskList.style.display = collapsed ? '' : 'none';
-      arrow.style.transform = collapsed ? '' : 'rotate(-90deg)';
-      rescheduleBtn.style.display = collapsed ? '' : 'none';
+// Hours already blocked out this week -- derived from the grid, no new state.
+function deepWorkHoursThisWeek() {
+  const start = startOfDay(new Date());
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  let mins = 0;
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(start, i);
+    nonAlldayEventsOnDay(day).forEach(ev => {
+      const { startMin, endMin } = getEffMinutes(ev, day);
+      mins += Math.max(0, endMin - startMin);
     });
+  }
+  return Math.round(mins / 60);
+}
 
-    list.appendChild(section);
+// ── Orchestrator ──
+function renderTasks() {
+  const list = document.getElementById('tasks-list');
+  if (!list) return;
+  PLAN_SCHED = buildScheduleMap();
+  const b = bucketTasks();
+
+  const dateLabel = document.getElementById('plan-date-label');
+  if (dateLabel) {
+    const now = new Date();
+    dateLabel.textContent = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()].slice(0, 3)} ${now.getDate()}`;
   }
 
-  // ── Today section ──
-  const todaySection = document.createElement('div');
-  todaySection.className = 'tasks-section-today';
-
-  const todayHeader = document.createElement('div');
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  todayHeader.style.cssText = 'padding:8px 12px 4px;font-size:12px;font-weight:600;color:var(--primary);';
-  todayHeader.textContent = `${months[todayD.getMonth()]} ${todayD.getDate()} · Today · ${days[todayD.getDay()]}`;
-  todaySection.appendChild(todayHeader);
-
-  if (today.length === 0 && overdue.length === 0) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'text-align:center;padding:16px 8px;color:var(--on-surface-variant);font-size:12px;';
-    empty.textContent = 'No tasks due today';
-    todaySection.appendChild(empty);
-  } else if (today.length === 0) {
-    const empty = document.createElement('div');
-    empty.style.cssText = 'text-align:center;padding:12px 8px;color:var(--on-surface-variant);font-size:12px;';
-    empty.textContent = 'No tasks due today';
-    todaySection.appendChild(empty);
-  } else {
-    const taskList = document.createElement('div');
-    taskList.style.cssText = 'padding:0 4px;';
-    today.forEach(t => taskList.appendChild(buildTaskItem(t)));
-    todaySection.appendChild(taskList);
-  }
-  list.appendChild(todaySection);
-
-  // ── + Add task button ──
-  renderQuickAdd(list);
-
-  // Also render Top Three and Brain Dump
-  renderTopThree();
   renderBrainDump();
+  renderWeeklyFocus();
+  renderTopThree();
+
+  list.innerHTML = '';
+  list.appendChild(renderTodaySection(b.today));
+  if (b.overdue.length) list.appendChild(renderOverdueSection(b.overdue));
+  if (b.unscheduled.length) list.appendChild(renderUnscheduledSection(b.unscheduled));
+}
+
+// ── 4. Today's Tasks ──
+function renderTodaySection(tasks) {
+  const sec = document.createElement('section');
+  sec.className = 'plan-section';
+  const remaining = tasks.filter(t => !t.completed).length;
+  sec.appendChild(planSectionHead("Today's Tasks", `${remaining} remaining`, true));
+  if (!tasks.length) {
+    const e = document.createElement('div');
+    e.className = 'plan-empty';
+    e.textContent = 'Nothing due today. Pull something up from below.';
+    sec.appendChild(e);
+    return sec;
+  }
+  const body = document.createElement('div');
+  body.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  tasks.forEach(t => body.appendChild(buildPlanRow(t, { chip: todayChip(t) })));
+  sec.appendChild(body);
+  return sec;
+}
+
+// A row's right-hand chip, most specific first: the block it sits in, then its
+// own due time, then an explicit "not on the grid yet".
+function todayChip(t) {
+  const ev = PLAN_SCHED.get(t.id);
+  if (ev) return { text: scheduleChipText(ev) };
+  if (t.dueTime) {
+    const [h, m] = t.dueTime.split(':').map(Number);
+    const d = new Date(); d.setHours(h, m, 0, 0);
+    return { text: formatTime(d), cls: 'is-muted' };
+  }
+  return {
+    text: '+ Timebox', cls: 'is-ghost',
+    onClick: () => timeboxTask(t.id, window.innerWidth / 2, 200)
+  };
+}
+
+// ── 5. Overdue: collapsed by default, rows behave like Today's rows ──
+function renderOverdueSection(tasks) {
+  const sec = document.createElement('section');
+  sec.className = 'plan-section';
+  const open = !!STATE.ui.overdueOpen;
+  const rows = open ? tasks.map(t => buildPlanRow(t, {
+    sunk: true,
+    chip: { text: relDayLabel(toDueDate(t.dueDate)), cls: 'is-warn' },
+    action: { icon: 'arrow_forward', title: 'Move to Today', onClick: () => pullToToday(t.id) }
+  })) : [];
+  sec.appendChild(buildCollapsibleCard({
+    icon: 'schedule', iconColor: 'var(--accent-amber)', title: 'Overdue',
+    count: tasks.length, warn: true, open, rows,
+    headAction: open ? { label: 'Move all to today', onClick: () => {
+      const today = toDueDate(new Date());
+      tasks.forEach(t => { t.dueDate = today; });
+      saveState(); renderTasks();
+    } } : null,
+    onToggle: () => { STATE.ui.overdueOpen = !STATE.ui.overdueOpen; }
+  }));
+  return sec;
+}
+
+// ── 6. All Unscheduled / Pull List ──
+function renderUnscheduledSection(tasks) {
+  const sec = document.createElement('section');
+  sec.className = 'plan-section';
+  const open = !!STATE.ui.unscheduledOpen;
+  const rows = open ? tasks.map(t => buildPlanRow(t, {
+    sunk: true,
+    sub: t.listId ? getTaskListName(t) : null,
+    action: { label: 'Pull', title: 'Schedule for today', onClick: () => pullToToday(t.id) }
+  })) : [];
+  sec.appendChild(buildCollapsibleCard({
+    icon: 'inbox', title: 'All Unscheduled / Pull List',
+    count: tasks.length, open, rows,
+    onToggle: () => { STATE.ui.unscheduledOpen = !STATE.ui.unscheduledOpen; }
+  }));
+  return sec;
 }
 
 // ─── Natural Language Date Parser ───────────────────────────────────────────
@@ -2275,394 +2616,7 @@ function formatNLPPreview(date, hasTime) {
   return datePart;
 }
 
-function renderQuickAdd(container) {
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'padding:4px 8px 8px;';
 
-  if (quickAddActive) {
-    // ── State for the new task being created ──
-    let qaDate = null;
-    let qaTime = null;
-    let qaTags = [];
-    let qaListId = null;
-    let qaPriority = null; // null = not set, only show chip when explicitly chosen
-    let qaDateManual = false; // true when user picked date via picker (don't override with NLP)
-    let parsedResult = null;
-
-    const box = document.createElement('div');
-    box.style.cssText = 'border-radius:10px;background:var(--surface);border:1px solid var(--outline-variant);overflow:visible;box-shadow:0 1px 4px rgba(0,0,0,0.08);';
-
-    // ── Title input ──
-    const titleInput = document.createElement('input');
-    titleInput.type = 'text';
-    titleInput.placeholder = 'Task name';
-    titleInput.style.cssText = 'width:100%;border:none;outline:none;background:transparent;font-size:13px;font-weight:600;font-family:inherit;color:var(--on-surface);padding:10px 12px 2px;box-sizing:border-box;';
-
-    // ── Description input ──
-    const descInput = document.createElement('input');
-    descInput.type = 'text';
-    descInput.placeholder = 'Description';
-    descInput.style.cssText = 'width:100%;border:none;outline:none;background:transparent;font-size:12px;font-family:inherit;color:var(--on-surface-variant);padding:2px 12px 6px;box-sizing:border-box;';
-
-    box.appendChild(titleInput);
-    box.appendChild(descInput);
-
-    // ── Chip row (due date, tags, priority) ──
-    const chipRow = document.createElement('div');
-    chipRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;padding:4px 10px 8px;align-items:center;';
-
-    function makeChip(icon, label, color, onRemove) {
-      const c = document.createElement('button');
-      c.style.cssText = `display:inline-flex;align-items:center;gap:3px;border:1px solid var(--outline-variant);background:none;border-radius:6px;padding:3px 8px;font-size:11px;font-family:inherit;color:${color || 'var(--on-surface-variant)'};cursor:pointer;white-space:nowrap;`;
-      c.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">${icon}</span>${label}`;
-      if (onRemove) {
-        const x = document.createElement('span');
-        x.className = 'material-symbols-outlined';
-        x.style.cssText = 'font-size:12px;margin-left:2px;opacity:0.6;';
-        x.textContent = 'close';
-        x.addEventListener('click', e => { e.stopPropagation(); onRemove(); });
-        c.appendChild(x);
-      }
-      return c;
-    }
-
-    function refreshChips() {
-      chipRow.innerHTML = '';
-
-      // Due date chip
-      const dateChip = makeChip('calendar_today', qaDate ? formatNLPPreview(qaDate, !!qaTime) : 'Due date',
-        qaDate ? 'var(--primary)' : null,
-        qaDate ? () => { qaDate = null; qaTime = null; qaDateManual = false; refreshChips(); } : null);
-      dateChip.addEventListener('click', () => showDatePicker(dateChip));
-      chipRow.appendChild(dateChip);
-
-      // Priority chip — only shown when explicitly set, otherwise show a muted "Priority" button
-      const prioColors = { high: 'var(--error)', medium: '#d97706', low: 'var(--on-surface-variant)' };
-      const prioLabels = { high: 'High', medium: 'Medium', low: 'Low' };
-      const prioChip = makeChip('flag', qaPriority ? prioLabels[qaPriority] : 'Priority',
-        qaPriority ? prioColors[qaPriority] : null,
-        qaPriority ? () => { qaPriority = null; refreshChips(); } : null);
-      prioChip.addEventListener('click', () => {
-        if (!qaPriority) { qaPriority = 'medium'; refreshChips(); return; }
-        const order = ['low', 'medium', 'high'];
-        qaPriority = order[(order.indexOf(qaPriority) + 1) % 3];
-        refreshChips();
-      });
-      chipRow.appendChild(prioChip);
-
-      // Tags chip
-      if (qaTags.length > 0) {
-        qaTags.forEach((tag, i) => {
-          chipRow.appendChild(makeChip('tag', tag, 'var(--on-surface-variant)', () => {
-            qaTags.splice(i, 1); refreshChips();
-          }));
-        });
-      }
-      const addTagChip = makeChip('tag', 'Tag');
-      addTagChip.addEventListener('click', () => showTagPicker(addTagChip));
-      chipRow.appendChild(addTagChip);
-    }
-
-    // ── Date picker (simple relative options) ──
-    function showDatePicker(anchor) {
-      closeQaDropdowns();
-      const dd = document.createElement('div');
-      dd.className = 'qa-dropdown';
-      dd.style.cssText = 'position:absolute;left:0;top:100%;background:var(--surface);border:1px solid var(--outline-variant);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);z-index:100;min-width:150px;padding:4px 0;';
-      const todayD = new Date(); todayD.setHours(0,0,0,0);
-      const opts = [
-        { label: 'Today', icon: 'today', date: new Date(todayD) },
-        { label: 'Tomorrow', icon: 'event', date: (() => { const d = new Date(todayD); d.setDate(d.getDate()+1); return d; })() },
-        { label: 'Next week', icon: 'date_range', date: (() => { const d = new Date(todayD); d.setDate(d.getDate()+7); return d; })() },
-        { label: 'No date', icon: 'block', date: null },
-      ];
-      opts.forEach(o => {
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--on-surface);';
-        item.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">${o.icon}</span>${o.label}`;
-        item.addEventListener('mouseenter', () => item.style.background = 'var(--surface-low)');
-        item.addEventListener('mouseleave', () => item.style.background = 'none');
-        item.addEventListener('mousedown', e => {
-          e.preventDefault(); e.stopPropagation();
-          qaDate = o.date; qaTime = null; qaDateManual = !!o.date;
-          closeQaDropdowns(); refreshChips();
-        });
-        dd.appendChild(item);
-      });
-      // Date input option
-      const dateInputWrap = document.createElement('div');
-      dateInputWrap.style.cssText = 'padding:4px 8px;border-top:1px solid var(--outline-variant);margin-top:2px;';
-      const dateInput = document.createElement('input');
-      dateInput.type = 'date';
-      dateInput.style.cssText = 'width:100%;border:1px solid var(--outline-variant);border-radius:4px;padding:4px 6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--on-surface);';
-      dateInput.addEventListener('change', () => {
-        if (dateInput.value) {
-          qaDate = new Date(dateInput.value + 'T00:00:00');
-          qaTime = null; qaDateManual = true;
-          closeQaDropdowns(); refreshChips();
-        }
-      });
-      dateInputWrap.appendChild(dateInput);
-      dd.appendChild(dateInputWrap);
-
-      anchor.style.position = 'relative';
-      anchor.appendChild(dd);
-      qaDDCleanup = () => { if (dd.parentNode) dd.remove(); };
-    }
-
-    // ── Tag picker ──
-    function showTagPicker(anchor) {
-      closeQaDropdowns();
-      const dd = document.createElement('div');
-      dd.className = 'qa-dropdown';
-      dd.style.cssText = 'position:absolute;left:0;top:100%;background:var(--surface);border:1px solid var(--outline-variant);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);z-index:100;min-width:150px;padding:4px 0;max-height:180px;overflow-y:auto;';
-      const allTags = getAllTags().filter(t => !qaTags.includes(t));
-      if (allTags.length > 0) {
-        allTags.forEach(tag => {
-          const item = document.createElement('div');
-          item.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--on-surface);';
-          item.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">tag</span>${tag}`;
-          item.addEventListener('mouseenter', () => item.style.background = 'var(--surface-low)');
-          item.addEventListener('mouseleave', () => item.style.background = 'none');
-          item.addEventListener('mousedown', e => {
-            e.preventDefault(); e.stopPropagation();
-            qaTags.push(tag); closeQaDropdowns(); refreshChips();
-          });
-          dd.appendChild(item);
-        });
-      }
-      // Manual tag input
-      const tagInputWrap = document.createElement('div');
-      tagInputWrap.style.cssText = 'padding:4px 8px;border-top:1px solid var(--outline-variant);margin-top:2px;';
-      const tagInput = document.createElement('input');
-      tagInput.type = 'text';
-      tagInput.placeholder = 'New tag…';
-      tagInput.style.cssText = 'width:100%;border:1px solid var(--outline-variant);border-radius:4px;padding:4px 6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--on-surface);box-sizing:border-box;';
-      tagInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter' && tagInput.value.trim()) {
-          e.preventDefault(); e.stopPropagation();
-          const newTag = tagInput.value.trim().toLowerCase().replace(/\s+/g, '-');
-          if (!qaTags.includes(newTag)) qaTags.push(newTag);
-          closeQaDropdowns(); refreshChips();
-        }
-      });
-      tagInputWrap.appendChild(tagInput);
-      dd.appendChild(tagInputWrap);
-
-      anchor.style.position = 'relative';
-      anchor.appendChild(dd);
-      qaDDCleanup = () => { if (dd.parentNode) dd.remove(); };
-    }
-
-    let qaDDCleanup = null;
-    function closeQaDropdowns() { if (qaDDCleanup) { qaDDCleanup(); qaDDCleanup = null; } }
-
-    box.appendChild(chipRow);
-    refreshChips();
-
-    // ── Bottom bar: list selector + cancel/submit ──
-    const bottomBar = document.createElement('div');
-    bottomBar.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-top:1px solid var(--outline-variant);';
-
-    // List selector
-    const listBtn = document.createElement('button');
-    listBtn.style.cssText = 'display:inline-flex;align-items:center;gap:4px;border:1px solid var(--outline-variant);background:none;border-radius:6px;padding:4px 8px;font-size:11px;font-family:inherit;color:var(--on-surface-variant);cursor:pointer;';
-    function refreshListBtn() {
-      const name = qaListId ? (STATE.lists.find(l => l.id === qaListId)?.name || 'List') : 'Inbox';
-      listBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;">inbox</span>${name}<span class="material-symbols-outlined" style="font-size:12px;">arrow_drop_down</span>`;
-    }
-    refreshListBtn();
-    listBtn.addEventListener('click', () => {
-      closeQaDropdowns();
-      const dd = document.createElement('div');
-      dd.style.cssText = 'position:absolute;left:0;bottom:100%;background:var(--surface);border:1px solid var(--outline-variant);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);z-index:100;min-width:130px;padding:4px 0;margin-bottom:4px;';
-      // Inbox (no list)
-      const inboxItem = document.createElement('div');
-      inboxItem.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--on-surface);';
-      inboxItem.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">inbox</span>Inbox`;
-      inboxItem.addEventListener('mousedown', e => { e.preventDefault(); qaListId = null; closeQaDropdowns(); refreshListBtn(); });
-      inboxItem.addEventListener('mouseenter', () => inboxItem.style.background = 'var(--surface-low)');
-      inboxItem.addEventListener('mouseleave', () => inboxItem.style.background = 'none');
-      dd.appendChild(inboxItem);
-      STATE.lists.forEach(l => {
-        const item = document.createElement('div');
-        item.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--on-surface);';
-        item.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">folder</span>${l.name}`;
-        item.addEventListener('mousedown', e => { e.preventDefault(); qaListId = l.id; closeQaDropdowns(); refreshListBtn(); });
-        item.addEventListener('mouseenter', () => item.style.background = 'var(--surface-low)');
-        item.addEventListener('mouseleave', () => item.style.background = 'none');
-        dd.appendChild(item);
-      });
-      listBtn.style.position = 'relative';
-      listBtn.appendChild(dd);
-      qaDDCleanup = () => { if (dd.parentNode) dd.remove(); };
-    });
-
-    // Action buttons
-    const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex;gap:4px;';
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.style.cssText = 'width:28px;height:28px;border:none;background:var(--surface-low);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--on-surface-variant);';
-    cancelBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">close</span>';
-    cancelBtn.addEventListener('click', e => { e.stopPropagation(); quickAddActive = false; renderTasks(); });
-
-    const submitBtn = document.createElement('button');
-    submitBtn.style.cssText = 'width:28px;height:28px;border:none;background:var(--primary);border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:white;';
-    submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">send</span>';
-
-    const addTask = () => {
-      let title = titleInput.value.trim();
-      if (!title) return;
-      // Strip NLP date text from title (it was already parsed live)
-      if (!qaDateManual) {
-        const nlp = parseNLPDate(title);
-        if (nlp) { title = nlp.cleanTitle || title; }
-      }
-      const { title: cleanTitle, tags: parsedTags } = parseTagsFromTitle(title);
-      title = cleanTitle || title;
-      const allTags = [...new Set([...qaTags, ...parsedTags])];
-      const desc = descInput.value.trim();
-      STATE.tasks.push({ id: uid(), title, completed: false, status: 'not_started', priority: qaPriority || 'medium',
-        dueDate: qaDate, dueTime: qaTime, description: desc, tags: allTags, subtasks: [],
-        notification: 'none', recurring: 'none', listId: qaListId });
-      saveState();
-      quickAddActive = false;
-      renderTasks();
-      if (STATE.view === 'tasks') renderTasksFullPage();
-      // Re-open for continuous adding
-      requestAnimationFrame(() => { quickAddActive = true; renderTasks(); });
-    };
-
-    submitBtn.addEventListener('click', e => { e.stopPropagation(); addTask(); });
-    actions.append(cancelBtn, submitBtn);
-    bottomBar.append(listBtn, actions);
-    box.appendChild(bottomBar);
-    wrap.appendChild(box);
-    container.appendChild(wrap);
-
-    // Close dropdowns on outside click
-    const closeHandler = (e) => {
-      if (!e.target.closest('.qa-dropdown')) closeQaDropdowns();
-    };
-    document.addEventListener('mousedown', closeHandler);
-
-    // Key handlers on title
-    titleInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); addTask(); }
-      if (e.key === 'Escape') { e.stopPropagation(); quickAddActive = false; renderTasks(); }
-    });
-
-    // NLP auto-detect: update date chip as user types (only if user hasn't manually picked)
-    titleInput.addEventListener('input', () => {
-      if (qaDateManual) return;
-      const nlp = parseNLPDate(titleInput.value);
-      if (nlp) {
-        qaDate = new Date(nlp.date);
-        if (!nlp.hasTime) qaDate.setHours(0,0,0,0);
-        qaTime = nlp.hasTime ? `${String(nlp.date.getHours()).padStart(2,'0')}:${String(nlp.date.getMinutes()).padStart(2,'0')}` : null;
-      } else {
-        qaDate = null; qaTime = null;
-      }
-      refreshChips();
-    });
-
-    setTimeout(() => titleInput.focus(), 0);
-  } else {
-    const btn = document.createElement('button');
-    btn.style.cssText = 'width:100%;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;font-size:12px;font-family:inherit;color:var(--on-surface-variant);background:none;border:none;cursor:pointer;transition:background 0.1s;';
-    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;color:var(--primary);">add</span> Add task';
-    btn.addEventListener('mouseenter', () => btn.style.background = 'var(--surface-low)');
-    btn.addEventListener('mouseleave', () => btn.style.background = 'none');
-    btn.addEventListener('click', () => { quickAddActive = true; expandedTaskId = null; renderTasks(); });
-    wrap.appendChild(btn);
-    container.appendChild(wrap);
-  }
-}
-
-function buildTaskItem(task) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'task-item-wrapper';
-
-  const item = document.createElement('div');
-  item.className = 'task-item' + (task.id === expandedTaskId ? ' task-expanded' : '');
-  item.setAttribute('draggable', 'true');
-  item.dataset.taskId = task.id;
-
-  const checkbox = document.createElement('div');
-  checkbox.className = 'task-checkbox' + (task.completed ? ' checked' : '');
-  checkbox.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
-
-  const content = document.createElement('div');
-  content.className = 'task-content';
-
-  const title = document.createElement('div');
-  title.className = 'task-title' + (task.completed ? ' done' : '');
-  title.textContent = task.title;
-
-  const meta = document.createElement('div');
-  meta.className = 'task-meta';
-  if (task.dueDate) {
-    const todayD = new Date(); todayD.setHours(0,0,0,0);
-    const due = new Date(task.dueDate); due.setHours(0,0,0,0);
-    const diff = Math.round((due - todayD) / 86400000);
-    const dueTxt = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff < 0 ? `${-diff}d overdue` : `${MONTHS[due.getMonth()].slice(0,3)} ${due.getDate()}`;
-    const span = document.createElement('span');
-    span.style.color = diff < 0 ? '#c62828' : diff === 0 ? '#d97706' : 'inherit';
-    span.textContent = dueTxt + (task.dueTime ? ` · ${task.dueTime}` : '');
-    meta.appendChild(span);
-  }
-  if (task.priority && task.priority !== 'low') {
-    const p = document.createElement('span');
-    p.className = `priority-badge priority-${task.priority}`;
-    p.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
-    meta.appendChild(p);
-  }
-  if (task.tags && task.tags.length) {
-    task.tags.forEach(tag => {
-      const t = document.createElement('span');
-      t.className = 'task-tag'; t.textContent = tag;
-      meta.appendChild(t);
-    });
-  }
-
-  const del = document.createElement('button');
-  del.className = 'icon-btn task-delete';
-  del.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">delete</span>';
-  del.addEventListener('click', e => { e.stopPropagation(); deleteTask(task.id); });
-
-  content.appendChild(title);
-  content.appendChild(meta);
-  item.appendChild(checkbox);
-  item.appendChild(content);
-  item.appendChild(del);
-
-  item.addEventListener('dragstart', e => {
-    e.dataTransfer.setData('text/task-id', task.id);
-    e.dataTransfer.effectAllowed = 'copy';
-    const ghost = document.createElement('div');
-    ghost.className = 'drag-ghost';
-    ghost.textContent = task.title;
-    ghost.style.cssText = 'position:fixed;top:-100px;left:-100px;';
-    document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, 0, 0);
-    setTimeout(() => ghost.remove(), 0);
-  });
-
-  item.addEventListener('click', e => {
-    if (e.target.closest('.task-checkbox') || e.target.closest('.task-delete')) return;
-    expandedTaskId = expandedTaskId === task.id ? null : task.id;
-    renderTasks();
-  });
-
-  wrapper.appendChild(item);
-
-  if (task.id === expandedTaskId) {
-    wrapper.appendChild(buildInlineDetail(task));
-  }
-
-  return wrapper;
-}
 
 function buildInlineDetail(task) {
   const d = document.createElement('div');
@@ -3363,6 +3317,7 @@ document.querySelectorAll('.tasks-fp-tab').forEach(btn => {
 
 // ─── Quick Event Popover ───────────────────────────────────────────────────
 let qepStart = null, qepEnd = null;
+let qepPrefillTaskId = null;
 
 function formatQepDatetime(start, end) {
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -3376,6 +3331,24 @@ function formatQepDatetime(start, end) {
     return `${h12}${m ? ':' + String(m).padStart(2,'0') : ''}${ampm}`;
   };
   return `${datePart} · ${fmt(ds)} – ${fmt(de)}`;
+}
+
+// Block time for an existing task: same create surface, pre-titled and linked.
+function timeboxTask(taskId, clientX, clientY) {
+  const task = STATE.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  const start = startOfDay(new Date());
+  if (task.dueTime) {
+    const [h, m] = task.dueTime.split(':').map(Number);
+    start.setHours(h, m, 0, 0);
+  } else {
+    start.setHours(9, 0, 0, 0);
+  }
+  const end = new Date(start); end.setHours(end.getHours() + 1);
+  openQuickEventPopover(start, end, clientX, clientY);
+  qepPrefillTaskId = taskId;
+  const titleEl = document.getElementById('qep-title');
+  requestAnimationFrame(() => { titleEl.value = task.title; titleEl.select(); });
 }
 
 function openQuickEventPopover(start, end, clientX, clientY) {
@@ -3426,6 +3399,7 @@ function openQuickEventPopover(start, end, clientX, clientY) {
 }
 
 function closeQuickEventPopover() {
+  qepPrefillTaskId = null;
   const pop = document.getElementById('quick-event-popover');
   pop.classList.remove('visible');
   document.getElementById('qep-backdrop').classList.remove('visible');
@@ -3481,7 +3455,7 @@ document.getElementById('qep-save-btn').addEventListener('click', () => {
     notification: 'none', recurring: 'none',
     location: v.location, description: v.description,
     guests: v.guests ? v.guests.split(',').map(g => g.trim()).filter(Boolean) : [],
-    linkedTaskIds: [], calendarId: v.calendarId,
+    linkedTaskIds: qepPrefillTaskId ? [qepPrefillTaskId] : [], calendarId: v.calendarId,
   });
   saveState(); render();
   closeQuickEventPopover();
@@ -4266,12 +4240,8 @@ function buildFpTaskItem(task) {
     renderTasksFullPageAll();
   });
 
-  // Drag support
-  el.addEventListener('dragstart', e => {
-    e.dataTransfer.setData('text/plain', task.id);
-    e.dataTransfer.effectAllowed = 'move';
-    el.style.opacity = '0.5';
-  });
+  // dragstart is handled by the delegated listener in init(); this element
+  // only needs draggable + data-task-id (set above).
   el.addEventListener('dragend', () => el.style.opacity = '');
 
   wrapper.appendChild(el);
@@ -4431,21 +4401,24 @@ function renderTasksFullPageFocus() {
     } else {
       slot.style.cssText = 'padding:12px 16px;display:flex;align-items:center;gap:8px;color:var(--outline-variant);font-size:13px;border:1px dashed var(--surface-container);border-radius:8px;margin:4px 8px;';
       slot.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">star</span> Slot ${i+1} — drag a task here`;
-      // Drop zone
-      slot.addEventListener('dragover', e => { e.preventDefault(); slot.style.borderColor = 'var(--primary)'; slot.style.background = 'var(--primary-light)'; });
-      slot.addEventListener('dragleave', () => { slot.style.borderColor = ''; slot.style.background = ''; });
-      slot.addEventListener('drop', e => {
-        e.preventDefault();
-        const taskId = e.dataTransfer.getData('text/plain');
-        if (taskId && !STATE.topThree.includes(taskId)) {
-          STATE.topThree[i] = taskId;
-          saveState();
-          renderTasksFullPageFocus();
-          renderTopThree();
-        }
-        slot.style.borderColor = ''; slot.style.background = '';
-      });
     }
+    // Drop listeners belong to every slot, filled or not -- they used to live
+    // inside the else, so an occupied slot could not be replaced by a drop.
+    slot.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; slot.style.borderColor = 'var(--primary)'; slot.style.background = 'var(--primary-light)'; });
+    slot.addEventListener('dragleave', () => { slot.style.borderColor = ''; slot.style.background = ''; });
+    slot.addEventListener('drop', e => {
+      e.preventDefault();
+      const taskId = getDraggedTaskId(e);
+      if (taskId) {
+        STATE.topThree = normalizeTopThree(STATE.topThree).map(id => (id === taskId ? null : id));
+        STATE.topThree[i] = taskId;
+        STATE.topThreeDate = new Date().toDateString();
+        saveState();
+        renderTasksFullPageFocus();
+        renderTopThree();
+      }
+      slot.style.borderColor = ''; slot.style.background = '';
+    });
     container.appendChild(slot);
   }
 
@@ -4618,225 +4591,272 @@ function openListManager() {
 }
 
 // ─────────────────────────────────────────────
+// TASK AUTOCOMPLETE (shared)
+// ─────────────────────────────────────────────
+// One implementation for the Brain Dump input and the Top Three typed fill.
+// Selection is on mousedown, not click, so the input's blur can't beat it.
+// Must be attached ONCE, from init() -- attaching during a render leaks a
+// document listener per call.
+function attachTaskAutocomplete(input, listEl, opts) {
+  if (!input || !listEl) return;
+  let activeIdx = -1;
+
+  function highlight(title, q) {
+    const i = title.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return title;
+    const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return esc(title.slice(0, i)) + '<strong>' + esc(title.slice(i, i + q.length)) + '</strong>' + esc(title.slice(i + q.length));
+  }
+  function meta(task) {
+    const bits = [];
+    if (task.priority && task.priority !== 'low') bits.push(task.priority);
+    const due = toDueDate(task.dueDate);
+    if (due) bits.push(relDayLabel(due));
+    if (task.listId) bits.push(getTaskListName(task));
+    return bits.join(' · ');
+  }
+  function close() { listEl.style.display = 'none'; listEl.innerHTML = ''; activeIdx = -1; }
+
+  function show(q) {
+    listEl.innerHTML = '';
+    const query = q.trim();
+    if (!query) { close(); return; }
+    const ql = query.toLowerCase();
+    const matches = STATE.tasks
+      .filter(t => !t.completed && !opts.exclude(t) && t.title.toLowerCase().includes(ql))
+      .sort((a, b) => {
+        const ap = a.title.toLowerCase().startsWith(ql) ? 0 : 1;
+        const bp = b.title.toLowerCase().startsWith(ql) ? 0 : 1;
+        return ap - bp || (PRIORITY_ORDER[a.priority || 'low'] || 2) - (PRIORITY_ORDER[b.priority || 'low'] || 2);
+      })
+      .slice(0, 8);
+
+    matches.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'brain-dump-suggestion';
+      el.innerHTML = `<span>${highlight(t.title, query)}</span><span style="font-size:10px;color:var(--text-tertiary);margin-left:8px;flex-shrink:0;">${meta(t)}</span>`;
+      el.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+      el.addEventListener('mousedown', e => { e.preventDefault(); close(); input.value = ''; opts.onPick(t); });
+      listEl.appendChild(el);
+    });
+
+    const exact = matches.some(t => t.title.toLowerCase() === ql);
+    if (!exact && opts.onCreate) {
+      const el = document.createElement('div');
+      el.className = 'brain-dump-suggestion brain-dump-create-option';
+      el.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">add</span> Create “${query.replace(/</g, '&lt;')}”`;
+      el.addEventListener('mousedown', e => { e.preventDefault(); close(); input.value = ''; opts.onCreate(query); });
+      listEl.appendChild(el);
+    }
+
+    const items = listEl.children;
+    if (items.length) { activeIdx = 0; items[0].classList.add('active'); listEl.style.display = 'block'; }
+    else close();
+  }
+
+  input.addEventListener('input', () => { show(input.value); if (opts.onInput) opts.onInput(input.value); });
+  input.addEventListener('keydown', e => {
+    const items = listEl.children;
+    if (e.key === 'ArrowDown' && items.length) {
+      e.preventDefault();
+      if (items[activeIdx]) items[activeIdx].classList.remove('active');
+      activeIdx = (activeIdx + 1) % items.length;
+      items[activeIdx].classList.add('active');
+    } else if (e.key === 'ArrowUp' && items.length) {
+      e.preventDefault();
+      if (items[activeIdx]) items[activeIdx].classList.remove('active');
+      activeIdx = (activeIdx - 1 + items.length) % items.length;
+      items[activeIdx].classList.add('active');
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (items[activeIdx]) items[activeIdx].dispatchEvent(new MouseEvent('mousedown'));
+      else if (input.value.trim() && opts.onCreate) { const v = input.value.trim(); input.value = ''; close(); opts.onCreate(v); }
+    } else if (e.key === 'Escape') {
+      close();
+    }
+  });
+  document.addEventListener('mousedown', e => {
+    if (!listEl.contains(e.target) && e.target !== input) close();
+  });
+}
+
+// ─────────────────────────────────────────────
 // TOP THREE
 // ─────────────────────────────────────────────
-// topThree is an array of up to 3 task IDs
-if (!STATE.topThree) STATE.topThree = [];
-
+// Three positional slots that reset at midnight. No stars, no icons -- the
+// number is the whole affordance.
 function renderTopThree() {
   const container = document.getElementById('top-three-slots');
   if (!container) return;
+  STATE.topThree = normalizeTopThree(STATE.topThree);
   container.innerHTML = '';
+
   for (let i = 0; i < 3; i++) {
     const taskId = STATE.topThree[i];
     const task = taskId ? STATE.tasks.find(t => t.id === taskId) : null;
     const slot = document.createElement('div');
-    slot.className = 'top-three-slot' + (task ? ' filled' : '');
+    slot.className = 'plan-slot' + (task ? '' : ' is-empty');
     slot.dataset.slot = i;
+
+    const num = document.createElement('span');
+    num.className = 'plan-slot-num';
+    num.textContent = i + 1;
+    slot.appendChild(num);
+
     if (task) {
+      slot.setAttribute('draggable', 'true');
+      slot.dataset.taskId = task.id;
+
       const cb = document.createElement('div');
-      cb.className = 'task-checkbox' + (task.completed ? ' checked' : '');
-      cb.style.width = '16px'; cb.style.height = '16px'; cb.style.flexShrink = '0';
-      cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderTopThree(); });
-      const num = document.createElement('span');
-      num.className = 'top-three-num'; num.textContent = i + 1;
-      const titleEl = document.createElement('span');
-      titleEl.className = 'top-three-task-title' + (task.completed ? ' done' : '');
-      titleEl.textContent = task.title;
+      cb.className = 'plan-check' + (task.completed ? ' checked' : '');
+      cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
+      slot.appendChild(cb);
+
+      const title = document.createElement('span');
+      title.className = 'plan-row-title' + (task.completed ? ' is-done' : '');
+      title.style.fontWeight = '500';
+      title.textContent = task.title;
+      slot.appendChild(title);
+
+      const ev = PLAN_SCHED.get(task.id);
+      const chip = document.createElement('span');
+      if (ev) {
+        chip.className = 'plan-chip';
+        chip.textContent = scheduleChipText(ev);
+      } else {
+        chip.className = 'plan-chip is-ghost';
+        chip.textContent = '+ Timebox';
+        chip.title = 'Block time for this task';
+        chip.addEventListener('click', e => { e.stopPropagation(); timeboxTask(task.id, e.clientX, e.clientY); });
+      }
+      slot.appendChild(chip);
+
       const rm = document.createElement('button');
-      rm.className = 'icon-btn top-three-remove';
-      rm.style.cssText = 'width:20px;height:20px;padding:0;';
+      rm.className = 'plan-icon-act';
+      rm.title = 'Remove from Top Three';
       rm.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">close</span>';
-      rm.addEventListener('click', e => { e.stopPropagation(); STATE.topThree.splice(i,1); saveState(); renderTopThree(); });
-      slot.appendChild(cb); slot.appendChild(num); slot.appendChild(titleEl); slot.appendChild(rm);
-      slot.addEventListener('click', () => openTaskModal(task.id));
+      rm.addEventListener('click', e => {
+        e.stopPropagation();
+        STATE.topThree[i] = null;
+        saveState(); renderTasks();
+      });
+      slot.appendChild(rm);
     } else {
-      const num = document.createElement('span');
-      num.className = 'top-three-num'; num.textContent = i + 1;
-      const ph = document.createElement('span');
-      ph.style.cssText = 'font-size:12px;color:var(--outline-variant);';
-      ph.textContent = 'Drop a task here';
-      slot.appendChild(num); slot.appendChild(ph);
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'plan-slot-input';
+      inp.placeholder = 'Add a priority, or drag one here';
+      inp.autocomplete = 'off';
+      inp.style.cssText = 'flex:1;min-width:0;border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--text-primary);';
+      const sug = document.createElement('div');
+      sug.className = 'brain-dump-suggestions';
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'flex:1;min-width:0;position:relative;';
+      wrap.append(inp, sug);
+      slot.appendChild(wrap);
+      // Attached per render, but the element is discarded with it, so the
+      // document listener dies with the node rather than accumulating.
+      attachTaskAutocomplete(inp, sug, {
+        exclude: t => STATE.topThree.includes(t.id),
+        onPick: t => setTopThree(i, t.id),
+        onCreate: title => {
+          const t = createTaskFromText(title, { toTray: false });
+          setTopThree(i, t.id);
+        }
+      });
     }
-    // Drop target
-    slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drop-target'); });
+
+    // Drop target on every slot, filled or not.
+    slot.addEventListener('dragover', e => {
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; slot.classList.add('drop-target');
+    });
     slot.addEventListener('dragleave', () => slot.classList.remove('drop-target'));
     slot.addEventListener('drop', e => {
       e.preventDefault(); slot.classList.remove('drop-target');
-      const taskId = e.dataTransfer.getData('text/task-id');
-      if (!taskId) return;
-      STATE.topThree = STATE.topThree.filter(id => id !== taskId);
-      STATE.topThree.splice(i, 0, taskId);
-      STATE.topThree = STATE.topThree.slice(0, 3);
-      saveState(); renderTopThree();
+      const id = getDraggedTaskId(e);
+      if (id) setTopThree(i, id);
     });
+
     container.appendChild(slot);
   }
+}
+
+function setTopThree(i, taskId) {
+  STATE.topThree = normalizeTopThree(STATE.topThree);
+  // A task can only occupy one slot.
+  STATE.topThree = STATE.topThree.map(id => (id === taskId ? null : id));
+  STATE.topThree[i] = taskId;
+  STATE.topThreeDate = new Date().toDateString();
+  saveState(); renderTasks();
 }
 
 // ─────────────────────────────────────────────
 // BRAIN DUMP
 // ─────────────────────────────────────────────
-if (!STATE.brainDump) STATE.brainDump = []; // array of task IDs
-
+// The tray holds captures that are still undated. Giving one a date -- via
+// "+ Today", a typed date token, or picking an existing task -- is what moves
+// it into the To-Do list. That filter IS the funnel.
 function renderBrainDump() {
   const list = document.getElementById('brain-dump-list');
   if (!list) return;
   list.innerHTML = '';
-  STATE.brainDump.forEach(taskId => {
-    const task = STATE.tasks.find(t => t.id === taskId);
-    if (!task) return;
-    const item = document.createElement('div');
-    item.className = 'brain-dump-item';
-    const cb = document.createElement('div');
-    cb.className = 'task-checkbox' + (task.completed ? ' checked' : '');
-    cb.style.cssText = 'width:16px;height:16px;flex-shrink:0;';
-    cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); renderBrainDump(); });
-    const titleEl = document.createElement('span');
-    titleEl.style.cssText = 'font-size:13px;flex:1;' + (task.completed ? 'text-decoration:line-through;color:var(--on-surface-variant);' : '');
-    titleEl.textContent = task.title;
-    const rm = document.createElement('button');
-    rm.className = 'icon-btn';
-    rm.style.cssText = 'width:20px;height:20px;padding:0;opacity:0;transition:opacity 0.15s;';
-    rm.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">close</span>';
-    rm.addEventListener('click', () => { STATE.brainDump = STATE.brainDump.filter(id => id !== taskId); saveState(); renderBrainDump(); });
-    item.addEventListener('mouseenter', () => rm.style.opacity = '1');
-    item.addEventListener('mouseleave', () => rm.style.opacity = '0');
-    item.appendChild(cb); item.appendChild(titleEl); item.appendChild(rm);
-    list.appendChild(item);
+  const dumpIds = new Set(STATE.brainDump || []);
+  const items = STATE.tasks.filter(t => dumpIds.has(t.id) && !t.completed && !toDueDate(t.dueDate));
+  items.sort((a, b) => STATE.brainDump.indexOf(a.id) - STATE.brainDump.indexOf(b.id));
+
+  items.forEach(task => {
+    list.appendChild(buildPlanRow(task, {
+      dashed: true,
+      check: false,
+      action: { label: '+ Today', title: 'Schedule for today', onClick: () => pullToToday(task.id) }
+    }));
   });
 }
 
-function initBrainDump() {
+function titleFromNLP(original, nlp) {
+  if (!nlp || !nlp.matchedText) return original.trim();
+  let out = original;
+  nlp.matchedText.split(/\s+/).filter(Boolean).forEach(frag => {
+    const esc = frag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp('(^|\\s)' + esc + '(?=\\s|$)', 'i'), ' ');
+  });
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+// Shared by the Brain Dump input and the Top Three typed fill.
+// Priority order matters: a typed date means "schedule it", which skips the tray.
+function createTaskFromText(text, o) {
+  o = o || {};
+  const nlp = parseNLPDate(text);
+  const raw = (nlp && nlp.date) ? titleFromNLP(text, nlp) : text;
+  const { title, tags } = parseTagsFromTitle(raw);
+  const task = {
+    id: uid(), title: title || text.trim(), completed: false, status: 'not_started',
+    priority: 'medium', dueDate: null, dueTime: null, description: '',
+    notification: 'none', recurring: 'none', tags: tags || [], subtasks: [], listId: null
+  };
+  if (nlp && nlp.date) {
+    task.dueDate = toDueDate(nlp.date);
+    if (nlp.hasTime) task.dueTime = nlp.date.toTimeString().slice(0, 5);
+  }
+  STATE.tasks.push(task);
+  // Only undated captures go to the tray; a dated one belongs in the To-Do list.
+  if (o.toTray !== false && !task.dueDate) STATE.brainDump.push(task.id);
+  STATE.brainDumpDate = new Date().toDateString();
+  saveState(); renderTasks();
+  return task;
+}
+
+function initPlanCapture() {
   const input = document.getElementById('brain-dump-input');
-  const suggestionsEl = document.getElementById('brain-dump-suggestions');
-  if (!input) return;
-  let activeIdx = -1;
-
-  function highlightMatch(title, query) {
-    const idx = title.toLowerCase().indexOf(query.toLowerCase());
-    if (idx < 0) return title;
-    return title.slice(0, idx) + '<strong>' + title.slice(idx, idx + query.length) + '</strong>' + title.slice(idx + query.length);
-  }
-
-  function taskMeta(task) {
-    const parts = [];
-    if (task.priority && task.priority !== 'low') {
-      const colors = { high: '#c62828', medium: '#d97706' };
-      parts.push(`<span style="color:${colors[task.priority] || 'inherit'};font-weight:600;">${task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}</span>`);
-    }
-    if (task.dueDate) {
-      const todayD = new Date(); todayD.setHours(0,0,0,0);
-      const due = new Date(task.dueDate); due.setHours(0,0,0,0);
-      const diff = Math.round((due - todayD) / 86400000);
-      const txt = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff < 0 ? `${-diff}d overdue` : `${MONTHS[due.getMonth()].slice(0,3)} ${due.getDate()}`;
-      parts.push(`<span style="color:${diff < 0 ? '#c62828' : diff === 0 ? '#d97706' : 'inherit'};">${txt}</span>`);
-    }
-    return parts.length ? parts.join(' · ') : '';
-  }
-
-  function showSuggestions(query) {
-    const q = query.toLowerCase().trim();
-    if (!q) { suggestionsEl.style.display = 'none'; activeIdx = -1; return; }
-
-    // Filter: incomplete, not already in brain dump, matches query
-    const po = { high: 0, medium: 1, low: 2 };
-    const matches = STATE.tasks
-      .filter(t => !t.completed && !STATE.brainDump.includes(t.id) && t.title.toLowerCase().includes(q))
-      .sort((a, b) => {
-        const aP = a.title.toLowerCase().startsWith(q) ? 0 : 1;
-        const bP = b.title.toLowerCase().startsWith(q) ? 0 : 1;
-        if (aP !== bP) return aP - bP;
-        return (po[a.priority] || 2) - (po[b.priority] || 2);
-      })
-      .slice(0, 8);
-
-    suggestionsEl.innerHTML = '';
-
-    // Show matching existing tasks
-    matches.forEach((task) => {
-      const item = document.createElement('div');
-      item.className = 'brain-dump-suggestion';
-      item.dataset.taskId = task.id;
-      const meta = taskMeta(task);
-      item.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-variant);">task_alt</span><div style="flex:1;min-width:0;"><div class="suggestion-label">${highlightMatch(task.title, q)}</div>${meta ? `<div style="font-size:11px;color:var(--on-surface-variant);margin-top:1px;">${meta}</div>` : ''}</div>`;
-      item.addEventListener('mousedown', e => { e.preventDefault(); addToBrainDump(task.id); input.value = ''; suggestionsEl.style.display = 'none'; });
-      suggestionsEl.appendChild(item);
-    });
-
-    // "Create new task" option at the bottom if no exact match exists
-    const exactMatch = matches.find(t => t.title.toLowerCase() === q);
-    if (!exactMatch && q.length > 0) {
-      const createItem = document.createElement('div');
-      createItem.className = 'brain-dump-suggestion brain-dump-create-option';
-      createItem.innerHTML = `<span class="material-symbols-outlined" style="font-size:16px;color:var(--primary);">add_circle</span><div style="flex:1;min-width:0;"><span class="suggestion-label">Create "<strong>${q}</strong>"</span><span style="font-size:11px;color:var(--on-surface-variant);margin-left:6px;">(new task)</span></div>`;
-      createItem.addEventListener('mousedown', e => {
-        e.preventDefault();
-        createAndAddTask(query.trim());
-        input.value = ''; suggestionsEl.style.display = 'none';
-      });
-      suggestionsEl.appendChild(createItem);
-    }
-
-    if (suggestionsEl.children.length > 0) {
-      suggestionsEl.style.display = 'block';
-      // Auto-highlight first suggestion
-      activeIdx = 0;
-      suggestionsEl.children[0].classList.add('active');
-    } else {
-      suggestionsEl.style.display = 'none';
-      activeIdx = -1;
-    }
-  }
-
-  function addToBrainDump(taskId) {
-    if (!STATE.brainDump.includes(taskId)) {
-      STATE.brainDump.push(taskId);
-      STATE.brainDumpDate = new Date().toDateString();
-      saveState(); renderBrainDump();
-    }
-  }
-
-  function createAndAddTask(title) {
-    const { title: cleanTitle, tags } = parseTagsFromTitle(title);
-    const newTask = { id: uid(), title: cleanTitle || title, completed: false, status: 'not_started', priority: 'medium', dueDate: null, dueTime: null, description: '', notification: 'none', recurring: 'none', tags: tags || [], subtasks: [], listId: null };
-    STATE.tasks.push(newTask);
-    addToBrainDump(newTask.id);
-    renderTasks();
-  }
-
-  input.addEventListener('input', () => showSuggestions(input.value));
-  input.addEventListener('keydown', e => {
-    const items = suggestionsEl.querySelectorAll('.brain-dump-suggestion');
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      activeIdx = Math.min(activeIdx + 1, items.length - 1);
-      items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      activeIdx = Math.max(activeIdx - 1, 0);
-      items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      const title = input.value.trim();
-      if (!title) return;
-      if (activeIdx >= 0 && items[activeIdx]) {
-        // Select the highlighted suggestion (existing task or "create new")
-        items[activeIdx].dispatchEvent(new MouseEvent('mousedown'));
-      } else if (items.length > 0) {
-        // If there are suggestions but none highlighted, pick the first
-        items[0].dispatchEvent(new MouseEvent('mousedown'));
-      } else {
-        // No suggestions at all — create new task
-        createAndAddTask(title);
-        input.value = ''; suggestionsEl.style.display = 'none';
-      }
-    } else if (e.key === 'Escape') { suggestionsEl.style.display = 'none'; activeIdx = -1; }
+  const sug = document.getElementById('brain-dump-suggestions');
+  attachTaskAutocomplete(input, sug, {
+    exclude: t => (STATE.brainDump || []).includes(t.id) && !toDueDate(t.dueDate),
+    // Picking an existing task dates THAT task rather than creating a duplicate.
+    onPick: t => pullToToday(t.id),
+    onCreate: title => createTaskFromText(title, { toTray: true })
   });
-  document.addEventListener('click', e => { if (!input.contains(e.target) && !suggestionsEl.contains(e.target)) suggestionsEl.style.display = 'none'; });
 }
-
-// Panel tabs
 // ─────────────────────────────────────────────
 // SETTINGS
 // ─────────────────────────────────────────────
@@ -4907,7 +4927,7 @@ function init() {
   render();
   applyPlanCollapsed();
   initDragCreate();
-  initBrainDump();
+  initPlanCapture();
 
   // Calendar management
   ensureCalendars();
@@ -4920,6 +4940,31 @@ function init() {
   // Draggable modals
   makeDraggable(document.getElementById('event-modal'), document.querySelector('#event-modal .modal-drag-handle'));
   makeDraggable(document.getElementById('task-modal'), document.querySelector('#task-modal .modal-drag-handle'));
+
+  // Delegated task dragging: any element carrying data-task-id is draggable.
+  ['plan-panel', 'tasks-fullpage'].forEach(id => {
+    const host = document.getElementById(id);
+    if (!host) return;
+    host.addEventListener('dragstart', e => {
+      const row = e.target.closest('[data-task-id]');
+      if (!row) return;
+      setTaskDragData(e, row.dataset.taskId);
+    });
+  });
+
+  // Keep the week header aligned with the grid when it scrolls horizontally.
+  // .time-grid-scroll is overflow:auto but the header rows are overflow:hidden,
+  // so without this the columns slide out from under their day labels.
+  const gridScroll = document.getElementById('time-grid-scroll');
+  if (gridScroll) {
+    gridScroll.addEventListener('scroll', () => {
+      const x = gridScroll.scrollLeft;
+      const h = document.getElementById('week-day-headers');
+      const a = document.getElementById('allday-cols');
+      if (h) h.scrollLeft = x;
+      if (a) a.scrollLeft = x;
+    });
+  }
 
   // Draggable event popover
   makeDraggable(document.getElementById('event-popover'), document.getElementById('event-popover-drag-handle'));
