@@ -3315,7 +3315,8 @@ function timeboxTask(taskId, clientX, clientY) {
   openQuickEventPopover(start, end, clientX, clientY);
   qepPrefillTaskId = taskId;
   const titleEl = document.getElementById('qep-title');
-  requestAnimationFrame(() => { titleEl.value = task.title; titleEl.select(); });
+  titleEl.value = task.title;
+  setTimeout(() => titleEl.select(), 120);
 }
 
 function openQuickEventPopover(start, end, clientX, clientY) {
