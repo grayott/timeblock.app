@@ -849,25 +849,32 @@
   /* Event detail popover */
   .event-popover {
     position: fixed; z-index: 300;
-    background: white; border-radius: 14px;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
-    width: 320px; border: 1px solid var(--surface-container);
+    background: var(--bg-surface); border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(15,23,42,0.25), 0 2px 8px rgba(15,23,42,0.06);
+    width: 280px; border: 1px solid var(--border-subtle);
     overflow: hidden; display: none;
   }
   .event-popover.visible { display: block; }
   .event-popover-header {
-    padding: 14px 16px 10px; display: flex; align-items: flex-start;
-    gap: 10px; cursor: move;
+    padding: 12px 13px 10px; display: flex; align-items: flex-start;
+    gap: 8px; cursor: move; border-bottom: 1px solid var(--border-subtle);
   }
-  .event-popover-color-bar { width: 4px; border-radius: 2px; flex-shrink: 0; margin-top: 3px; align-self: stretch; }
-  .event-popover-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 16px; flex: 1; }
-  .event-popover-actions { display: flex; gap: 2px; margin-left: auto; }
-  .event-popover-body { padding: 0 16px 14px; display: flex; flex-direction: column; gap: 10px; }
-  .event-popover-row { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--on-surface-variant); }
-  .event-popover-row .material-symbols-outlined { font-size: 18px; margin-top: 1px; flex-shrink: 0; }
-  .event-popover-footer { padding: 10px 16px; border-top: 1px solid var(--surface-container); display: flex; gap: 8px; justify-content: flex-end; }
-  .popover-linked-task { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
-  .popover-linked-task + .popover-linked-task { border-top: 1px solid var(--surface-container); }
+  .popover-cat-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+  .event-popover-color-bar { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .popover-category { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); }
+  .event-popover-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 13px; line-height: 1.3; color: var(--text-primary); }
+  .event-popover-actions { display: flex; gap: 1px; margin-left: auto; flex-shrink: 0; }
+  .event-popover-body { padding: 10px 13px; display: flex; flex-direction: column; gap: 8px; }
+  .event-popover-row { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--text-secondary); }
+  .event-popover-row .material-symbols-outlined { font-size: 15px; margin-top: 1px; flex-shrink: 0; }
+  .popover-subhead { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); display: flex; align-items: center; justify-content: space-between; }
+  .event-popover-footer { padding: 9px 13px; border-top: 1px solid var(--border-subtle); display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .popover-danger-btn { border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--accent-red); padding: 4px 6px; border-radius: 5px; }
+  .popover-danger-btn:hover { background: #fef2f2; }
+  .popover-ghost-btn { border: 1px solid var(--border-subtle); background: var(--bg-surface); cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-primary); padding: 4px 10px; border-radius: 6px; }
+  .popover-ghost-btn:hover { background: var(--bg-canvas); }
+  .popover-linked-task { display: flex; align-items: center; gap: 7px; padding: 3px 0; }
+  .popover-hint { font-size: 10px; color: var(--text-tertiary); line-height: 1.4; }
 
   /* Task sections */
   .task-section-header {
@@ -1121,15 +1128,23 @@
 <!-- Event Detail Popover -->
 <div class="event-popover" id="event-popover">
   <div class="event-popover-header" id="event-popover-drag-handle">
-    <div class="event-popover-color-bar" id="popover-color-bar"></div>
-    <div class="event-popover-title" id="popover-title"></div>
+    <div style="flex:1;min-width:0;">
+      <div class="popover-cat-row">
+        <span class="event-popover-color-bar" id="popover-color-bar"></span>
+        <span class="popover-category mono" id="popover-category"></span>
+      </div>
+      <div class="event-popover-title" id="popover-title"></div>
+    </div>
     <div class="event-popover-actions">
-      <button class="icon-btn" id="popover-edit-btn" title="Edit"><span class="material-symbols-outlined" style="font-size:18px;">edit</span></button>
-      <button class="icon-btn" id="popover-delete-btn" title="Delete" style="color:#c62828;"><span class="material-symbols-outlined" style="font-size:18px;">delete</span></button>
-      <button class="icon-btn" id="popover-close-btn" title="Close"><span class="material-symbols-outlined" style="font-size:18px;">close</span></button>
+      <button class="icon-btn" id="popover-edit-btn" title="More options" style="width:24px;height:24px;"><span class="material-symbols-outlined" style="font-size:16px;">edit</span></button>
+      <button class="icon-btn" id="popover-close-btn" title="Close" style="width:24px;height:24px;"><span class="material-symbols-outlined" style="font-size:16px;">close</span></button>
     </div>
   </div>
   <div class="event-popover-body" id="event-popover-body"></div>
+  <div class="event-popover-footer">
+    <button class="popover-danger-btn" id="popover-unschedule-btn">Unschedule</button>
+    <button class="popover-ghost-btn" id="popover-adjust-btn">Adjust Time</button>
+  </div>
 </div>
 
 <!-- Event Modal -->
@@ -3734,25 +3749,72 @@ function openEventPopover(eventId, clickX, clickY, instanceDate) {
   popoverInstanceDate = instanceDate || ev.start;
   const popover = document.getElementById('event-popover');
 
-  // Color bar
-  document.getElementById('popover-color-bar').style.background = ev.color || '#2563eb';
+  const evColor = ev.color || EVENT_COLORS[0];
+  document.getElementById('popover-color-bar').style.background = evColor;
   document.getElementById('popover-title').textContent = ev.title;
+  document.getElementById('popover-category').textContent = eventCategoryLabel(ev);
 
-  // Body
+  renderEventPopoverBody(ev, popoverInstanceDate);
+
+  // "Unschedule" and "Delete" are the same operation -- events hold only task
+  // ids, and tasks are independent records, so removing the block is exactly
+  // what returns its tasks to the To-Do list. Only the label differs.
+  const unschedBtn = document.getElementById('popover-unschedule-btn');
+  unschedBtn.textContent = (ev.linkedTaskIds || []).length ? 'Unschedule' : 'Delete';
+
+  // Position near the click, clamped to the viewport. A re-render passes no
+  // coordinates, so keep wherever the popover already is.
+  popover.style.display = 'block';
+  if (clickX != null && clickY != null) {
+    const pw = popover.offsetWidth || 280, ph = popover.offsetHeight || 260;
+    let left = clickX + 12, top = clickY - 60;
+    if (left + pw > window.innerWidth - 16) left = clickX - pw - 12;
+    if (top + ph > window.innerHeight - 16) top = window.innerHeight - ph - 16;
+    if (top < 8) top = 8;
+    popover.style.left = Math.max(8, left) + 'px';
+    popover.style.top = top + 'px';
+  }
+  popover.classList.add('visible');
+}
+
+// No new schema: the calendar name plus the first tag among the linked tasks.
+function eventCategoryLabel(ev) {
+  const cal = STATE.calendars.find(c => c.id === ev.calendarId);
+  const bits = [];
+  if (cal) bits.push('#' + cal.name.toLowerCase().replace(/\s+/g, '-'));
+  const tagged = (ev.linkedTaskIds || [])
+    .map(id => STATE.tasks.find(t => t.id === id))
+    .find(t => t && t.tags && t.tags.length);
+  if (tagged) bits.push(tagged.tags[0]);
+  return bits.join(' · ');
+}
+
+// Split out of openEventPopover so ticking a sub-task can re-render in place.
+// The old code re-opened the whole popover with null coordinates, which reset
+// popoverInstanceDate to ev.start (so a later delete hit the wrong occurrence)
+// and re-centred the window on screen.
+function renderEventPopoverBody(ev, instanceDate) {
   const body = document.getElementById('event-popover-body');
   body.innerHTML = '';
+  const day = startOfDay(instanceDate || ev.start);
 
-  // Time row
+  // Time row. Recurring instances are virtual, so the master's own start date
+  // is the wrong thing to print -- project onto the instance day.
   const timeRow = document.createElement('div');
   timeRow.className = 'event-popover-row';
-  let timeText;
+  timeRow.style.alignItems = 'center';
   if (ev.allDay) {
-    timeText = formatDateInput(ev.start).split('-').reverse().join('/') + ' · All day';
+    timeRow.innerHTML = `<span class="material-symbols-outlined">schedule</span>` +
+      `<span class="mono" style="font-size:11px;">${DAYS[day.getDay()]}, ${MONTHS[day.getMonth()].slice(0,3)} ${day.getDate()} · All day</span>`;
   } else {
-    const dayStr = `${DAYS[ev.start.getDay()]}, ${MONTHS[ev.start.getMonth()].slice(0,3)} ${ev.start.getDate()}`;
-    timeText = `${dayStr} · ${formatTime(ev.start)} – ${formatTime(ev.end)}`;
+    const { startMin, endMin } = getEffMinutes(ev, day);
+    const st = new Date(day); st.setMinutes(startMin);
+    const en = new Date(day); en.setMinutes(endMin);
+    timeRow.innerHTML =
+      `<span class="material-symbols-outlined">schedule</span>` +
+      `<span class="mono" style="font-size:11px;flex:1;">${formatTime(st)} – ${formatTime(en)}</span>` +
+      `<span class="plan-chip">${fmtDur(endMin - startMin)}</span>`;
   }
-  timeRow.innerHTML = `<span class="material-symbols-outlined">schedule</span><span>${timeText}</span>`;
   body.appendChild(timeRow);
 
   if (ev.location) {
@@ -3761,14 +3823,12 @@ function openEventPopover(eventId, clickX, clickY, instanceDate) {
     row.innerHTML = `<span class="material-symbols-outlined">location_on</span><span>${ev.location}</span>`;
     body.appendChild(row);
   }
-
   if (ev.description) {
     const row = document.createElement('div');
     row.className = 'event-popover-row';
     row.innerHTML = `<span class="material-symbols-outlined">notes</span><span style="white-space:pre-wrap;">${ev.description}</span>`;
     body.appendChild(row);
   }
-
   if (ev.recurring && ev.recurring !== 'none') {
     const row = document.createElement('div');
     row.className = 'event-popover-row';
@@ -3776,41 +3836,75 @@ function openEventPopover(eventId, clickX, clickY, instanceDate) {
     body.appendChild(row);
   }
 
-  // Linked tasks
-  const linkedTasks = STATE.tasks.filter(t => ev.linkedTaskIds && ev.linkedTaskIds.includes(t.id));
-  if (linkedTasks.length > 0) {
-    const row = document.createElement('div');
-    row.className = 'event-popover-row';
-    row.style.flexDirection = 'column';
-    row.style.alignItems = 'stretch';
-    row.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="material-symbols-outlined" style="font-size:18px;">task_alt</span><span style="font-size:12px;font-weight:600;color:var(--on-surface-variant);text-transform:uppercase;letter-spacing:0.5px;">Linked Tasks</span></div>`;
-    linkedTasks.forEach(task => {
+  // Sub-tasks: the event's linked tasks, with a completion count.
+  const linked = (ev.linkedTaskIds || []).map(id => STATE.tasks.find(t => t.id === id)).filter(Boolean);
+  if (linked.length) {
+    const done = linked.filter(t => t.completed).length;
+    const head = document.createElement('div');
+    head.className = 'popover-subhead';
+    head.innerHTML = `<span>Sub-tasks</span><span class="mono">${done}/${linked.length}</span>`;
+    body.appendChild(head);
+    linked.forEach(task => {
       const item = document.createElement('div');
       item.className = 'popover-linked-task';
       const cb = document.createElement('div');
-      cb.className = 'task-checkbox' + (task.completed ? ' checked' : '');
-      cb.style.cssText = 'width:16px;height:16px;flex-shrink:0;';
-      cb.addEventListener('click', () => { toggleTaskComplete(task.id); openEventPopover(eventId, null, null); });
-      const titleEl = document.createElement('span');
-      titleEl.style.cssText = 'font-size:13px;' + (task.completed ? 'text-decoration:line-through;color:var(--on-surface-variant);' : '');
-      titleEl.textContent = task.title;
-      item.appendChild(cb); item.appendChild(titleEl);
-      row.appendChild(item);
+      cb.className = 'plan-check' + (task.completed ? ' checked' : '');
+      cb.addEventListener('click', () => {
+        toggleTaskComplete(task.id);
+        // Re-render in place; position and instance date are preserved.
+        renderEventPopoverBody(ev, instanceDate);
+      });
+      const label = document.createElement('span');
+      label.style.cssText = 'font-size:12px;flex:1;min-width:0;' +
+        (task.completed ? 'text-decoration:line-through;color:var(--text-tertiary);' : 'color:var(--text-primary);');
+      label.textContent = task.title;
+      item.append(cb, label);
+      body.appendChild(item);
     });
-    body.appendChild(row);
   }
 
-  // Position popover near click, stay within viewport
-  popover.style.display = 'block';
-  const pw = popover.offsetWidth || 320, ph = popover.offsetHeight || 280;
-  let left = (clickX || window.innerWidth / 2) + 12;
-  let top = (clickY || window.innerHeight / 2) - 60;
-  if (left + pw > window.innerWidth - 16) left = (clickX || window.innerWidth / 2) - pw - 12;
-  if (top + ph > window.innerHeight - 16) top = window.innerHeight - ph - 16;
-  if (top < 8) top = 8;
-  popover.style.left = Math.max(8, left) + 'px';
-  popover.style.top = top + 'px';
-  popover.classList.add('visible');
+  // Inline time editing, revealed by "Adjust Time".
+  const adjust = document.createElement('div');
+  adjust.id = 'popover-adjust-fields';
+  adjust.className = 'qep-datetime-inputs';
+  adjust.style.marginTop = '2px';
+  const startInp = document.createElement('input');
+  startInp.type = 'datetime-local';
+  const endInp = document.createElement('input');
+  endInp.type = 'datetime-local';
+  const { startMin, endMin } = ev.allDay ? { startMin: 0, endMin: 0 } : getEffMinutes(ev, day);
+  const st = new Date(day); st.setMinutes(startMin);
+  const en = new Date(day); en.setMinutes(endMin);
+  startInp.value = formatDatetimeLocal(st);
+  endInp.value = formatDatetimeLocal(en);
+  const commit = () => {
+    const ns = parseDatetimeLocal(startInp.value), ne = parseDatetimeLocal(endInp.value);
+    if (!ns || !ne || ne <= ns) return;
+    if (ev.recurring && ev.recurring !== 'none') {
+      // Per-occurrence overrides would need a detached-instance model the app
+      // doesn't have, so only the series time-of-day can move.
+      const dur = ne - ns;
+      ev.start = new Date(ev.start);
+      ev.start.setHours(ns.getHours(), ns.getMinutes(), 0, 0);
+      ev.end = new Date(ev.start.getTime() + dur);
+    } else {
+      ev.start = ns; ev.end = ne;
+    }
+    saveState(); render();
+    renderEventPopoverBody(ev, instanceDate);
+  };
+  startInp.addEventListener('change', commit);
+  endInp.addEventListener('change', commit);
+  adjust.append(startInp, endInp);
+  body.appendChild(adjust);
+  if (ev.recurring && ev.recurring !== 'none') {
+    const hint = document.createElement('div');
+    hint.className = 'popover-hint';
+    hint.id = 'popover-adjust-hint';
+    hint.style.display = 'none';
+    hint.textContent = 'Applies to all occurrences.';
+    body.appendChild(hint);
+  }
 }
 
 function closeEventPopover() {
@@ -4975,8 +5069,21 @@ function init() {
   document.getElementById('popover-edit-btn').addEventListener('click', () => {
     const id = popoverEventId; closeEventPopover(); openEventModal(id);
   });
-  document.getElementById('popover-delete-btn').addEventListener('click', () => {
+  // Unschedule == delete the block. Tasks are independent records that merely
+  // hold ids, so removing the block is exactly what returns them to the To-Do
+  // list; there is nothing to detach. deleteEvent() routes recurring events to
+  // the this/following/all modal, which is the right question for "unschedule
+  // this one occurrence".
+  document.getElementById('popover-unschedule-btn').addEventListener('click', () => {
     if (popoverEventId) { deleteEvent(popoverEventId, popoverInstanceDate); closeEventPopover(); }
+  });
+  document.getElementById('popover-adjust-btn').addEventListener('click', () => {
+    const fields = document.getElementById('popover-adjust-fields');
+    const hint = document.getElementById('popover-adjust-hint');
+    if (!fields) return;
+    const open = fields.classList.toggle('open');
+    if (hint) hint.style.display = open ? '' : 'none';
+    if (open) fields.querySelector('input').focus();
   });
 
   // Close popover on outside click
