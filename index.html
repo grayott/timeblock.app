@@ -27,7 +27,8 @@
     --accent-amber: #f59e0b;
     --accent-red: #ef4444;
     --hour-height: 64px;
-    --col-min-width: 80px;
+    --col-min-width: 72px;
+    --gutter-width: 56px;
     /* ── Legacy aliases: retire in pass 2 ── */
     --primary-light: var(--primary-subtle);
     --primary-dark: var(--primary-hover);
@@ -314,7 +315,7 @@
   .fp-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; min-width: 200px;
     background: white; border: 1px solid var(--surface-container); border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; padding: 4px; display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200; padding: 4px; display: none;
   }
   .fp-dropdown.open { display: block; }
   .fp-dropdown-item {
@@ -401,7 +402,7 @@
     background: white; border-bottom: 1px solid var(--surface-container);
     display: flex; flex-shrink: 0;
   }
-  .time-gutter { width: 56px; flex-shrink: 0; }
+  .time-gutter { width: var(--gutter-width); flex-shrink: 0; }
   .week-day-headers { flex: 1; display: flex; overflow: hidden; }
   .day-header-col {
     flex: 1; text-align: center; padding: 8px 4px; border-left: 1px solid var(--surface-container);
@@ -418,7 +419,7 @@
 
   /* All-day row */
   .allday-row { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--surface-container); background: white; min-height: 28px; }
-  .allday-gutter { width: 56px; flex-shrink: 0; font-size: 10px; color: var(--on-surface-variant); display: flex; align-items: flex-start; justify-content: flex-end; padding: 4px 6px 0 0; }
+  .allday-gutter { width: var(--gutter-width); flex-shrink: 0; font-size: 10px; color: var(--on-surface-variant); display: flex; align-items: flex-start; justify-content: flex-end; padding: 4px 6px 0 0; }
   .allday-cols { flex: 1; display: flex; overflow: hidden; position: relative; }
   .allday-col { flex: 1; border-left: 1px solid var(--surface-container); min-height: 28px; position: relative; min-width: var(--col-min-width); }
   .allday-event {
@@ -430,8 +431,8 @@
 
   /* Time Grid */
   .time-grid-scroll { flex: 1; overflow: auto; position: relative; scrollbar-gutter: stable; }
-  .time-grid { display: flex; height: 1536px; position: relative; }
-  .time-labels { width: 56px; flex-shrink: 0; position: relative; }
+  .time-grid { display: flex; height: calc(24 * var(--hour-height)); position: relative; }
+  .time-labels { width: var(--gutter-width); flex-shrink: 0; position: relative; }
   .time-label {
     position: absolute; right: 8px; font-size: 11px; color: var(--on-surface-variant);
     transform: translateY(-50%); white-space: nowrap; font-weight: 500;
@@ -491,7 +492,7 @@
   /* Modals */
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-    z-index: 100; display: flex; align-items: center; justify-content: center;
+    z-index: 500; display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(4px); opacity: 0; transition: opacity 0.2s;
   }
   .modal-backdrop.visible { opacity: 1; }
@@ -670,7 +671,7 @@
   .cal-list-item:hover .cal-item-menu { opacity:1; }
 
   /* Calendar modal */
-  .cal-modal { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:500; display:flex; align-items:center; justify-content:center; display:none; }
+  .cal-modal { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:600; display:flex; align-items:center; justify-content:center; display:none; }
   .cal-modal.visible { display:flex; }
   .cal-modal-box { background:white; border-radius:16px; padding:24px; width:360px; box-shadow:0 24px 64px rgba(0,0,0,0.2); }
   .cal-modal-title { font-family:'Plus Jakarta Sans',sans-serif; font-weight:700; font-size:18px; margin-bottom:16px; }
@@ -687,7 +688,7 @@
 
   /* Quick Event Popover */
   #quick-event-popover {
-    position: fixed; z-index: 350; width: 440px;
+    position: fixed; z-index: 400; width: 440px;
     background: white; border-radius: 16px;
     box-shadow: 0 8px 40px rgba(0,0,0,0.22);
     display: none; flex-direction: column; overflow: hidden;
@@ -739,7 +740,7 @@
     padding: 12px 16px; border-top: 1px solid var(--surface-container); margin-top: 4px;
   }
   /* Backdrop for quick popover (transparent, just for outside-click) */
-  #qep-backdrop { position: fixed; inset: 0; z-index: 349; display: none; }
+  #qep-backdrop { position: fixed; inset: 0; z-index: 399; display: none; }
   #qep-backdrop.visible { display: block; }
 
   /* Draggable modals */
@@ -1097,7 +1098,6 @@
           </select>
         </div>
       </div>
-    </div>
       <div class="form-group">
         <label class="form-label">Linked Tasks</label>
         <div id="ev-linked-tasks-list" style="margin-bottom:6px;"></div>
@@ -1106,6 +1106,7 @@
           <div id="ev-task-suggestions" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border:1px solid var(--surface-container);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:400;overflow:hidden;max-height:180px;overflow-y:auto;"></div>
         </div>
       </div>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-danger" id="ev-delete-btn" style="margin-right:auto; display:none;">Delete</button>
       <button class="btn btn-secondary" id="ev-cancel-btn">Cancel</button>
@@ -1254,6 +1255,7 @@
 // ─────────────────────────────────────────────
 const HOUR_HEIGHT = 64;
 const SNAP = 15; // minutes
+const DAY_HEIGHT = 24 * HOUR_HEIGHT;
 const EVENT_COLORS = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#db2777','#0891b2','#65a30d'];
 const COLOR_NAMES = ['Blue','Purple','Green','Amber','Red','Pink','Cyan','Lime'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -1771,7 +1773,7 @@ function renderMonth() {
       evEl.className = 'month-event';
       evEl.style.background = ev.color || '#2563eb';
       evEl.textContent = (ev.allDay ? '' : formatTime(ev.start) + ' ') + ev.title;
-      evEl.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, day); });
+      evEl.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, date); });
       cell.appendChild(evEl);
     });
 
@@ -1844,6 +1846,7 @@ function renderWeekHeader(days, today) {
 function renderAlldayRow(days) {
   const cols = document.getElementById('allday-cols');
   cols.innerHTML = '';
+  let maxAllday = 0;
   days.forEach(day => {
     const col = document.createElement('div');
     col.className = 'allday-col';
@@ -1856,10 +1859,10 @@ function renderAlldayRow(days) {
       el.addEventListener('click', e => { openEventPopover(ev.id, e.clientX, e.clientY, day); });
       col.appendChild(el);
     });
-    const alldayCount = alldayEventsOnDay(day).length;
-    if (alldayCount > 0) document.getElementById('allday-row').style.minHeight = `${alldayCount * 26 + 12}px`;
+    maxAllday = Math.max(maxAllday, alldayEventsOnDay(day).length);
     cols.appendChild(col);
   });
+  document.getElementById('allday-row').style.minHeight = maxAllday > 0 ? `${maxAllday * 26 + 12}px` : '';
 }
 
 function renderTimeGrid(days, today) {
@@ -1923,7 +1926,7 @@ function renderTimeGrid(days, today) {
       if (!task) return;
       const rect = col.getBoundingClientRect();
       const y = e.clientY - rect.top;
-      const mins = snapMinutes(yToMinutes(y, 1536));
+      const mins = snapMinutes(yToMinutes(y, DAY_HEIGHT));
       const start = new Date(day); start.setHours(Math.floor(mins/60), mins%60, 0, 0);
       const end = new Date(start); end.setMinutes(end.getMinutes() + 60);
       STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#2563eb', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
@@ -2978,7 +2981,7 @@ function showDeleteRecurringModal(ev, instanceDate) {
 
   const backdrop = document.createElement('div');
   backdrop.id = 'delete-recurring-modal';
-  backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:1000;display:flex;align-items:center;justify-content:center;';
+  backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:700;display:flex;align-items:center;justify-content:center;';
 
   const modal = document.createElement('div');
   modal.style.cssText = 'background:white;border-radius:16px;padding:28px 28px 20px;width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-family:inherit;';
@@ -3157,7 +3160,7 @@ function initDragCreate() {
 
     const rect = col.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const startMin = snapMinutes(yToMinutes(y, 1536));
+    const startMin = snapMinutes(yToMinutes(y, DAY_HEIGHT));
     const dateStr = col.dataset.date;
     dragState = { col, dateStr, startY: e.clientY, startMin, currentMin: startMin, rect, colIdx: parseInt(col.dataset.dayIdx) };
 
@@ -3171,7 +3174,7 @@ function initDragCreate() {
     const col = dragState.col;
     const rect = dragState.rect;
     const y = e.clientY - rect.top;
-    const currentMin = snapMinutes(clamp(yToMinutes(y, 1536), 0, 24*60 - SNAP));
+    const currentMin = snapMinutes(clamp(yToMinutes(y, DAY_HEIGHT), 0, 24*60 - SNAP));
     dragState.currentMin = currentMin;
 
     const s = Math.min(dragState.startMin, currentMin);
@@ -3403,7 +3406,6 @@ function openQuickEventPopover(start, end, clientX, clientY) {
   requestAnimationFrame(() => { pop.classList.add('visible'); });
   setTimeout(() => document.getElementById('qep-title').focus(), 100);
 
-  makeDraggable(pop, document.getElementById('qep-drag-handle'));
 }
 
 function closeQuickEventPopover() {
@@ -3477,7 +3479,7 @@ document.getElementById('qep-more-btn').addEventListener('click', () => {
     if (v.title) document.getElementById('ev-title').value = v.title;
     if (v.location) document.getElementById('ev-location').value = v.location;
     if (v.description) document.getElementById('ev-description').value = v.description;
-    if (v.calendarId) document.getElementById('ev-calendar').value = v.calendarId;
+    if (v.calendarId) document.getElementById('ev-calendar-id').value = v.calendarId;
   });
 });
 
@@ -4545,7 +4547,7 @@ function openListManager() {
   if (overlay) overlay.remove();
   overlay = document.createElement('div');
   overlay.id = 'list-manager-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:400;display:flex;align-items:center;justify-content:center;';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:500;display:flex;align-items:center;justify-content:center;';
   const modal = document.createElement('div');
   modal.style.cssText = 'background:white;border-radius:14px;padding:20px;width:360px;max-height:500px;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,0.15);';
 
@@ -4903,6 +4905,7 @@ function init() {
 
   // Draggable event popover
   makeDraggable(document.getElementById('event-popover'), document.getElementById('event-popover-drag-handle'));
+  makeDraggable(document.getElementById('quick-event-popover'), document.getElementById('qep-drag-handle'));
 
   // Popover buttons
   document.getElementById('popover-close-btn').addEventListener('click', closeEventPopover);
