@@ -4,8 +4,8 @@
     {
       "name": "General preview",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "4173"],
-      "port": 4173
+      "runtimeArgs": ["/Users/graysonottenbreit/bin/timebox-server.py"],
+      "port": 3000
     }
   ]
 }
