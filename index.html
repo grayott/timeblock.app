@@ -400,6 +400,31 @@
     gap: 10px; flex-wrap: wrap;
   }
   #tk-scroll { flex: 1; overflow-y: auto; padding: 16px 20px 40px; }
+  /* ── Project timeline ───────────────────────────────────────────── */
+  #tk-timeline { display: none; flex: 1; min-height: 0; flex-direction: column; }
+  #tk-timeline.active { display: flex; }
+  .tl-bar { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle); }
+  .tl-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 13px; }
+  .tl-scroll { flex: 1; min-height: 0; overflow: auto; }
+  .tl-inner { position: relative; min-height: 100%; }
+  .tl-axis { position: sticky; top: 0; z-index: 3; height: 40px; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); }
+  .tl-month { position: absolute; top: 0; height: 20px; font-size: 11px; font-weight: 600; color: var(--text-secondary); padding-left: 6px; border-left: 1px solid var(--border-subtle); display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
+  .tl-tick { position: absolute; top: 20px; height: 20px; font-size: 9px; color: var(--text-tertiary); display: flex; align-items: center; justify-content: center; }
+  .tl-tick.is-weekstart { border-left: 1px solid var(--border-subtle); }
+  .tl-rows { position: relative; }
+  .tl-grid-line { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border-subtle); opacity: 0.6; }
+  .tl-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent-red); z-index: 2; pointer-events: none; }
+  .tl-bar-item {
+    position: absolute; height: 26px; border-radius: 6px; display: flex; align-items: center;
+    gap: 6px; padding: 0 8px; font-size: 11.5px; font-weight: 600; cursor: grab;
+    white-space: nowrap; overflow: hidden; z-index: 1; user-select: none;
+  }
+  .tl-bar-item.selected { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .tl-bar-item.is-done { opacity: 0.55; }
+  .tl-bar-item.dragging { cursor: grabbing; opacity: 0.85; z-index: 5; }
+  .tl-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+  .tl-handle.left { left: 0; } .tl-handle.right { right: 0; }
+  .tl-empty { padding: 40px 16px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
   .tk-sheet { max-width: 860px; margin: 0 auto; }
   .tk-group-head {
     display: flex; align-items: center; gap: 8px; padding: 14px 4px 6px;
@@ -1243,11 +1268,35 @@
         </div>
         <div id="tk-controls">
           <div id="tasks-fp-toolbar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+          <div class="view-switcher" id="tk-mode-switch">
+            <button class="view-btn" data-tkmode="list">List</button>
+            <button class="view-btn" data-tkmode="timeline">Timeline</button>
+          </div>
           <button class="tk-braindump-btn" id="tk-braindump-btn" title="Capture anything, sort it later"><span class="material-symbols-outlined" style="font-size:15px;">bolt</span>Brain Dump</button>
           <div style="position:relative;">
             <span class="material-symbols-outlined" style="position:absolute;left:7px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-tertiary);pointer-events:none;">search</span>
             <input type="text" id="tk-search" placeholder="Filter rows…" autocomplete="off"
               style="width:180px;padding:4px 8px 4px 26px;font-family:inherit;font-size:12px;border:1px solid var(--border-subtle);border-radius:6px;background:var(--bg-canvas);color:var(--text-primary);outline:none;">
+          </div>
+        </div>
+        <div id="tk-timeline">
+          <div class="tl-bar">
+            <div class="nav-arrows">
+              <button class="nav-btn" id="tl-prev" title="Earlier"><span class="material-symbols-outlined" style="font-size:18px;">chevron_left</span></button>
+              <button class="nav-btn" id="tl-next" title="Later"><span class="material-symbols-outlined" style="font-size:18px;">chevron_right</span></button>
+            </div>
+            <button class="plan-act" id="tl-today">Today</button>
+            <span class="tl-title" id="tl-title"></span>
+            <div class="view-switcher" style="margin-left:auto;">
+              <button class="view-btn" data-tlscale="quarter">Quarter</button>
+              <button class="view-btn" data-tlscale="month">Month</button>
+            </div>
+          </div>
+          <div class="tl-scroll" id="tl-scroll">
+            <div class="tl-inner" id="tl-inner">
+              <div class="tl-axis" id="tl-axis"></div>
+              <div class="tl-rows" id="tl-rows"></div>
+            </div>
           </div>
         </div>
         <div id="tk-scroll">
@@ -1827,6 +1876,7 @@ let STATE = {
   calendars: [],
   lists: [],
   projects: [],
+  projectViewConfig: { mode: 'list', scale: 'quarter', anchor: null },
   statusSets: defaultStatusSets(),
   route: 'home',        // 'home' | 'calendar' | 'tasks' | 'notes'
   calScale: 'week',     // 'day' | 'week' | 'nday' | 'month'
@@ -2066,6 +2116,7 @@ function saveState() {
     schemaVersion: SCHEMA_VERSION,
     calendars: STATE.calendars || [],
     lists: STATE.lists || [],
+    projectViewConfig: Object.assign({}, STATE.projectViewConfig, { anchor: STATE.projectViewConfig && STATE.projectViewConfig.anchor ? toDueDate(STATE.projectViewConfig.anchor).toISOString() : null }),
     projects: (STATE.projects || []).map(pr => ({
       ...pr,
       start: pr.start ? toDueDate(pr.start).toISOString() : null,
@@ -2125,6 +2176,8 @@ function loadState() {
     STATE.lists = s.lists || [];
     STATE.projects = (s.projects || []).map(pr => ({ ...pr, start: toDueDate(pr.start), due: toDueDate(pr.due) }));
     STATE.statusSets = s.statusSets || defaultStatusSets();
+    STATE.projectViewConfig = Object.assign({ mode: 'list', scale: 'quarter', anchor: null }, s.projectViewConfig || {});
+    if (STATE.projectViewConfig.anchor) STATE.projectViewConfig.anchor = toDueDate(STATE.projectViewConfig.anchor);
     STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' }, s.taskViewConfig || {});
     STATE.views = s.views || [];
     STATE.activeViewId = s.activeViewId || null;
@@ -4734,6 +4787,7 @@ function renderTasksFullPage() {
   renderTkRail();
   renderTkTabs();
   renderFpToolbar();
+  renderTimeline();
   renderTasksFullPageAll();
   renderTkInspector();
   const open = rootTasks().filter(t => !t.completed).length;
@@ -4752,6 +4806,214 @@ function tkSmartCount(id) {
       case 'completed': return !!t.completed;
     }
   }).length;
+}
+
+// ── Project timeline ────────────────────────────────────────────────
+// Horizontal mirror of the day grid: minutesToY/yToMinutes become dayToX/
+// xToDay, and the shared packer assigns rows instead of columns. Quarter and
+// month are the same renderer with a different pixels-per-day.
+const TL_SCALES = { quarter: { px: 9 }, month: { px: 28 } };
+const TL_ROW_H = 26, TL_ROW_GAP = 6, TL_PAD_TOP = 8;
+
+function tlConfig() {
+  const c = STATE.projectViewConfig || {};
+  return { mode: c.mode || 'timeline', scale: TL_SCALES[c.scale] ? c.scale : 'quarter', anchor: toDueDate(c.anchor) || startOfDay(new Date()) };
+}
+
+// The visible window: a calendar quarter, or a calendar month.
+function tlRange() {
+  const { scale, anchor } = tlConfig();
+  if (scale === 'month') {
+    const start = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
+    return { start: startOfDay(start), days: end.getDate(), px: TL_SCALES.month.px };
+  }
+  const q = Math.floor(anchor.getMonth() / 3);
+  const start = new Date(anchor.getFullYear(), q * 3, 1);
+  const end = new Date(anchor.getFullYear(), q * 3 + 3, 0);
+  return { start: startOfDay(start), days: daysBetween(start, end) + 1, px: TL_SCALES.quarter.px };
+}
+
+function dayToX(d, t0, px) { return daysBetween(t0, d) * px; }
+function xToDay(x, t0, px) { return addDays(t0, Math.round(x / px)); }
+
+function tlTitle(r) {
+  const { scale, anchor } = tlConfig();
+  if (scale === 'month') return `${MONTHS[anchor.getMonth()]} ${anchor.getFullYear()}`;
+  return `Q${Math.floor(anchor.getMonth() / 3) + 1} ${anchor.getFullYear()}`;
+}
+
+function renderTimeline() {
+  const host = document.getElementById('tk-timeline');
+  if (!host) return;
+  const { mode, scale } = tlConfig();
+  host.classList.toggle('active', mode === 'timeline');
+  document.getElementById('tk-scroll').style.display = mode === 'timeline' ? 'none' : '';
+  document.querySelectorAll('#tk-mode-switch .view-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tkmode === mode));
+  if (mode !== 'timeline') return;
+
+  const r = tlRange();
+  const width = r.days * r.px;
+  document.getElementById('tl-title').textContent = tlTitle(r);
+  document.querySelectorAll('#tk-timeline .view-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tlscale === scale));
+
+  // Axis: a month band on top, day ticks below.
+  const axis = document.getElementById('tl-axis');
+  axis.innerHTML = '';
+  axis.style.width = width + 'px';
+  let m = new Date(r.start.getFullYear(), r.start.getMonth(), 1);
+  while (m <= addDays(r.start, r.days - 1)) {
+    const mStart = m < r.start ? r.start : m;
+    const mEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0);
+    const clampedEnd = mEnd > addDays(r.start, r.days - 1) ? addDays(r.start, r.days - 1) : mEnd;
+    const el = document.createElement('div');
+    el.className = 'tl-month';
+    el.style.left = dayToX(mStart, r.start, r.px) + 'px';
+    el.style.width = ((daysBetween(mStart, clampedEnd) + 1) * r.px) + 'px';
+    el.textContent = `${MONTHS[m.getMonth()]} ${m.getFullYear()}`;
+    axis.appendChild(el);
+    m = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+  }
+  // Day ticks are only legible at month zoom; at quarter zoom show week starts.
+  for (let i = 0; i < r.days; i++) {
+    const d = addDays(r.start, i);
+    const isWeekStart = d.getTime() === startOfWeek(d).getTime();
+    if (scale === 'quarter' && !isWeekStart) continue;
+    const el = document.createElement('div');
+    el.className = 'tl-tick' + (isWeekStart ? ' is-weekstart' : '');
+    el.style.left = dayToX(d, r.start, r.px) + 'px';
+    el.style.width = (scale === 'quarter' ? 7 * r.px : r.px) + 'px';
+    el.textContent = scale === 'quarter' ? `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}` : String(d.getDate());
+    axis.appendChild(el);
+  }
+
+  const rows = document.getElementById('tl-rows');
+  rows.innerHTML = '';
+  rows.style.width = width + 'px';
+
+  // Only what overlaps the window. A project wholly outside it would
+  // otherwise hold an empty lane open and push everything else down.
+  const winStart = r.start, winEnd = addDays(r.start, r.days - 1);
+  const projects = sortedProjects().filter(pr => {
+    const st = toDueDate(pr.start), du = toDueDate(pr.due);
+    return st && du && st <= winEnd && du >= winStart;
+  });
+  if (!projects.length) {
+    rows.style.height = '120px';
+    const e = document.createElement('div');
+    e.className = 'tl-empty';
+    e.style.cssText = 'position:sticky;left:0;width:100%;';
+    e.textContent = (STATE.projects || []).length
+      ? 'No projects in this period — use the arrows to look elsewhere.'
+      : 'No projects yet — add one from the rail to see it here.';
+    rows.appendChild(e);
+    return;
+  }
+
+  // Same packer as the day grid, lanes read as rows.
+  const laid = packLanes(projects, pr => ({ s: +toDueDate(pr.start), e: +addDays(toDueDate(pr.due), 1) }));
+  const laneCount = laid.length ? laid[0].totalLanes : 1;
+  rows.style.height = (TL_PAD_TOP + laneCount * (TL_ROW_H + TL_ROW_GAP) + 12) + 'px';
+
+  // Week gridlines behind the bars.
+  for (let i = 0; i < r.days; i++) {
+    const d = addDays(r.start, i);
+    if (d.getTime() !== startOfWeek(d).getTime()) continue;
+    const line = document.createElement('div');
+    line.className = 'tl-grid-line';
+    line.style.left = dayToX(d, r.start, r.px) + 'px';
+    rows.appendChild(line);
+  }
+
+  const today = startOfDay(new Date());
+  if (today >= r.start && today <= addDays(r.start, r.days - 1)) {
+    const tl = document.createElement('div');
+    tl.className = 'tl-today';
+    tl.style.left = dayToX(today, r.start, r.px) + 'px';
+    rows.appendChild(tl);
+  }
+
+  laid.forEach(({ item: pr, lane }) => {
+    const start = toDueDate(pr.start), due = toDueDate(pr.due);
+    // Clip to the window so a bar that begins earlier still shows its name at
+    // the left edge instead of scrolling its label off-canvas.
+    const visStart = start < winStart ? winStart : start;
+    const visEnd = due > winEnd ? winEnd : due;
+    const left = dayToX(visStart, r.start, r.px);
+    // due is inclusive, so the bar runs to the end of that day.
+    const w = Math.max((daysBetween(visStart, visEnd) + 1) * r.px, 18);
+    const clippedL = start < winStart, clippedR = due > winEnd;
+    const color = pr.color || CAL_COLORS[0];
+    const done = isTerminalStatus('project', pr.status);
+    const el = document.createElement('div');
+    el.className = 'tl-bar-item' + (selectedProjectId === pr.id ? ' selected' : '') + (done ? ' is-done' : '');
+    el.style.cssText = `left:${left}px;width:${w}px;top:${TL_PAD_TOP + lane * (TL_ROW_H + TL_ROW_GAP)}px;` +
+      `background:${color}1f;border:1px solid ${color}3d;color:${color};` +
+      (clippedL ? 'border-left:none;border-top-left-radius:0;border-bottom-left-radius:0;'
+                : `border-left:3px solid ${color};`) +
+      (clippedR ? 'border-right:none;border-top-right-radius:0;border-bottom-right-radius:0;' : '');
+    const label = document.createElement('span');
+    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;';
+    label.textContent = pr.title;
+    el.appendChild(label);
+    const prog = projectProgress(pr.id);
+    if (prog.total) {
+      const pill = document.createElement('span');
+      pill.className = 'mono';
+      pill.style.cssText = 'font-size:10px;opacity:0.8;flex-shrink:0;';
+      pill.textContent = `${prog.done}/${prog.total}`;
+      el.appendChild(pill);
+    }
+    ['left', 'right'].forEach(side => {
+      if (side === 'left' && clippedL) return;
+      if (side === 'right' && clippedR) return;
+      const h = document.createElement('div');
+      h.className = 'tl-handle ' + side;
+      h.addEventListener('mousedown', e => startTlDrag(e, pr, side));
+      el.appendChild(h);
+    });
+    el.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('tl-handle')) return;
+      startTlDrag(e, pr, 'move');
+    });
+    el.addEventListener('click', () => selectProject(pr.id));
+    el.title = `${pr.title} · ${dayLabel(formatDateInput(start))} – ${dayLabel(formatDateInput(due))}`;
+    rows.appendChild(el);
+  });
+}
+
+// Drag a bar to move it, or an edge to resize. Snapped to whole days and run
+// through setProjectRange, so the 1-week/1-year bounds hold here too -- a rule
+// that lived only in the editor would be bypassed by the first drag.
+let tlDrag = null;
+function startTlDrag(e, pr, mode) {
+  e.preventDefault(); e.stopPropagation();
+  const r = tlRange();
+  tlDrag = { pr, mode, startX: e.clientX, px: r.px,
+             origStart: toDueDate(pr.start), origDue: toDueDate(pr.due) };
+  document.body.style.cursor = mode === 'move' ? 'grabbing' : 'ew-resize';
+}
+
+function initTimelineDrag() {
+  document.addEventListener('mousemove', e => {
+    if (!tlDrag) return;
+    const shift = Math.round((e.clientX - tlDrag.startX) / tlDrag.px);
+    if (!shift && tlDrag.mode === 'move') return;
+    const { pr, origStart, origDue, mode } = tlDrag;
+    if (mode === 'move') setProjectRange(pr, addDays(origStart, shift), addDays(origDue, shift));
+    else if (mode === 'left') setProjectRange(pr, addDays(origStart, shift), origDue, { anchor: 'due' });
+    else setProjectRange(pr, origStart, addDays(origDue, shift));
+    renderTimeline();
+  });
+  document.addEventListener('mouseup', () => {
+    if (!tlDrag) return;
+    tlDrag = null;
+    document.body.style.cursor = '';
+    saveState();
+    renderTasksFullPage();
+  });
 }
 
 function renderTkRail() {
@@ -7042,6 +7304,32 @@ function init() {
     document.getElementById('tk-openpill').textContent =
       `${rootTasks().filter(t => !t.completed).length} open`;
   });
+  document.getElementById('tk-mode-switch').addEventListener('click', e => {
+    const b = e.target.closest('[data-tkmode]');
+    if (!b) return;
+    STATE.projectViewConfig.mode = b.dataset.tkmode;
+    saveState(); renderTasksFullPage();
+  });
+  document.querySelector('#tk-timeline .view-switcher').addEventListener('click', e => {
+    const b = e.target.closest('[data-tlscale]');
+    if (!b) return;
+    STATE.projectViewConfig.scale = b.dataset.tlscale;
+    saveState(); renderTimeline();
+  });
+  const tlStep = dir => {
+    const c = tlConfig();
+    const months = c.scale === 'month' ? 1 : 3;
+    STATE.projectViewConfig.anchor = addMonths(c.anchor, dir * months);
+    saveState(); renderTimeline();
+  };
+  document.getElementById('tl-prev').addEventListener('click', () => tlStep(-1));
+  document.getElementById('tl-next').addEventListener('click', () => tlStep(1));
+  document.getElementById('tl-today').addEventListener('click', () => {
+    STATE.projectViewConfig.anchor = startOfDay(new Date());
+    saveState(); renderTimeline();
+  });
+  initTimelineDrag();
+
   document.getElementById('tk-add-project').addEventListener('click', () => {
     const pr = createProject();
     selectProject(pr.id);
