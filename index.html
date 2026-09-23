@@ -107,15 +107,6 @@
   #main { display: flex; flex: 1; overflow: hidden; }
 
   /* Planning Panel (left, ~48%) */
-  #plan-panel {
-    width: 48%; flex-shrink: 0; min-width: 380px; max-width: 760px;
-    background: var(--bg-surface);
-    border-right: 1px solid var(--border-subtle);
-    display: flex; flex-direction: column; overflow: hidden;
-    transition: width 0.2s ease, min-width 0.2s ease;
-  }
-  #plan-panel.sidebar-collapsed { width: 44px; min-width: 44px; }
-  #plan-panel.sidebar-collapsed .sidebar-hide { display: none !important; }
 
   .icon-btn {
     width: 32px; height: 32px; border: none; background: none; cursor: pointer;
@@ -1201,44 +1192,6 @@
 <!-- Main -->
 <div id="main">
   <!-- Planning Panel -->
-  <aside id="plan-panel">
-    <div class="plan-header">
-      <span class="plan-h2 sidebar-hide" id="plan-date-label"></span>
-      <button class="icon-btn" id="left-sidebar-collapse-btn" title="Collapse panel" style="width:28px;height:28px;">
-        <span class="material-symbols-outlined" style="font-size:18px;" id="left-sidebar-collapse-icon">left_panel_close</span>
-      </button>
-    </div>
-    <div id="plan-scroll" class="sidebar-hide">
-      <!-- 1. Top Three -->
-      <section class="plan-section" id="plan-topthree">
-        <div class="plan-section-head">
-          <div class="plan-h2">Top Three</div>
-          <span class="plan-meta mono">Resets at 12:00 AM</span>
-        </div>
-        <div id="top-three-slots" style="display:flex;flex-direction:column;gap:7px;"></div>
-      </section>
-      <!-- 2. Brain Dump -->
-      <section class="plan-section" id="plan-braindump">
-        <div class="plan-section-head">
-          <span class="plan-label">Brain Dump</span>
-        </div>
-        <div class="plan-input-wrap">
-          <input type="text" class="plan-input" id="brain-dump-input" placeholder="Dump a thought, task, or type a date (e.g. tom 2pm)…" autocomplete="off">
-          <span class="plan-kbd">Enter</span>
-          <div class="brain-dump-suggestions" id="brain-dump-suggestions"></div>
-        </div>
-        <div id="brain-dump-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-      </section>
-      <!-- 3-5. Today / Overdue / Pull List -->
-      <div id="tasks-list" style="display:flex;flex-direction:column;gap:22px;"></div>
-    </div>
-    <div class="plan-footer sidebar-hide">
-      <span style="display:flex;align-items:center;gap:6px;">
-        <span class="material-symbols-outlined" style="font-size:13px;">touch_app</span>
-        Drag any task onto the calendar grid to timeblock
-      </span>
-    </div>
-  </aside>
 
   <!-- Calendar Area -->
   <div id="cal-area">
@@ -1933,7 +1886,7 @@ let STATE = {
   dailyNote: null,      // the carry-forward page; NOT wiped at midnight
   notes: [],            // archived pages
   activeNoteId: null,
-  ui: { overdueOpen: false, unscheduledOpen: false, planCollapsed: false, homeLaterOpen: false },
+  ui: { homeLaterOpen: false },
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' },
   views: [],            // user-saved [{ id, name, config }]
   activeViewId: null,   // null = the built-in All Tasks view
@@ -2241,7 +2194,7 @@ function loadState() {
     // Notes written before the daily page existed become archives; the first
     // load after this change starts a fresh page rather than adopting one.
     STATE.dailyNote = s.dailyNote || newDailyNote();
-    STATE.ui = Object.assign({ overdueOpen: false, unscheduledOpen: false, planCollapsed: false, homeLaterOpen: false }, s.ui || {});
+    STATE.ui = Object.assign({ homeLaterOpen: false }, s.ui || {});
     // Daily rollover for the tab-was-closed case; scheduleMidnightReset() covers a tab left open.
     // This also re-derives task.top3 from the slots, healing any drift.
     rolloverIfNewDay();
@@ -2426,16 +2379,12 @@ function render() {
   renderNavTitle();
   if (STATE.route !== 'tasks') renderTasks();
   renderViewButtons();
-  const planPanel = document.getElementById('plan-panel');
   const tasksFullpage = document.getElementById('tasks-fullpage');
   const homeView = document.getElementById('home-view');
   const notesFullpage = document.getElementById('notes-fullpage');
   const monthView = document.getElementById('month-view');
   const weekView = document.getElementById('week-view');
 
-  // The old daily-planning sidebar is superseded by the Home page; it stays
-  // in the DOM (untouched) but is never shown any more.
-  planPanel.style.display = 'none';
   monthView.style.display = 'none';
   weekView.style.display = 'none';
   tasksFullpage.classList.remove('active');
@@ -2898,26 +2847,6 @@ function getTaskPriority(t) { return (t && t.priority) || 'medium'; }
 function priorityLabel(t) { return PRIORITY_LABEL[getTaskPriority(t)] || 'P2'; }
 function priorityRank(t) { return PRIORITY_ORDER[getTaskPriority(t)]; }
 
-function categorizeTasks() {
-  const todayD = new Date(); todayD.setHours(0,0,0,0);
-  const cats = { overdue: [], today: [], upcoming: [], noDueDate: [], completed: [] };
-  rootTasks().forEach(task => {
-    if (task.completed) { cats.completed.push(task); return; }
-    if (!task.dueDate) { cats.noDueDate.push(task); return; }
-    const due = new Date(task.dueDate); due.setHours(0,0,0,0);
-    const diff = Math.round((due - todayD) / 86400000);
-    if (diff < 0) cats.overdue.push(task);
-    else if (diff === 0) cats.today.push(task);
-    else cats.upcoming.push(task);
-  });
-  // Sort each by priority then date
-  const byPriority = arr => arr.sort((a,b) => (priorityRank(a)) - (priorityRank(b)));
-  byPriority(cats.overdue); byPriority(cats.today); byPriority(cats.noDueDate); byPriority(cats.completed);
-  cats.upcoming.sort((a,b) => (new Date(a.dueDate) - new Date(b.dueDate)) || (priorityRank(a) - priorityRank(b)));
-  return cats;
-}
-
-
 // ─────────────────────────────────────────────
 // PLANNING PANEL
 // ─────────────────────────────────────────────
@@ -2968,31 +2897,6 @@ function relDayLabel(d) {
 // One pass, four buckets. The Brain Dump tray is "captured today and still
 // undated" -- explicit membership in STATE.brainDump is what distinguishes it
 // from the Pull List, which is every undated task from any list.
-function bucketTasks() {
-  const today = startOfDay(new Date());
-  const out = { today: [], overdue: [], unscheduled: [], dump: [] };
-  const dumpIds = new Set(STATE.brainDump || []);
-  for (const t of rootTasks()) {
-    const due = toDueDate(t.dueDate);
-    if (!due) {
-      if (t.completed) continue;
-      if (dumpIds.has(t.id)) out.dump.push(t);
-      else out.unscheduled.push(t);
-      continue;
-    }
-    const d = startOfDay(due);
-    if (d < today) { if (!t.completed) out.overdue.push(t); }
-    else if (d.getTime() === today.getTime()) out.today.push(t);
-  }
-  const byPriority = (a, b) => (priorityRank(a)) - (priorityRank(b));
-  out.today.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0) || byPriority(a, b));
-  out.overdue.sort((a, b) => toDueDate(a.dueDate) - toDueDate(b.dueDate) || byPriority(a, b));
-  out.unscheduled.sort(byPriority);
-  // Preserve capture order for the tray.
-  out.dump.sort((a, b) => (STATE.brainDump.indexOf(a.id)) - (STATE.brainDump.indexOf(b.id)));
-  return out;
-}
-
 // "Today" here always means the real today, never STATE.currentDate -- otherwise
 // items would vanish from the panel whenever the calendar navigates elsewhere.
 function pullToToday(id) {
@@ -3098,88 +3002,16 @@ function planSectionHead(label, rightText, dot) {
 // Collapse state lives in STATE.ui, not a closure. It used to live in
 // taskList.style.display, which renderTasks() threw away -- so the section
 // sprang back open on every checkbox tick.
-function buildCollapsibleCard(o) {
-  const card = document.createElement('div');
-  card.className = 'plan-card';
-  const head = document.createElement('div');
-  head.className = 'plan-card-head';
-  const left = document.createElement('div');
-  left.className = 'plan-card-head-left';
-  left.innerHTML =
-    `<span class="material-symbols-outlined" style="font-size:15px;color:${o.iconColor || 'var(--text-tertiary)'};">${o.icon}</span>` +
-    `<span class="plan-card-title">${o.title}</span>` +
-    `<span class="plan-count${o.warn ? ' is-warn' : ''}">${o.count}</span>`;
-  const right = document.createElement('div');
-  right.style.cssText = 'display:flex;align-items:center;gap:4px;';
-  if (o.headAction) {
-    const a = document.createElement('button');
-    a.className = 'plan-act';
-    a.textContent = o.headAction.label;
-    a.addEventListener('click', e => { e.stopPropagation(); o.headAction.onClick(); });
-    right.appendChild(a);
-  }
-  const chev = document.createElement('span');
-  chev.className = 'material-symbols-outlined plan-chev' + (o.open ? '' : ' is-closed');
-  chev.textContent = 'expand_more';
-  right.appendChild(chev);
-  head.append(left, right);
-  head.addEventListener('click', () => { o.onToggle(); saveState(); renderTasks(); });
-  card.appendChild(head);
-  if (o.open) {
-    const body = document.createElement('div');
-    body.className = 'plan-card-body';
-    o.rows.forEach(r => body.appendChild(r));
-    card.appendChild(body);
-  }
-  return card;
-}
-
 // ── Orchestrator ──
+// The general "something about tasks changed" entry point, called from ~15
+// mutation sites. The planning sidebar it used to draw is gone; what remains
+// is the derived schedule map and keeping Home's column in step.
 function renderTasks() {
-  const list = document.getElementById('tasks-list');
-  if (!list) return;
   PLAN_SCHED = buildScheduleMap();
-  const b = bucketTasks();
-
-  const dateLabel = document.getElementById('plan-date-label');
-  if (dateLabel) {
-    const now = new Date();
-    dateLabel.textContent = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()].slice(0, 3)} ${now.getDate()}`;
-  }
-
-  renderBrainDump();
-  renderTopThree();
-
-  list.innerHTML = '';
-  list.appendChild(renderTodaySection(b.today));
-  if (b.overdue.length) list.appendChild(renderOverdueSection(b.overdue));
-  if (b.unscheduled.length) list.appendChild(renderUnscheduledSection(b.unscheduled));
-
-  // Keep the Home page's Tasks column in sync with every mutation that
-  // already funnels through here, whether or not Home is the visible route.
   if (STATE.route === 'home') renderHomeTasks();
 }
 
 // ── 4. Today's Tasks ──
-function renderTodaySection(tasks) {
-  const sec = document.createElement('section');
-  sec.className = 'plan-section';
-  const remaining = tasks.filter(t => !t.completed).length;
-  sec.appendChild(planSectionHead("Today's Tasks", `${remaining} remaining`, true));
-  if (!tasks.length) {
-    const e = document.createElement('div');
-    e.className = 'plan-empty';
-    e.textContent = 'Nothing due today. Pull something up from below.';
-    sec.appendChild(e);
-    return sec;
-  }
-  const body = document.createElement('div');
-  body.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
-  tasks.forEach(t => body.appendChild(buildPlanRow(t, { chip: todayChip(t) })));
-  sec.appendChild(body);
-  return sec;
-}
-
 // A row's right-hand chip, most specific first: the block it sits in, then its
 // own due time, then an explicit "not on the grid yet".
 function todayChip(t) {
@@ -3197,46 +3029,7 @@ function todayChip(t) {
 }
 
 // ── 5. Overdue: collapsed by default, rows behave like Today's rows ──
-function renderOverdueSection(tasks) {
-  const sec = document.createElement('section');
-  sec.className = 'plan-section';
-  const open = !!STATE.ui.overdueOpen;
-  const rows = open ? tasks.map(t => buildPlanRow(t, {
-    sunk: true,
-    chip: { text: relDayLabel(toDueDate(t.dueDate)), cls: 'is-warn' },
-    action: { icon: 'arrow_forward', title: 'Move to Today', onClick: () => pullToToday(t.id) }
-  })) : [];
-  sec.appendChild(buildCollapsibleCard({
-    icon: 'schedule', iconColor: 'var(--accent-amber)', title: 'Overdue',
-    count: tasks.length, warn: true, open, rows,
-    headAction: open ? { label: 'Move all to today', onClick: () => {
-      const today = toDueDate(new Date());
-      tasks.forEach(t => { t.dueDate = today; });
-      saveState(); renderTasks();
-    } } : null,
-    onToggle: () => { STATE.ui.overdueOpen = !STATE.ui.overdueOpen; }
-  }));
-  return sec;
-}
-
 // ── 6. All Unscheduled / Pull List ──
-function renderUnscheduledSection(tasks) {
-  const sec = document.createElement('section');
-  sec.className = 'plan-section';
-  const open = !!STATE.ui.unscheduledOpen;
-  const rows = open ? tasks.map(t => buildPlanRow(t, {
-    sunk: true,
-    sub: t.listId ? getTaskListName(t) : null,
-    action: { label: 'Pull', title: 'Schedule for today', onClick: () => pullToToday(t.id) }
-  })) : [];
-  sec.appendChild(buildCollapsibleCard({
-    icon: 'inbox', title: 'All Unscheduled / Pull List',
-    count: tasks.length, open, rows,
-    onToggle: () => { STATE.ui.unscheduledOpen = !STATE.ui.unscheduledOpen; }
-  }));
-  return sec;
-}
-
 // ─── Natural Language Date Parser ───────────────────────────────────────────
 function parseNLPDate(text) {
   const now = new Date();
@@ -4284,18 +4077,6 @@ document.getElementById('add-btn').addEventListener('click', (e) => {
   else openQuickEventPopover(null, null, e.clientX, e.clientY);
 });
 
-function applyPlanCollapsed() {
-  const panel = document.getElementById('plan-panel');
-  const icon = document.getElementById('left-sidebar-collapse-icon');
-  const collapsed = !!(STATE.ui && STATE.ui.planCollapsed);
-  panel.classList.toggle('sidebar-collapsed', collapsed);
-  icon.textContent = collapsed ? 'left_panel_open' : 'left_panel_close';
-  document.getElementById('left-sidebar-collapse-btn').title = collapsed ? 'Expand panel' : 'Collapse panel';
-}
-document.getElementById('left-sidebar-collapse-btn').addEventListener('click', () => {
-  STATE.ui.planCollapsed = !STATE.ui.planCollapsed;
-  applyPlanCollapsed(); saveState();
-});
 
 // Route and calendar zoom are independent now, so returning to Calendar just
 // shows whatever calScale was already there -- no _prevView stash needed.
@@ -6285,103 +6066,6 @@ function attachTaskAutocomplete(input, listEl, opts) {
 // ─────────────────────────────────────────────
 // Three positional slots that reset at midnight. No stars, no icons -- the
 // number is the whole affordance.
-function renderTopThree() {
-  const container = document.getElementById('top-three-slots');
-  if (!container) return;
-  STATE.topThree = normalizeTopThree(STATE.topThree);
-  container.innerHTML = '';
-
-  for (let i = 0; i < 3; i++) {
-    const taskId = STATE.topThree[i];
-    const task = taskId ? STATE.tasks.find(t => t.id === taskId) : null;
-    const slot = document.createElement('div');
-    slot.className = 'plan-slot' + (task ? '' : ' is-empty');
-    slot.dataset.slot = i;
-
-    const num = document.createElement('span');
-    num.className = 'plan-slot-num';
-    num.textContent = i + 1;
-    slot.appendChild(num);
-
-    if (task) {
-      slot.setAttribute('draggable', 'true');
-      slot.dataset.taskId = task.id;
-
-      const cb = document.createElement('div');
-      cb.className = 'plan-check' + (task.completed ? ' checked' : '');
-      cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
-      slot.appendChild(cb);
-
-      const title = document.createElement('span');
-      title.className = 'plan-row-title' + (task.completed ? ' is-done' : '');
-      title.style.fontWeight = '500';
-      title.textContent = task.title;
-      slot.appendChild(title);
-
-      const ev = PLAN_SCHED.get(task.id);
-      const chip = document.createElement('span');
-      if (ev) {
-        chip.className = 'plan-chip';
-        chip.textContent = scheduleChipText(ev);
-      } else {
-        chip.className = 'plan-chip is-ghost';
-        chip.textContent = '+ Timebox';
-        chip.title = 'Block time for this task';
-        chip.addEventListener('click', e => { e.stopPropagation(); timeboxTask(task.id, e.clientX, e.clientY); });
-      }
-      slot.appendChild(chip);
-
-      const rm = document.createElement('button');
-      rm.className = 'plan-icon-act';
-      rm.title = 'Remove from Top Three';
-      rm.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">close</span>';
-      rm.addEventListener('click', e => {
-        e.stopPropagation();
-        STATE.topThree[i] = null;
-        syncTop3Flags();
-        saveState(); renderTasks();
-      });
-      slot.appendChild(rm);
-    } else {
-      const inp = document.createElement('input');
-      inp.type = 'text';
-      inp.className = 'plan-slot-input';
-      inp.placeholder = 'Drag or type';
-      inp.autocomplete = 'off';
-      inp.style.cssText = 'flex:1;min-width:0;border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--text-primary);text-overflow:ellipsis;';
-      const sug = document.createElement('div');
-      sug.className = 'brain-dump-suggestions';
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'flex:1;min-width:0;position:relative;';
-      wrap.append(inp, sug);
-      slot.appendChild(wrap);
-      // Attached per render, but the element is discarded with it, so the
-      // document listener dies with the node rather than accumulating.
-      attachTaskAutocomplete(inp, sug, {
-        exclude: t => STATE.topThree.includes(t.id),
-        onPick: t => setTopThree(i, t.id),
-        onCreate: title => {
-          const t = createTaskFromText(title, { toTray: false });
-          setTopThree(i, t.id);
-        }
-      });
-    }
-
-    // Drop target on every slot, filled or not.
-    slot.addEventListener('dragover', e => {
-      e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; slot.classList.add('drop-target');
-    });
-    slot.addEventListener('dragleave', () => slot.classList.remove('drop-target'));
-    slot.addEventListener('drop', e => {
-      e.preventDefault(); slot.classList.remove('drop-target');
-      const id = getDraggedTaskId(e);
-      if (id) setTopThree(i, id);
-    });
-
-    container.appendChild(slot);
-  }
-}
-
 function setTopThree(i, taskId) {
   STATE.topThree = normalizeTopThree(STATE.topThree);
   // A task can only occupy one slot.
@@ -6398,23 +6082,6 @@ function setTopThree(i, taskId) {
 // The tray holds captures that are still undated. Giving one a date -- via
 // "+ Today", a typed date token, or picking an existing task -- is what moves
 // it into the To-Do list. That filter IS the funnel.
-function renderBrainDump() {
-  const list = document.getElementById('brain-dump-list');
-  if (!list) return;
-  list.innerHTML = '';
-  const dumpIds = new Set(STATE.brainDump || []);
-  const items = STATE.tasks.filter(t => dumpIds.has(t.id) && !t.completed && !toDueDate(t.dueDate));
-  items.sort((a, b) => STATE.brainDump.indexOf(a.id) - STATE.brainDump.indexOf(b.id));
-
-  items.forEach(task => {
-    list.appendChild(buildPlanRow(task, {
-      dashed: true,
-      check: false,
-      action: { label: '+ Today', title: 'Schedule for today', onClick: () => pullToToday(task.id) }
-    }));
-  });
-}
-
 function titleFromNLP(original, nlp) {
   if (!nlp || !nlp.matchedText) return original.trim();
   let out = original;
@@ -6443,17 +6110,6 @@ function createTaskFromText(text, o) {
   STATE.brainDumpDate = new Date().toDateString();
   saveState(); renderTasks();
   return task;
-}
-
-function initPlanCapture() {
-  const input = document.getElementById('brain-dump-input');
-  const sug = document.getElementById('brain-dump-suggestions');
-  attachTaskAutocomplete(input, sug, {
-    exclude: t => (STATE.brainDump || []).includes(t.id) && !toDueDate(t.dueDate),
-    // Picking an existing task dates THAT task rather than creating a duplicate.
-    onPick: t => pullToToday(t.id),
-    onCreate: title => createTaskFromText(title, { toTray: true })
-  });
 }
 
 // ─────────────────────────────────────────────
@@ -6547,7 +6203,7 @@ function homeAddRows() {
 
 // Later is collapsed by default so Home doesn't open as a pile of backlog.
 // The open flag lives in STATE.ui, not a closure, for the reason recorded
-// above buildCollapsibleCard().
+// above homeSectionToggle().
 function homeSectionToggle(label, count, key) {
   const head = planSectionHead(label, String(count));
   head.style.cursor = 'pointer';
@@ -8118,9 +7774,7 @@ function init() {
   rolloverIfNewDay();
   scheduleMidnightReset();
   render();
-  applyPlanCollapsed();
   initDragCreate();
-  initPlanCapture();
   initHomeExpandButtons();
   initBrainDumpModal();
   initNotesPage();
@@ -8204,7 +7858,7 @@ function init() {
   });
 
   // Delegated task dragging: any element carrying data-task-id is draggable.
-  ['plan-panel', 'tasks-fullpage', 'home-view'].forEach(id => {
+  ['tasks-fullpage', 'home-view'].forEach(id => {
     const host = document.getElementById(id);
     if (!host) return;
     host.addEventListener('dragstart', e => {
