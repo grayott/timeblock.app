@@ -347,6 +347,8 @@
     cursor: pointer; font-size: 13px; color: var(--text-secondary); transition: all 0.12s;
   }
   .tk-rail-row:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .tk-rail-empty { padding: 4px 10px 8px; font-size: 11px; color: var(--text-tertiary); }
+  .tk-rail-row.selected { box-shadow: inset 2px 0 0 var(--primary); }
   .tk-rail-row.active { background: var(--primary-subtle); color: var(--text-primary); font-weight: 500; }
   .tk-rail-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .tk-rail-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1184,6 +1186,13 @@
       <!-- Left rail: smart lists, my lists, tags -->
       <aside id="tk-rail">
         <div id="tk-rail-scroll">
+          <div>
+            <div class="tk-rail-head">
+              <span>Projects</span>
+              <button class="plan-icon-act" id="tk-add-project" title="New project"><span class="material-symbols-outlined" style="font-size:15px;">add</span></button>
+            </div>
+            <div id="tk-projects"></div>
+          </div>
           <div>
             <div class="tk-rail-head">
               <span>My Lists</span>
@@ -4432,10 +4441,91 @@ function closeEventPopover() {
 // ─────────────────────────────────────────────
 // FULL-PAGE TASKS VIEW
 // ─────────────────────────────────────────────
-let selectedTaskId = null;   // the task open in the right-hand inspector
+let selectedTaskId = null;      // the task open in the right-hand inspector
+let selectedProjectId = null;   // ...or the project. Mutually exclusive.
+
+function selectProject(id) {
+  selectedProjectId = id;
+  selectedTaskId = null;
+  renderTasksFullPage();
+}
 
 // ─── Task helpers ──────────────────────────────────────────────
 function getTaskStatus(t) { return t.status || (t.completed ? 'completed' : 'not_started'); }
+
+// ── Projects ────────────────────────────────────────────────────────
+// A project is the quarter-scale container: at least a week long, at most a
+// year. The bounds are clamped on write, not validated in a form, because
+// there will be several ways to set the dates -- the editor, and later
+// dragging and resizing a bar on the timeline -- and a rule that lives in
+// one of them is a rule the others skip.
+const MIN_PROJECT_DAYS = 7;
+const MAX_PROJECT_DAYS = 366;   // 366 so a leap year is still reachable
+
+// Whole days between two LOCAL midnights. Rounding absorbs DST, where a day
+// is 23 or 25 hours; this is the idiom already used for date bucketing.
+function daysBetween(a, b) { return Math.round((startOfDay(b) - startOfDay(a)) / 86400000); }
+
+// Returns a clamped {start, due}. `due` is inclusive: a 7-day project runs
+// start .. start+6.
+function normalizeProjectDates(start, due, opts) {
+  const o = opts || {};
+  const s = toDueDate(start) || startOfDay(new Date());
+  let e = toDueDate(due) || addDays(s, MIN_PROJECT_DAYS - 1);
+  let span = daysBetween(s, e) + 1;
+  if (span < MIN_PROJECT_DAYS) span = MIN_PROJECT_DAYS;
+  if (span > MAX_PROJECT_DAYS) span = MAX_PROJECT_DAYS;
+  // Dragging the start edge should move the start and hold the end, so clamp
+  // backwards in that case instead of pushing the end out.
+  if (o.anchor === 'due') return { start: addDays(e, -(span - 1)), due: e };
+  return { start: s, due: addDays(s, span - 1) };
+}
+
+function getProject(id) { return id ? (STATE.projects || []).find(pr => pr.id === id) || null : null; }
+function projectName(id) { const pr = getProject(id); return pr ? pr.title : null; }
+function sortedProjects() {
+  return [...(STATE.projects || [])].sort((a, b) => toDueDate(a.start) - toDueDate(b.start));
+}
+
+function createProject(partial) {
+  const today = startOfDay(new Date());
+  const base = Object.assign({
+    id: uid(),
+    title: 'New project',
+    listId: null,
+    status: 'not_started',
+    color: CAL_COLORS[(STATE.projects || []).length % CAL_COLORS.length],
+    description: '',
+    createdAt: new Date().toISOString(),
+  }, partial || {});
+  const range = normalizeProjectDates(base.start || today, base.due || null);
+  base.start = range.start;
+  base.due = range.due;
+  STATE.projects.push(base);
+  saveState();
+  return base;
+}
+
+function setProjectRange(project, start, due, opts) {
+  const r = normalizeProjectDates(start, due, opts);
+  project.start = r.start;
+  project.due = r.due;
+}
+
+// Tasks outlive their project, exactly as they outlive a deleted list.
+function deleteProject(id) {
+  STATE.projects = STATE.projects.filter(pr => pr.id !== id);
+  STATE.tasks.forEach(t => { if (t.projectId === id) t.projectId = null; });
+  if (STATE.taskViewConfig.filters && STATE.taskViewConfig.filters.project) {
+    STATE.taskViewConfig.filters.project = STATE.taskViewConfig.filters.project.filter(x => x !== id);
+  }
+  saveState();
+}
+
+function projectProgress(id) {
+  const ts = STATE.tasks.filter(t => t.projectId === id);
+  return { done: ts.filter(t => isTerminalStatus('task', getTaskStatus(t))).length, total: ts.length };
+}
 
 // ── Nesting ─────────────────────────────────────────────────────────
 // The edge lives on the child as parentId, and the tree is derived per render.
@@ -4495,6 +4585,46 @@ function tkSmartCount(id) {
 function renderTkRail() {
   const cfg = STATE.taskViewConfig;
   const f = cfg.filters || {};
+
+  // ── projects (the quarter scale: everything below is work toward one)
+  const projHost = document.getElementById('tk-projects');
+  projHost.innerHTML = '';
+  if (!(STATE.projects || []).length) {
+    const e = document.createElement('div');
+    e.className = 'tk-rail-empty';
+    e.textContent = 'No projects yet';
+    projHost.appendChild(e);
+  }
+  sortedProjects().forEach(pr => {
+    const row = document.createElement('div');
+    row.className = 'tk-rail-row' + ((f.project || []).includes(pr.id) ? ' active' : '')
+                  + (selectedProjectId === pr.id ? ' selected' : '');
+    const dot = document.createElement('span');
+    dot.className = 'tk-rail-dot';
+    dot.style.background = pr.color || CAL_COLORS[0];
+    const name = document.createElement('span');
+    name.className = 'tk-rail-name';
+    name.textContent = pr.title;
+    const prog = projectProgress(pr.id);
+    const count = document.createElement('span');
+    count.className = 'tk-rail-count';
+    count.textContent = prog.total ? `${prog.done}/${prog.total}` : '0';
+    const edit = document.createElement('button');
+    edit.className = 'plan-icon-act';
+    edit.title = 'Edit project';
+    edit.style.opacity = '0';
+    edit.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;">tune</span>';
+    edit.addEventListener('click', e => {
+      e.stopPropagation();
+      selectProject(pr.id);
+    });
+    row.append(dot, name, count, edit);
+    row.addEventListener('mouseenter', () => edit.style.opacity = '1');
+    row.addEventListener('mouseleave', () => edit.style.opacity = '0');
+    // Clicking filters the task list to that project; the pencil opens it.
+    row.addEventListener('click', () => toggleFilter('project', pr.id));
+    projHost.appendChild(row);
+  });
 
   // ── my lists (inline CRUD; the rail replaces the old list-manager modal)
   const lists = document.getElementById('tk-lists');
@@ -4717,6 +4847,11 @@ function renderFpToolbar() {
     items.push({ id: '__divider__' }, { id: '__label__', label: 'TAGS' });
     allTags.forEach(t => items.push({ id: 'tag:' + t, label: '#' + t, icon: 'tag' }));
   }
+  if ((STATE.projects || []).length) {
+    items.push({ id: '__divider__' }, { id: '__label__', label: 'PROJECT' });
+    sortedProjects().forEach(pr => items.push({ id: 'project:' + pr.id, label: pr.title, icon: 'flag_circle' }));
+    items.push({ id: 'project:__none__', label: 'No project', icon: 'block' });
+  }
   if (STATE.lists.length) {
     items.push({ id: '__divider__' }, { id: '__label__', label: 'LIST' });
     STATE.lists.forEach(l => items.push({ id: 'list:' + l.id, label: l.name, icon: 'folder' }));
@@ -4747,7 +4882,7 @@ function renderFpToolbar() {
   }));
 
   // Group
-  const groupLabels = { none: 'None', status: 'Status', priority: 'Priority', dueDate: 'Date', list: 'List', tag: 'Tag' };
+  const groupLabels = { none: 'None', status: 'Status', priority: 'Priority', dueDate: 'Date', list: 'List', tag: 'Tag', project: 'Project' };
   dropBtn(`Group: ${groupLabels[cfg.groupBy] || 'None'}`, 'splitscreen', cfg.groupBy !== 'none', buildDropdown([
     { id: 'none', label: 'None', icon: 'close' },
     { id: 'dueDate', label: 'Date', icon: 'calendar_today' },
@@ -4755,6 +4890,7 @@ function renderFpToolbar() {
     { id: 'priority', label: 'Priority', icon: 'flag' },
     { id: 'status', label: 'Status', icon: 'radio_button_checked' },
     { id: 'list', label: 'List', icon: 'folder' },
+    { id: 'project', label: 'Project', icon: 'flag_circle' },
   ], cfg.groupBy, val => { cfg.groupBy = val; STATE.activeViewId = null; saveState(); renderTasksFullPage(); }));
 
   // Active filter chips
@@ -4763,11 +4899,14 @@ function renderFpToolbar() {
     let label = val;
     if (type === 'date') label = { overdue: 'Overdue', today: 'Today', tomorrow: 'Tomorrow', week: 'This week', upcoming: 'Upcoming', someday: 'No due date' }[val] || val;
     if (type === 'status') label = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' }[val] || val;
-    if (type === 'priority') label = val.charAt(0).toUpperCase() + val.slice(1);
+    if (type === 'priority') label = PRIORITY_LABEL[val] || val;
     if (type === 'tag') label = '#' + val;
     if (type === 'list') {
       if (val === '__none__') label = 'No list';
       else { const li = STATE.lists.find(l => l.id === val); label = li ? li.name : val; }
+    }
+    if (type === 'project') {
+      label = val === '__none__' ? 'No project' : (projectName(val) || val);
     }
     const chip = document.createElement('span');
     chip.className = 'fp-filter-chip';
@@ -4858,6 +4997,10 @@ function getFilteredSortedTasks() {
   if (f.status && f.status.length) tasks = tasks.filter(t => f.status.includes(getTaskStatus(t)));
   if (f.priority && f.priority.length) tasks = tasks.filter(t => f.priority.includes(getTaskPriority(t)));
   if (f.tag && f.tag.length) tasks = tasks.filter(t => (t.tags||[]).some(tag => f.tag.includes(tag)));
+  if (f.project && f.project.length) tasks = tasks.filter(t => {
+    if (f.project.includes('__none__') && !t.projectId) return true;
+    return f.project.includes(t.projectId);
+  });
   if (f.list && f.list.length) tasks = tasks.filter(t => {
     if (f.list.includes('__none__') && !t.listId) return true;
     return f.list.includes(t.listId);
@@ -4937,6 +5080,7 @@ function groupTasks(tasks) {
         break;
       }
       case 'list': keys = [t.listId || '__none__']; break;
+      case 'project': keys = [t.projectId || '__noproject__']; break;
       case 'tag': keys = (t.tags && t.tags.length) ? t.tags : ['No tag']; break;
     }
     keys.forEach(key => {
@@ -4961,10 +5105,13 @@ function groupTasks(tasks) {
   return sortedKeys.map(key => {
     let label = key;
     if (cfg.groupBy === 'status') label = { not_started: 'Not started', in_progress: 'In progress', completed: 'Completed' }[key] || key;
-    if (cfg.groupBy === 'priority') label = { high: 'High priority', medium: 'Medium priority', low: 'Low priority' }[key] || key;
+    if (cfg.groupBy === 'priority') label = { high: 'P1', medium: 'P2', low: 'P3' }[key] || key;
     if (cfg.groupBy === 'list') {
       if (key === '__none__') label = 'Inbox (no list)';
       else { const li = STATE.lists.find(l => l.id === key); label = li ? li.name : 'Unknown'; }
+    }
+    if (cfg.groupBy === 'project') {
+      label = key === '__noproject__' ? 'No project' : (projectName(key) || 'Unknown project');
     }
     if (cfg.groupBy === 'tag') label = (key === 'No tag') ? 'Untagged' : '#' + key;
     return { key, label, tasks: groups.get(key) };
@@ -5107,6 +5254,7 @@ function buildTkRow(task) {
   // one editing surface for the whole page.
   row.addEventListener('click', () => {
     selectedTaskId = selectedTaskId === task.id ? null : task.id;
+    if (selectedTaskId) selectedProjectId = null;
     renderTasksFullPage();
   });
   return row;
@@ -5174,9 +5322,107 @@ function buildTkAddRow() {
 }
 
 // ─── Right inspector ───────────────────────────────────────────
+// The project editor reuses the task inspector's shell -- same pane, same
+// field rows -- rather than introducing another modal.
+function renderProjectInspector() {
+  const insp = document.getElementById('tk-inspector');
+  const body = document.getElementById('tk-insp-body');
+  const pr = getProject(selectedProjectId);
+  if (!pr) { selectedProjectId = null; insp.classList.remove('open'); return; }
+  insp.classList.add('open');
+  body.innerHTML = '';
+  document.querySelector('#tk-inspector .tk-insp-tag').textContent = 'Selected project';
+
+  const commit = fn => { fn(); saveState(); renderTasksFullPage(); };
+
+  const title = document.createElement('input');
+  title.className = 'tk-insp-title';
+  title.value = pr.title;
+  title.addEventListener('change', () => commit(() => { pr.title = title.value.trim() || 'Untitled project'; }));
+  body.appendChild(title);
+
+  const field = (icon, label, control) => {
+    const row = document.createElement('div');
+    row.className = 'tk-insp-field';
+    row.innerHTML = `<span class="material-symbols-outlined tk-insp-ficon">${icon}</span><span class="tk-insp-flabel">${label}</span>`;
+    row.appendChild(control);
+    body.appendChild(row);
+  };
+
+  const dateInput = (which) => {
+    const i = document.createElement('input');
+    i.type = 'date';
+    i.className = 'tk-insp-input';
+    i.value = formatDateInput(toDueDate(pr[which]));
+    i.addEventListener('change', () => commit(() => {
+      // Editing the end date holds the end and moves the start if the span
+      // would fall under a week; editing the start does the reverse.
+      if (which === 'start') setProjectRange(pr, parseDatetimeLocal(i.value + 'T00:00'), pr.due);
+      else setProjectRange(pr, pr.start, parseDatetimeLocal(i.value + 'T00:00'), { anchor: 'due' });
+    }));
+    return i;
+  };
+  field('event', 'Starts', dateInput('start'));
+  field('event_available', 'Due', dateInput('due'));
+
+  const span = document.createElement('span');
+  span.className = 'tk-insp-input';
+  span.style.cssText = 'text-align:right;color:var(--text-secondary);';
+  const days = daysBetween(toDueDate(pr.start), toDueDate(pr.due)) + 1;
+  span.textContent = days >= 14 ? `${days} days (${Math.round(days / 7)} weeks)` : `${days} days`;
+  field('straighten', 'Length', span);
+
+  const status = document.createElement('select');
+  status.className = 'tk-insp-input';
+  getStatusList('project').forEach(st => {
+    const o = document.createElement('option');
+    o.value = st.id; o.textContent = st.label;
+    if (pr.status === st.id) o.selected = true;
+    status.appendChild(o);
+  });
+  status.addEventListener('change', () => commit(() => { pr.status = status.value; }));
+  field('radio_button_checked', 'Status', status);
+
+  const listSel = document.createElement('select');
+  listSel.className = 'tk-insp-input';
+  const none = document.createElement('option');
+  none.value = ''; none.textContent = 'No list';
+  listSel.appendChild(none);
+  STATE.lists.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l.id; o.textContent = l.name;
+    if (pr.listId === l.id) o.selected = true;
+    listSel.appendChild(o);
+  });
+  listSel.addEventListener('change', () => commit(() => { pr.listId = listSel.value || null; }));
+  field('folder', 'List', listSel);
+
+  const prog = projectProgress(pr.id);
+  const head = document.createElement('div');
+  head.className = 'popover-subhead';
+  head.style.marginTop = '4px';
+  head.innerHTML = `<span>Tasks</span><span class="mono">${prog.done}/${prog.total}</span>`;
+  body.appendChild(head);
+
+  const show = document.createElement('button');
+  show.className = 'plan-act';
+  show.style.alignSelf = 'flex-start';
+  show.textContent = prog.total ? `Show this project\u2019s tasks` : 'No tasks yet \u2014 assign some';
+  show.addEventListener('click', () => {
+    STATE.taskViewConfig.filters = { project: [pr.id] };
+    STATE.activeViewId = null;
+    saveState(); renderTasksFullPage();
+  });
+  body.appendChild(show);
+
+  document.getElementById('tk-insp-meta').textContent =
+    `${dayLabel(formatDateInput(toDueDate(pr.start)))} \u2013 ${dayLabel(formatDateInput(toDueDate(pr.due)))}`;
+}
+
 function renderTkInspector() {
   const insp = document.getElementById('tk-inspector');
   const body = document.getElementById('tk-insp-body');
+  if (selectedProjectId) { renderProjectInspector(); return; }
   const task = selectedTaskId ? STATE.tasks.find(t => t.id === selectedTaskId) : null;
   if (!task) { insp.classList.remove('open'); selectedTaskId = null; return; }
   insp.classList.add('open');
@@ -5303,6 +5549,25 @@ function renderTkInspector() {
   });
   listSel.addEventListener('change', () => commit(() => { task.listId = listSel.value || null; }));
   field('folder', 'List', listSel);
+
+  // What this task is actually for. The whole point of the quarter scale.
+  const projSel = document.createElement('select');
+  projSel.className = 'tk-insp-input';
+  const pNone = document.createElement('option');
+  pNone.value = ''; pNone.textContent = 'No project';
+  projSel.appendChild(pNone);
+  sortedProjects().forEach(pr => {
+    const o = document.createElement('option');
+    o.value = pr.id; o.textContent = pr.title;
+    if (task.projectId === pr.id) o.selected = true;
+    projSel.appendChild(o);
+  });
+  projSel.addEventListener('change', () => commit(() => {
+    task.projectId = projSel.value || null;
+    // Keep a sub-task with its parent rather than stranding it elsewhere.
+    childrenOf(task.id).forEach(k => { k.projectId = task.projectId; });
+  }));
+  field('flag_circle', 'Project', projSel);
 
   // tags — free text, comma separated, shared across every list
   const tagInp = document.createElement('input');
@@ -6570,10 +6835,21 @@ function init() {
     document.getElementById('tk-openpill').textContent =
       `${rootTasks().filter(t => !t.completed).length} open`;
   });
+  document.getElementById('tk-add-project').addEventListener('click', () => {
+    const pr = createProject();
+    selectProject(pr.id);
+  });
   document.getElementById('tk-insp-close').addEventListener('click', () => {
-    selectedTaskId = null; renderTasksFullPage();
+    selectedTaskId = null; selectedProjectId = null; renderTasksFullPage();
   });
   document.getElementById('tk-insp-delete').addEventListener('click', () => {
+    if (selectedProjectId) {
+      const id = selectedProjectId;
+      selectedProjectId = null;
+      deleteProject(id);           // tasks survive; they just lose the link
+      renderTasksFullPage();
+      return;
+    }
     if (!selectedTaskId) return;
     const id = selectedTaskId;
     selectedTaskId = null;
