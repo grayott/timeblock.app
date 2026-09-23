@@ -1663,6 +1663,28 @@ function parseDatetimeLocal(s) { if (!s) return null; return new Date(s); }
 // dueDate invariant: always a Date at LOCAL midnight, or null. Time-of-day lives in dueTime.
 // Bare 'YYYY-MM-DD' must not go through new Date() directly -- that parses as UTC midnight,
 // which is the previous day everywhere west of Greenwich.
+// Every task is minted here. There used to be two creation sites writing two
+// different shapes -- the modal's omitted status and listId -- and correctness
+// depended on loadState()'s backfill, which does not run for a task created
+// and read inside the same session.
+function normalizeTask(partial) {
+  return Object.assign({
+    id: uid(),
+    title: '',
+    completed: false,
+    status: 'not_started',
+    priority: 'medium',
+    dueDate: null,
+    dueTime: null,
+    description: '',
+    notification: 'none',
+    recurring: 'none',
+    tags: [],
+    subtasks: [],
+    listId: null,
+  }, partial || {});
+}
+
 function toDueDate(v) {
   if (!v) return null;
   if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) v = v + 'T00:00:00';
@@ -3385,7 +3407,7 @@ function saveTask() {
     const task = STATE.tasks.find(t => t.id === editingTaskId);
     if (task) Object.assign(task, {title, dueDate, dueTime, description, notification, recurring, priority, tags, subtasks});
   } else {
-    STATE.tasks.push({ id: uid(), title, completed: false, priority, dueDate, dueTime, description, notification, recurring, tags, subtasks });
+    STATE.tasks.push(normalizeTask({ title, priority, dueDate, dueTime, description, notification, recurring, tags, subtasks }));
   }
   saveState(); closeTaskModal(); renderTasks();
 }
@@ -5316,11 +5338,7 @@ function createTaskFromText(text, o) {
   const nlp = parseNLPDate(text);
   const raw = (nlp && nlp.date) ? titleFromNLP(text, nlp) : text;
   const { title, tags } = parseTagsFromTitle(raw);
-  const task = {
-    id: uid(), title: title || text.trim(), completed: false, status: 'not_started',
-    priority: 'medium', dueDate: null, dueTime: null, description: '',
-    notification: 'none', recurring: 'none', tags: tags || [], subtasks: [], listId: null
-  };
+  const task = normalizeTask({ title: title || text.trim(), tags: tags || [] });
   if (nlp && nlp.date) {
     task.dueDate = toDueDate(nlp.date);
     if (nlp.hasTime) task.dueTime = nlp.date.toTimeString().slice(0, 5);
