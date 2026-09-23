@@ -306,6 +306,7 @@
   .route-btn {
     padding: 4px 11px; border-radius: 5px; border: none; background: none; cursor: pointer;
     font-size: 12px; font-weight: 500; color: var(--text-secondary); transition: all 0.12s;
+    white-space: nowrap;   /* "Projects & Tasks" wrapped to two lines otherwise */
   }
   .route-btn:hover { color: var(--text-primary); }
   .route-btn.active { background: var(--bg-surface); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
@@ -651,7 +652,13 @@
   }
   .cal-event:hover { box-shadow: 0 2px 8px rgba(15,23,42,0.13); z-index: 6; filter: saturate(1.15); }
   .cal-event-title { font-size: 12px; font-weight: 600; color: inherit; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cal-event-time { font-size: 10px; color: inherit; opacity: 0.75; margin-top: 1px; }
+  .cal-event-time { font-size: 10px; line-height: 1.2; color: inherit; opacity: 0.75; margin-top: 1px; }
+  /* Short blocks. box-sizing is border-box, so the inline height includes 6px
+     of padding and 2px of border; a 12px/1.25 title is a 15px line box, so the
+     default styling needs 23px before it starts slicing descenders off g/y/p.
+     Below that, trade the time row and a little type size for a whole title. */
+  .cal-event.is-compact { padding: 1px 5px; justify-content: center; }
+  .cal-event.is-compact .cal-event-title { font-size: 11px; line-height: 1; }
   .cal-event-linked { font-size: 10px; color: inherit; opacity: 0.75; display: flex; align-items: center; gap: 2px; }
   .cal-event-sub { font-size: 10px; color: inherit; opacity: 0.8; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-event-sub.is-done { text-decoration: line-through; opacity: 0.5; }
@@ -2307,30 +2314,12 @@ function renderTimeGrid(days, today) {
     laid.forEach(({ev, col: c, totalCols}) => {
       const {startMin, endMin} = getEffMinutes(ev, day);
       const top = minutesToY(startMin);
-      const height = Math.max(minutesToY(endMin - startMin), 20);
-      const width = `calc(${100/totalCols}% - 4px)`;
-      const left = `calc(${(c/totalCols)*100}% + 2px)`;
-
-      const evColor = ev.color || '#2563eb';
-      const el = document.createElement('div');
-      el.className = 'cal-event';
-      el.style.cssText = `top:${top}px; height:${height}px; left:${left}; width:${width};` +
-        `background:${evColor}1f; border:1px solid ${evColor}3d; border-left:3px solid ${evColor}; color:${evColor};`;
+      const height = calEventHeight(startMin, endMin);
       const linked = (ev.linkedTaskIds || []).map(id => STATE.tasks.find(t => t.id === id)).filter(Boolean);
-      let inner = `<div class="cal-event-title">${ev.title}</div>`;
-      if (height > 30) inner += `<div class="cal-event-time mono">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>`;
-      if (linked.length) {
-        // Room for the sub-task lines themselves once the block is tall enough.
-        const rows = Math.floor((height - 34) / 13);
-        if (height > 62 && rows >= 1) {
-          inner += linked.slice(0, rows).map(t =>
-            `<div class="cal-event-sub${t.completed ? ' is-done' : ''}">• ${t.title}</div>`).join('');
-          if (linked.length > rows) inner += `<div class="cal-event-sub">+${linked.length - rows} more</div>`;
-        } else {
-          inner += `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>${linked.length} task${linked.length > 1 ? 's' : ''}</div>`;
-        }
-      }
-      el.innerHTML = inner;
+      const el = buildCalEventEl(ev, height, linked);
+      el.style.top = `${top}px`;
+      el.style.left = `calc(${(c/totalCols)*100}% + 2px)`;
+      el.style.width = `calc(${100/totalCols}% - 4px)`;
       el.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, day); });
 
       // ── Drop a task onto an existing block to link it in ──
@@ -2366,6 +2355,48 @@ function renderTimeGrid(days, today) {
 
     cols.insertBefore(col, document.getElementById('drag-overlay'));
   });
+}
+
+// ── Timeblock geometry ──────────────────────────────────────────────
+// There used to be two copies of this, with different floors (20 in the week
+// grid, 18 on Home) -- and both were shorter than a title needs, so every
+// 15-minute block lost the bottoms of its letters, worse on Home. One builder
+// now serves both so they cannot drift apart again.
+const EV_MIN_H       = 18;   // keeps a 5-minute block clickable
+const EV_COMPACT_MAX = 24;   // at or below this, the full-size title clips
+const EV_TIME_MIN    = 36;   // title (15) + time row (13) + chrome (8)
+
+function calEventHeight(startMin, endMin) {
+  return Math.max(minutesToY(endMin - startMin), EV_MIN_H);
+}
+
+// Builds the block element minus its position, which each grid sets itself.
+function buildCalEventEl(ev, height, linked) {
+  const color = ev.color || '#2563eb';
+  const compact = height <= EV_COMPACT_MAX;
+  const el = document.createElement('div');
+  el.className = 'cal-event' + (compact ? ' is-compact' : '');
+  el.style.cssText = `height:${height}px;` +
+    `background:${color}1f;border:1px solid ${color}3d;border-left:3px solid ${color};color:${color};`;
+
+  let inner = `<div class="cal-event-title">${escapeHtml(ev.title)}</div>`;
+  if (height >= EV_TIME_MIN) {
+    inner += `<div class="cal-event-time mono">${escapeHtml(formatTime(ev.start))} \u2013 ${escapeHtml(formatTime(ev.end))}</div>`;
+  }
+  const subs = linked || [];
+  if (subs.length) {
+    // Room for the sub-task lines themselves once the block is tall enough.
+    const rows = Math.floor((height - 34) / 13);
+    if (height > 62 && rows >= 1) {
+      inner += subs.slice(0, rows).map(t =>
+        `<div class="cal-event-sub${t.completed ? ' is-done' : ''}">\u2022 ${escapeHtml(t.title)}</div>`).join('');
+      if (subs.length > rows) inner += `<div class="cal-event-sub">+${subs.length - rows} more</div>`;
+    } else if (!compact) {
+      inner += `<div class="cal-event-linked"><span class="material-symbols-outlined" style="font-size:10px;">task_alt</span>${subs.length} task${subs.length > 1 ? 's' : ''}</div>`;
+    }
+  }
+  el.innerHTML = inner;
+  return el;
 }
 
 function layoutEventsForDay(events, day) {
@@ -5599,17 +5630,12 @@ function renderHomeDayPlan() {
   laid.forEach(({ ev, col, totalCols }) => {
     const { startMin, endMin } = getEffMinutes(ev, today);
     const top = minutesToY(startMin);
-    const height = Math.max(minutesToY(endMin - startMin), 18);
-    const width = `calc(${100/totalCols}% - 4px)`;
-    const left = `calc(${(col/totalCols)*100}% + 2px)`;
-    const c = ev.color || '#2563eb';
-    const el = document.createElement('div');
-    el.className = 'cal-event';
-    el.style.cssText = `top:${top}px;height:${height}px;left:${left};width:${width};` +
-      `background:${c}1f;border:1px solid ${c}3d;border-left:3px solid ${c};color:${c};`;
-    let inner = `<div class="cal-event-title">${escapeHtml(ev.title)}</div>`;
-    if (height > 30) inner += `<div class="cal-event-time mono">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>`;
-    el.innerHTML = inner;
+    const height = calEventHeight(startMin, endMin);
+    const linked = (ev.linkedTaskIds || []).map(id => STATE.tasks.find(t => t.id === id)).filter(Boolean);
+    const el = buildCalEventEl(ev, height, linked);
+    el.style.top = `${top}px`;
+    el.style.left = `calc(${(col/totalCols)*100}% + 2px)`;
+    el.style.width = `calc(${100/totalCols}% - 4px)`;
     el.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, today); });
     grid.appendChild(el);
   });
