@@ -1592,9 +1592,9 @@
       <div class="form-group">
         <label class="form-label">Priority</label>
         <select class="form-input" id="task-priority">
-          <option value="low">Low</option>
-          <option value="medium" selected>Medium</option>
-          <option value="high">High</option>
+          <option value="high">P1 &middot; High</option>
+          <option value="medium" selected>P2 &middot; Medium</option>
+          <option value="low">P3 &middot; Low</option>
         </select>
       </div>
       <div class="form-group">
@@ -5419,6 +5419,25 @@ function renderProjectInspector() {
     `${dayLabel(formatDateInput(toDueDate(pr.start)))} \u2013 ${dayLabel(formatDateInput(toDueDate(pr.due)))}`;
 }
 
+// Which freshly-created child should take focus once the inspector re-renders.
+// Adding one used to drop in a row literally titled "New sub-task" and leave
+// the cursor nowhere, so every add meant clicking in and clearing the text.
+let pendingChildFocus = null;
+
+function addChildTask(parent) {
+  const kid = normalizeTask({
+    title: '',
+    parentId: parent.id,
+    listId: parent.listId || null,
+    projectId: parent.projectId || null,
+    priority: getTaskPriority(parent),
+  });
+  STATE.tasks.push(kid);
+  pendingChildFocus = kid.id;
+  saveState();
+  renderTasksFullPage();
+}
+
 function renderTkInspector() {
   const insp = document.getElementById('tk-inspector');
   const body = document.getElementById('tk-insp-body');
@@ -5609,7 +5628,22 @@ function renderTkInspector() {
     const txt = document.createElement('input');
     txt.className = 'tk-insp-subtext' + (done ? ' done' : '');
     txt.value = kid.title;
-    txt.addEventListener('change', () => commit(() => { kid.title = txt.value; }));
+    txt.placeholder = 'Sub-task name';
+    txt.addEventListener('change', () => commit(() => { kid.title = txt.value.trim(); }));
+    // A row added and then abandoned would otherwise linger as a blank task.
+    txt.addEventListener('blur', () => {
+      if (txt.value.trim()) return;
+      deleteTask(kid.id);
+      renderTasksFullPage();
+    });
+    txt.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); txt.blur(); if (txt.value.trim()) addChildTask(task); }
+      if (e.key === 'Escape') { txt.value = kid.title; txt.blur(); }
+    });
+    if (pendingChildFocus === kid.id) {
+      pendingChildFocus = null;
+      requestAnimationFrame(() => { txt.focus(); txt.select(); });
+    }
     const open = document.createElement('button');
     open.className = 'plan-icon-act';
     open.title = 'Open this sub-task';
@@ -5628,15 +5662,7 @@ function renderTkInspector() {
   addSub.className = 'plan-act';
   addSub.style.alignSelf = 'flex-start';
   addSub.textContent = '+ Add sub-task';
-  addSub.addEventListener('click', () => commit(() => {
-    STATE.tasks.push(normalizeTask({
-      title: 'New sub-task',
-      parentId: task.id,
-      listId: task.listId || null,
-      projectId: task.projectId || null,
-      priority: getTaskPriority(task),
-    }));
-  }));
+  addSub.addEventListener('click', () => addChildTask(task));
   body.appendChild(addSub);
 
   document.getElementById('tk-insp-meta').textContent = prog.total
