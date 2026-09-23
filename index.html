@@ -2731,30 +2731,30 @@ function buildCalEventEl(ev, height, linked) {
   return el;
 }
 
-function layoutEventsForDay(events, day) {
-  const sorted = [...events].sort((a,b) => {
-    const am = getEffMinutes(a,day).startMin, bm = getEffMinutes(b,day).startMin;
-    return am - bm;
-  });
-  const columns = [];
-  const result = [];
-
-  for (const ev of sorted) {
-    const {startMin, endMin} = getEffMinutes(ev, day);
+// Greedy first-fit interval packing, unit-agnostic: sort by start, then drop
+// each item in the first lane whose last item has already ended. The day grid
+// uses lanes as columns within a day; the project timeline uses them as rows
+// across a quarter. Same algorithm, so there is only one of it.
+function packLanes(items, range) {
+  const sorted = [...items].sort((a, b) => range(a).s - range(b).s);
+  const lanes = [], out = [];
+  for (const it of sorted) {
+    const { s } = range(it);
     let placed = false;
-    for (let c = 0; c < columns.length; c++) {
-      const lastEv = columns[c][columns[c].length-1];
-      const lastEnd = getEffMinutes(lastEv, day).endMin;
-      if (lastEnd <= startMin) {
-        columns[c].push(ev);
-        result.push({ev, col: c});
-        placed = true; break;
-      }
+    for (let i = 0; i < lanes.length; i++) {
+      const last = lanes[i][lanes[i].length - 1];
+      if (range(last).e <= s) { lanes[i].push(it); out.push({ item: it, lane: i }); placed = true; break; }
     }
-    if (!placed) { columns.push([ev]); result.push({ev, col: columns.length-1}); }
+    if (!placed) { lanes.push([it]); out.push({ item: it, lane: lanes.length - 1 }); }
   }
+  return out.map(o => ({ ...o, totalLanes: lanes.length }));
+}
 
-  return result.map(item => ({...item, totalCols: columns.length}));
+function layoutEventsForDay(events, day) {
+  return packLanes(events, ev => {
+    const m = getEffMinutes(ev, day);
+    return { s: m.startMin, e: m.endMin };
+  }).map(o => ({ ev: o.item, col: o.lane, totalCols: o.totalLanes }));
 }
 
 // ─────────────────────────────────────────────
