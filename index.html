@@ -5131,7 +5131,7 @@ function attachTaskAutocomplete(input, listEl, opts) {
     if (!query) { close(); return; }
     const ql = query.toLowerCase();
     const matches = STATE.tasks
-      .filter(t => !t.completed && !opts.exclude(t) && t.title.toLowerCase().includes(ql))
+      .filter(t => !t.completed && !(opts.exclude && opts.exclude(t)) && t.title.toLowerCase().includes(ql))
       .sort((a, b) => {
         const ap = a.title.toLowerCase().startsWith(ql) ? 0 : 1;
         const bp = b.title.toLowerCase().startsWith(ql) ? 0 : 1;
