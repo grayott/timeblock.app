@@ -1349,8 +1349,16 @@
     <div class="modal-body" style="gap:0;">
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--on-surface-variant);margin-bottom:12px;">Calendar</div>
       <div class="toggle-row" style="margin-bottom:16px;">
-        <span class="toggle-label">Week starts on Sunday</span>
-        <div class="toggle" id="s-week-sun"></div>
+        <span class="toggle-label">Week starts on</span>
+        <select class="form-input" id="s-week-start" style="width:auto;min-width:130px;">
+          <option value="0">Sunday</option>
+          <option value="1">Monday</option>
+          <option value="2">Tuesday</option>
+          <option value="3">Wednesday</option>
+          <option value="4">Thursday</option>
+          <option value="5">Friday</option>
+          <option value="6">Saturday</option>
+        </select>
       </div>
       <div class="toggle-row" style="margin-bottom:16px;">
         <span class="toggle-label">24-hour time</span>
@@ -1665,6 +1673,31 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); retu
 function addMonths(d, n) { const x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
 function isSameDay(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
 function isSameMonth(a, b) { return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth(); }
+// ── Week boundaries ─────────────────────────────────────────────────
+// There were two different answers to "when does a week start": getViewDays
+// read the setting, renderMonth hardcoded Sunday. Weekly tasks are defined by
+// this boundary, so it has to be one answer -- and the setting is now any
+// weekday, not a Sunday/Monday flag.
+function weekStartsOn() {
+  const v = STATE.settings ? STATE.settings.weekStartsOn : 0;
+  return (typeof v === 'number' && v >= 0 && v <= 6) ? v : 0;
+}
+function startOfWeek(d) {
+  let off = startOfDay(d).getDay() - weekStartsOn();
+  if (off < 0) off += 7;
+  return addDays(startOfDay(d), -off);
+}
+function endOfWeek(d) { return addDays(startOfWeek(d), 6); }
+// Day names rotated to the configured start, for grid headers.
+function weekDayNames() {
+  const w = weekStartsOn();
+  return Array.from({ length: 7 }, (_, i) => DAYS[(w + i) % 7]);
+}
+// Stable key for a week under the CURRENT setting. Deliberately derived and
+// never stored: changing the setting must re-bucket old weekly work rather
+// than strand it against a boundary that no longer exists.
+function weekKeyOf(d) { return formatDateInput(startOfWeek(d)); }
+
 function formatTime(d) {
   const m = String(d.getMinutes()).padStart(2, '0');
   if (STATE && STATE.settings && STATE.settings.use24h) {
@@ -1789,7 +1822,7 @@ let STATE = {
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' },
   views: [],            // user-saved [{ id, name, config }]
   activeViewId: null,   // null = the built-in All Tasks view
-  settings: { weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true },
+  settings: { weekStartsOn: 0, use24h: false, eventNotifs: true, taskNotifs: true },
 };
 
 function normalizeTopThree(v) {
@@ -1855,7 +1888,7 @@ function statusLabel(kind, id) {
 // if it is missing" because step 3 is NOT idempotent: turning a task's flat
 // subtask list into real child tasks would duplicate every child on every
 // load. That single fact is what forces a counter.
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 const MIGRATIONS = {
   // The ad-hoc backfills that used to sit inline in loadState().
@@ -1915,6 +1948,14 @@ const MIGRATIONS = {
       parent.subtasks = [];
     });
     s.tasks = (s.tasks || []).concat(spawned);
+  },
+
+  // weekStartsSun (a Sunday/Monday flag) becomes weekStartsOn (any weekday).
+  4: s => {
+    if (s.settings && s.settings.weekStartsOn === undefined) {
+      s.settings.weekStartsOn = s.settings.weekStartsSun === false ? 1 : 0;
+      delete s.settings.weekStartsSun;
+    }
   },
 };
 
@@ -2066,7 +2107,7 @@ function loadState() {
     STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' }, s.taskViewConfig || {});
     STATE.views = s.views || [];
     STATE.activeViewId = s.activeViewId || null;
-    STATE.settings = Object.assign({ weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
+    STATE.settings = Object.assign({ weekStartsOn: 0, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
     // Persist the upgrade now that hydration proved it parses, so the chain
     // runs exactly once per stored blob.
     if (didMigrate) { didMigrate = false; saveState(); }
@@ -2138,10 +2179,7 @@ function getViewDays() {
   // week or nday
   const n = STATE.calScale === 'week' ? 7 : STATE.nDays;
   if (STATE.calScale === 'week') {
-    const startDayOfWeek = STATE.settings.weekStartsSun ? 0 : 1; // 0=Sun, 1=Mon
-    let offset = d.getDay() - startDayOfWeek;
-    if (offset < 0) offset += 7;
-    const start = addDays(startOfDay(d), -offset);
+    const start = startOfWeek(d);
     return Array.from({length: 7}, (_, i) => addDays(start, i));
   }
   // nday: start from currentDate
@@ -2301,11 +2339,14 @@ function renderViewButtons() {
 function renderMonth() {
   const labels = document.getElementById('month-day-labels');
   labels.innerHTML = '';
-  DAYS.forEach(d => { const el = document.createElement('div'); el.className = 'month-day-label'; el.textContent = d; labels.appendChild(el); });
+  weekDayNames().forEach(d => { const el = document.createElement('div'); el.className = 'month-day-label'; el.textContent = d; labels.appendChild(el); });
 
   const d = STATE.currentDate;
   const first = new Date(d.getFullYear(), d.getMonth(), 1);
-  const startDay = first.getDay();
+  // How far into its week the 1st falls, under the configured start day. This
+  // was first.getDay(), which hardcoded Sunday and disagreed with the week
+  // grid whenever the setting said otherwise.
+  const startDay = daysBetween(startOfWeek(first), first);
   const daysInMonth = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
   const today = new Date();
   const grid = document.getElementById('month-grid');
@@ -6766,7 +6807,7 @@ function openSettingsModal() {
   renderCalendarList();
   const s = STATE.settings;
   const sync = (id, val) => { const el = document.getElementById(id); if (el) { el.classList.toggle('on', !!val); } };
-  sync('s-week-sun', s.weekStartsSun);
+  document.getElementById('s-week-start').value = String(weekStartsOn());
   sync('s-24h', s.use24h);
   sync('s-event-notifs', s.eventNotifs);
   sync('s-task-notifs', s.taskNotifs);
@@ -6784,7 +6825,7 @@ function closeSettingsModal() {
 function saveSettings() {
   const get = id => document.getElementById(id)?.classList.contains('on');
   STATE.settings = {
-    weekStartsSun: get('s-week-sun'),
+    weekStartsOn: parseInt(document.getElementById('s-week-start').value, 10) || 0,
     use24h: get('s-24h'),
     eventNotifs: get('s-event-notifs'),
     taskNotifs: get('s-task-notifs'),
@@ -6802,7 +6843,7 @@ function initSettings() {
     if (e.target === document.getElementById('settings-modal-backdrop')) closeSettingsModal();
   });
   // Toggle clicks
-  ['s-week-sun','s-24h','s-event-notifs','s-task-notifs'].forEach(id => {
+  ['s-24h','s-event-notifs','s-task-notifs'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', () => el.classList.toggle('on'));
   });
