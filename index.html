@@ -1044,7 +1044,8 @@
     <div class="route-switcher" id="route-switcher">
       <button class="route-btn" data-route="home" type="button">Home</button>
       <button class="route-btn" data-route="calendar" type="button">Calendar</button>
-      <button class="route-btn" data-route="tasks" type="button">Tasks</button>
+      <button class="route-btn" data-route="tasks" type="button">Projects &amp; Tasks</button>
+      <button class="route-btn" data-route="notes" type="button">Notes</button>
     </div>
   </div>
   <div style="flex:1"></div>
@@ -1695,7 +1696,8 @@ let STATE = {
   tasks: [],
   calendars: [],
   lists: [],
-  view: 'home',
+  route: 'home',        // 'home' | 'calendar' | 'tasks' | 'notes'
+  calScale: 'week',     // 'day' | 'week' | 'nday' | 'month'
   nDays: 7,
   currentDate: new Date(),
   topThree: [null, null, null],
@@ -1788,7 +1790,8 @@ function saveState() {
   const s = {
     events: STATE.events.map(e => ({...e, start: e.start.toISOString(), end: e.end.toISOString()})),
     tasks: STATE.tasks.map(t => ({...t, dueDate: toDueDate(t.dueDate) ? toDueDate(t.dueDate).toISOString() : null})),
-    view: STATE.view,
+    route: STATE.route,
+    calScale: STATE.calScale,
     nDays: STATE.nDays,
     currentDate: STATE.currentDate.toISOString(),
     topThree: STATE.topThree || [null, null, null],
@@ -1823,7 +1826,16 @@ function loadState() {
     backupOnce(raw);
     STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
     STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: toDueDate(t.dueDate)}));
-    STATE.view = s.view || 'home';
+    // STATE.view used to hold BOTH the route and the calendar zoom. Split them.
+    if (s.route) {
+      STATE.route = s.route;
+      STATE.calScale = s.calScale || 'week';
+    } else {
+      const v = s.view || 'home';
+      const isRoute = (v === 'tasks' || v === 'home' || v === 'notes');
+      STATE.route = isRoute ? v : 'calendar';
+      STATE.calScale = isRoute ? 'week' : v;
+    }
     STATE.nDays = Math.min(s.nDays || 7, 7);
     STATE.currentDate = s.currentDate ? new Date(s.currentDate) : new Date();
     // topThree is positional: always exactly 3 slots. Older saves punched null holes
@@ -1915,11 +1927,11 @@ function loadSampleData() {
 // ─────────────────────────────────────────────
 function getViewDays() {
   const d = STATE.currentDate;
-  if (STATE.view === 'day') return [startOfDay(d)];
-  if (STATE.view === 'month') return [];
+  if (STATE.calScale === 'day') return [startOfDay(d)];
+  if (STATE.calScale === 'month') return [];
   // week or nday
-  const n = STATE.view === 'week' ? 7 : STATE.nDays;
-  if (STATE.view === 'week') {
+  const n = STATE.calScale === 'week' ? 7 : STATE.nDays;
+  if (STATE.calScale === 'week') {
     const startDayOfWeek = STATE.settings.weekStartsSun ? 0 : 1; // 0=Sun, 1=Mon
     let offset = d.getDay() - startDayOfWeek;
     if (offset < 0) offset += 7;
@@ -1931,11 +1943,10 @@ function getViewDays() {
 }
 
 function navigate(dir) {
-  if (STATE.view === 'tasks') return;
   const d = STATE.currentDate;
-  if (STATE.view === 'month') STATE.currentDate = addMonths(d, dir);
-  else if (STATE.view === 'day') STATE.currentDate = addDays(d, dir);
-  else if (STATE.view === 'week') STATE.currentDate = addDays(d, dir * 7);
+  if (STATE.calScale === 'month') STATE.currentDate = addMonths(d, dir);
+  else if (STATE.calScale === 'day') STATE.currentDate = addDays(d, dir);
+  else if (STATE.calScale === 'week') STATE.currentDate = addDays(d, dir * 7);
   else STATE.currentDate = addDays(d, dir * STATE.nDays);
   saveState(); render();
 }
@@ -1946,10 +1957,10 @@ function goToday() {
 }
 
 function getNavTitle() {
-  if (STATE.view === 'tasks') return '';
+  if (STATE.route !== 'calendar') return '';
   const d = STATE.currentDate;
-  if (STATE.view === 'month') return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-  if (STATE.view === 'day') return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  if (STATE.calScale === 'month') return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  if (STATE.calScale === 'day') return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
   const days = getViewDays();
   if (!days.length) return '';
   const s = days[0], e = days[days.length-1];
@@ -2022,7 +2033,7 @@ function getEffMinutes(ev, day) {
 // ─────────────────────────────────────────────
 function render() {
   renderNavTitle();
-  if (STATE.view !== 'tasks') renderTasks();
+  if (STATE.route !== 'tasks') renderTasks();
   renderViewButtons();
   const planPanel = document.getElementById('plan-panel');
   const tasksFullpage = document.getElementById('tasks-fullpage');
@@ -2040,16 +2051,16 @@ function render() {
   homeView.classList.remove('active');
   notesFullpage.classList.remove('active');
 
-  if (STATE.view === 'tasks') {
+  if (STATE.route === 'tasks') {
     tasksFullpage.classList.add('active');
     renderTasksFullPage();
-  } else if (STATE.view === 'home') {
+  } else if (STATE.route === 'home') {
     homeView.classList.add('active');
     renderHome();
-  } else if (STATE.view === 'notes') {
+  } else if (STATE.route === 'notes') {
     notesFullpage.classList.add('active');
     renderNotesPage();
-  } else if (STATE.view === 'month') {
+  } else if (STATE.calScale === 'month') {
     monthView.style.display = 'flex';
     renderMonth();
   } else {
@@ -2066,14 +2077,13 @@ function renderNavTitle() {
 function renderViewButtons() {
   document.querySelectorAll('.view-btn').forEach(btn => {
     const v = btn.dataset.view;
-    btn.classList.toggle('active', v === STATE.view || (v === 'week' && STATE.view === 'nday'));
+    btn.classList.toggle('active', v === STATE.calScale || (v === 'week' && STATE.calScale === 'nday'));
   });
-  const currentRoute = (STATE.view === 'tasks' || STATE.view === 'home' || STATE.view === 'notes') ? STATE.view : 'calendar';
   document.querySelectorAll('.route-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.route === currentRoute);
+    btn.classList.toggle('active', btn.dataset.route === STATE.route);
   });
   // Date navigation and the view switcher only mean anything on the Calendar route.
-  const isDateless = currentRoute !== 'calendar';
+  const isDateless = STATE.route !== 'calendar';
   document.querySelector('.nav-group').style.display = isDateless ? 'none' : '';
   document.querySelector('.view-switcher').style.display = isDateless ? 'none' : '';
   document.getElementById('nav-title').style.display = isDateless ? 'none' : '';
@@ -2132,7 +2142,7 @@ function renderMonth() {
 
     cell.addEventListener('click', () => {
       STATE.currentDate = date;
-      STATE.view = 'day';
+      STATE.calScale = 'day';
       saveState(); render();
     });
 
@@ -2190,7 +2200,7 @@ function renderWeekHeader(days, today) {
     numEl.className = 'day-header-num';
     if (isSameDay(day, today)) numEl.classList.add('today');
     numEl.textContent = day.getDate();
-    numEl.addEventListener('click', () => { STATE.currentDate = day; STATE.view = 'day'; saveState(); render(); });
+    numEl.addEventListener('click', () => { STATE.currentDate = day; STATE.calScale = 'day'; saveState(); render(); });
     col.appendChild(nameEl);
     col.appendChild(numEl);
     headers.appendChild(col);
@@ -2649,7 +2659,7 @@ function renderTasks() {
 
   // Keep the Home page's Tasks column in sync with every mutation that
   // already funnels through here, whether or not Home is the visible route.
-  if (STATE.view === 'home') renderHomeTasks();
+  if (STATE.route === 'home') renderHomeTasks();
 }
 
 // ── 4. Today's Tasks ──
@@ -2929,7 +2939,7 @@ function buildInlineDetail(task) {
     chip.addEventListener('click', e => {
       e.stopPropagation();
       task.tags = (task.tags||[]).filter(t => t !== tag);
-      saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
+      saveState(); renderTasks(); if (STATE.route === 'tasks') renderTasksFullPage();
     });
     tagsRow.appendChild(chip);
   });
@@ -2943,7 +2953,7 @@ function buildInlineDetail(task) {
       if (val && !(task.tags||[]).includes(val)) {
         if (!task.tags) task.tags = [];
         task.tags.push(val);
-        saveState(); renderTasks(); if (STATE.view === 'tasks') renderTasksFullPage();
+        saveState(); renderTasks(); if (STATE.route === 'tasks') renderTasksFullPage();
       }
       tagInput.value = '';
     }
@@ -2998,7 +3008,7 @@ function buildInlineDetail(task) {
     }
     expandedTaskId = null;
     renderTasks();
-    if (STATE.view === 'tasks') renderTasksFullPage();
+    if (STATE.route === 'tasks') renderTasksFullPage();
   });
 
   actions.appendChild(deleteBtn);
@@ -3492,16 +3502,20 @@ async function requestNotifications() {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') return;
   if (document.querySelector('.modal-backdrop.visible')) return;
+  // Zoom and date navigation are calendar-only. Without this guard they used to
+  // mutate the calendar sub-view invisibly while the user was on Home or Notes,
+  // and the change only showed up later.
+  if (STATE.route !== 'calendar') return;
   switch(e.key) {
-    case 'm': case 'M': STATE.view = 'month'; saveState(); render(); break;
-    case 'w': case 'W': STATE.view = 'week'; STATE.nDays = 7; saveState(); render(); break;
-    case 'd': case 'D': STATE.view = 'day'; saveState(); render(); break;
+    case 'm': case 'M': STATE.calScale = 'month'; saveState(); render(); break;
+    case 'w': case 'W': STATE.calScale = 'week'; STATE.nDays = 7; saveState(); render(); break;
+    case 'd': case 'D': STATE.calScale = 'day'; saveState(); render(); break;
     case 't': case 'T': goToday(); break;
     case 'ArrowLeft': navigate(-1); break;
     case 'ArrowRight': navigate(1); break;
     default:
       if (e.key >= '1' && e.key <= '7') {
-        STATE.view = 'nday'; STATE.nDays = parseInt(e.key);
+        STATE.calScale = 'nday'; STATE.nDays = parseInt(e.key);
         saveState(); render();
       }
   }
@@ -3529,8 +3543,8 @@ document.getElementById('today-btn').addEventListener('click', goToday);
 document.querySelectorAll('.view-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const v = btn.dataset.view;
-    if (v === 'week') { STATE.view = 'week'; STATE.nDays = 7; }
-    else STATE.view = v;
+    if (v === 'week') { STATE.calScale = 'week'; STATE.nDays = 7; }
+    else STATE.calScale = v;
     saveState(); render();
   });
 });
@@ -3704,7 +3718,7 @@ document.getElementById('qep-title').addEventListener('keydown', e => {
 
 // One context-sensitive Add control replaces the old per-panel + buttons.
 document.getElementById('add-btn').addEventListener('click', (e) => {
-  if (STATE.view === 'tasks') openTaskModal(null);
+  if (STATE.route === 'tasks') openTaskModal(null);
   else openQuickEventPopover(null, null, e.clientX, e.clientY);
 });
 
@@ -3721,18 +3735,10 @@ document.getElementById('left-sidebar-collapse-btn').addEventListener('click', (
   applyPlanCollapsed(); saveState();
 });
 
-// 'tasks' / 'home' / 'notes' are pseudo-routes layered on top of STATE.view's
-// real job (which calendar sub-view -- day/week/month/nday -- is showing).
-// _prevView remembers the last real sub-view so "Calendar" can restore it.
-const HOME_SPECIAL_VIEWS = ['tasks', 'home', 'notes'];
-let _prevView = 'week';
+// Route and calendar zoom are independent now, so returning to Calendar just
+// shows whatever calScale was already there -- no _prevView stash needed.
 function goToRoute(route) {
-  if (route === 'calendar') {
-    if (HOME_SPECIAL_VIEWS.includes(STATE.view)) STATE.view = _prevView;
-  } else {
-    if (!HOME_SPECIAL_VIEWS.includes(STATE.view)) _prevView = STATE.view;
-    STATE.view = route;
-  }
+  STATE.route = route;
   saveState(); render();
 }
 document.getElementById('route-switcher').addEventListener('click', (e) => {
