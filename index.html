@@ -1731,7 +1731,60 @@ function scheduleMidnightReset() {
   setTimeout(() => { rolloverIfNewDay(); saveState(); render(); scheduleMidnightReset(); }, delay);
 }
 
+// ── Saved-state safety ──────────────────────────────────────────────
+// This app has no server, so localStorage IS the user's data. Two rules
+// follow, and both used to be broken:
+//   1. A load that FAILS must never look like a load that found nothing --
+//      otherwise init() falls back to sample data and the next save
+//      overwrites the real blob with it.
+//   2. A save that fails must say so. setItem throws QuotaExceededError,
+//      and a throw from inside a debounce timer is completely silent.
+const STORAGE_KEY = 'timebox_v3';
+const BACKUP_KEY  = 'timebox_v3_backup_pre_v4';
+let STATE_LOAD_FAILED = false;
+
+// Written once, before the first run that can reshape saved data. The only
+// undo an app with no server has.
+function backupOnce(raw) {
+  try {
+    if (!localStorage.getItem(BACKUP_KEY)) localStorage.setItem(BACKUP_KEY, raw);
+  } catch (e) { /* a full quota must not block loading */ }
+}
+
+function showFatalBanner(title, detail) {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;' +
+    'justify-content:center;background:var(--bg-canvas);padding:32px;';
+  const card = document.createElement('div');
+  card.style.cssText = 'max-width:520px;background:var(--bg-surface);border:1px solid var(--border-subtle);' +
+    'border-left:3px solid var(--accent-red);border-radius:10px;padding:20px 22px;';
+  const h = document.createElement('div');
+  h.style.cssText = "font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;margin-bottom:8px;";
+  h.textContent = title;
+  const p = document.createElement('div');
+  p.style.cssText = 'font-size:13px;line-height:1.6;color:var(--text-secondary);white-space:pre-wrap;';
+  p.textContent = detail;
+  card.appendChild(h); card.appendChild(p); el.appendChild(card);
+  document.body.appendChild(el);
+}
+
+let storageWarned = false;
+function showStorageWarning(e) {
+  console.error('[timebox] saveState failed', e);
+  if (storageWarned) return;
+  storageWarned = true;
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;' +
+    'background:var(--bg-surface);border:1px solid var(--accent-red);border-radius:8px;' +
+    'padding:10px 14px;font-size:12px;color:var(--text-primary);box-shadow:0 4px 16px rgba(15,23,42,0.15);';
+  el.textContent = 'Changes are no longer being saved — browser storage is full or unavailable.';
+  document.body.appendChild(el);
+}
+
 function saveState() {
+  // Refuse to persist a STATE that never came from disk. Without this, one
+  // failed load silently replaces the user's data on the next keystroke.
+  if (STATE_LOAD_FAILED) return;
   const s = {
     events: STATE.events.map(e => ({...e, start: e.start.toISOString(), end: e.end.toISOString()})),
     tasks: STATE.tasks.map(t => ({...t, dueDate: toDueDate(t.dueDate) ? toDueDate(t.dueDate).toISOString() : null})),
@@ -1752,14 +1805,22 @@ function saveState() {
     activeViewId: STATE.activeViewId || null,
     settings: STATE.settings || {},
   };
-  localStorage.setItem('timebox_v3', JSON.stringify(s));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch (e) {
+    showStorageWarning(e);
+  }
 }
 
+// Returns 'empty' (nothing saved yet), 'ok', or 'error'. The distinction is
+// load-bearing: init() may seed sample data on 'empty', but must NOT on
+// 'error' -- that path used to destroy real data.
 function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return 'empty';
   try {
-    const raw = localStorage.getItem('timebox_v3');
-    if (!raw) return false;
     const s = JSON.parse(raw);
+    backupOnce(raw);
     STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
     STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: toDueDate(t.dueDate)}));
     STATE.view = s.view || 'home';
@@ -1791,8 +1852,11 @@ function loadState() {
       if (t.dueDate) t.dueDate = toDueDate(t.dueDate);
       if (!t.tags) t.tags = [];
     });
-    return true;
-  } catch(e) { return false; }
+    return 'ok';
+  } catch (e) {
+    console.error('[timebox] loadState failed', e);
+    return 'error';
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -5863,8 +5927,17 @@ function initSettings() {
 // INIT
 // ─────────────────────────────────────────────
 function init() {
-  const hasData = loadState();
-  if (!hasData) loadSampleData();
+  const status = loadState();
+  if (status === 'error') {
+    // Stop here rather than rendering an empty app over real saved data.
+    STATE_LOAD_FAILED = true;
+    showFatalBanner('Timebox could not read your saved data',
+      'Your data is still in this browser\u2019s storage and has not been changed. ' +
+      'Nothing will be saved until this is resolved, so it cannot be overwritten.\n\n' +
+      'Open the browser console for the underlying error.');
+    return;
+  }
+  if (status === 'empty') loadSampleData();
   rolloverIfNewDay();
   scheduleMidnightReset();
   render();
