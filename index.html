@@ -1623,9 +1623,9 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Subtasks</label>
+        <label class="form-label">Sub-tasks</label>
         <div id="subtasks-list"></div>
-        <button class="btn btn-secondary" id="add-subtask-btn" style="margin-top:8px; height:32px; font-size:12px; padding:0 12px;">+ Add Subtask</button>
+        <button class="btn btn-secondary" id="add-subtask-btn" style="margin-top:8px; height:32px; font-size:12px; padding:0 12px;">+ Add Sub-task</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -1717,8 +1717,13 @@ function normalizeTask(partial) {
     notification: 'none',
     recurring: 'none',
     tags: [],
-    subtasks: [],
+    subtasks: [],          // retired by migration 3; kept so old readers don't throw
     listId: null,
+    projectId: null,
+    parentId: null,        // real task nesting; the edge lives on the child
+    scale: 'daily',        // 'daily' | 'weekly'
+    top3: false,
+    top3Date: null,
   }, partial || {});
 }
 
@@ -1758,6 +1763,8 @@ let STATE = {
   tasks: [],
   calendars: [],
   lists: [],
+  projects: [],
+  statusSets: defaultStatusSets(),
   route: 'home',        // 'home' | 'calendar' | 'tasks' | 'notes'
   calScale: 'week',     // 'day' | 'week' | 'nday' | 'month'
   nDays: 7,
@@ -1794,6 +1801,126 @@ function scheduleMidnightReset() {
   const now = new Date();
   const delay = (startOfDay(addDays(now, 1)) - now) + 1000;
   setTimeout(() => { rolloverIfNewDay(); saveState(); render(); scheduleMidnightReset(); }, delay);
+}
+
+// ── Statuses ────────────────────────────────────────────────────────
+// Editable per kind. `terminal` -- not the literal id 'completed' -- is what
+// drives strikethrough and "done" counting, so adding a custom status cannot
+// break completion styling.
+function defaultStatusSets() {
+  return {
+    task: [
+      { id: 'not_started', label: 'Not Started', color: 'var(--text-tertiary)', terminal: false },
+      { id: 'completed',   label: 'Done',        color: 'var(--accent-green)',  terminal: true  },
+    ],
+    project: [
+      { id: 'not_started', label: 'Not Started', color: 'var(--text-tertiary)', terminal: false },
+      { id: 'in_progress', label: 'In Progress', color: 'var(--accent-amber)',  terminal: false },
+      { id: 'done',        label: 'Done',        color: 'var(--accent-green)',  terminal: true  },
+    ],
+  };
+}
+
+function getStatusList(kind) {
+  const sets = STATE.statusSets || defaultStatusSets();
+  return sets[kind] || [];
+}
+function getStatusDef(kind, id) {
+  return getStatusList(kind).find(x => x.id === id) || null;
+}
+function isTerminalStatus(kind, id) {
+  const d = getStatusDef(kind, id);
+  return !!d && !!d.terminal;
+}
+function statusLabel(kind, id) {
+  const d = getStatusDef(kind, id);
+  return d ? d.label : id;
+}
+
+// ── Schema migrations ───────────────────────────────────────────────
+// These run on the RAW parsed JSON, before hydration -- so they see plain
+// strings rather than Dates, and a blob can be pasted into the console to test
+// one. Each step runs exactly once.
+//
+// This is a version counter rather than another round of "backfill the field
+// if it is missing" because step 3 is NOT idempotent: turning a task's flat
+// subtask list into real child tasks would duplicate every child on every
+// load. That single fact is what forces a counter.
+const SCHEMA_VERSION = 3;
+
+const MIGRATIONS = {
+  // The ad-hoc backfills that used to sit inline in loadState().
+  1: s => {
+    (s.tasks || []).forEach(t => {
+      if (!t.status) t.status = t.completed ? 'completed' : 'not_started';
+      if (t.listId === undefined) t.listId = null;
+      if (!t.tags) t.tags = [];
+    });
+    (s.lists || []).forEach((l, i) => { if (!l.color) l.color = CAL_COLORS[i % CAL_COLORS.length]; });
+  },
+
+  // Multi-scale planning: projects, the daily/weekly axis, real nesting.
+  2: s => {
+    (s.tasks || []).forEach(t => {
+      if (t.projectId === undefined) t.projectId = null;
+      if (t.parentId  === undefined) t.parentId  = null;
+      if (t.scale     === undefined) t.scale     = 'daily';
+      if (t.top3      === undefined) t.top3      = false;
+      if (t.top3Date  === undefined) t.top3Date  = null;
+    });
+    s.projects = s.projects || [];
+    s.statusSets = s.statusSets || defaultStatusSets();
+    // 'in_progress' was settable on tasks before statuses were configurable,
+    // so keep it available for anyone whose data already uses it.
+    if ((s.tasks || []).some(t => t.status === 'in_progress') &&
+        !s.statusSets.task.some(x => x.id === 'in_progress')) {
+      s.statusSets.task.splice(1, 0,
+        { id: 'in_progress', label: 'In Progress', color: 'var(--accent-amber)', terminal: false });
+    }
+  },
+
+  // Flat {id,text,done} checklists become real tasks with a parentId.
+  // Re-running this duplicates every child, which is the whole reason for
+  // SCHEMA_VERSION.
+  3: s => {
+    const spawned = [];
+    (s.tasks || []).forEach(parent => {
+      (parent.subtasks || []).forEach(st => {
+        if (!st || !String(st.text || '').trim()) return;
+        spawned.push({
+          id: st.id || uid(),
+          title: String(st.text),
+          completed: !!st.done,
+          status: st.done ? 'completed' : 'not_started',
+          priority: parent.priority || 'medium',
+          dueDate: parent.dueDate || null,     // still an ISO string at this point
+          dueTime: null,
+          description: '', notification: 'none', recurring: 'none',
+          tags: [], subtasks: [],
+          listId: parent.listId || null,
+          projectId: parent.projectId || null,
+          parentId: parent.id,
+          scale: 'daily', top3: false, top3Date: null,
+        });
+      });
+      parent.subtasks = [];
+    });
+    s.tasks = (s.tasks || []).concat(spawned);
+  },
+};
+
+// Set when a load actually upgraded something, so loadState can write the
+// result straight back. Without that the stored blob keeps its old version and
+// the chain re-runs on every single load -- harmless only as long as every
+// spawned id happens to be stable, which is not a property worth relying on.
+let didMigrate = false;
+
+function migrateSaved(s) {
+  let v = s.schemaVersion || 0;
+  didMigrate = v < SCHEMA_VERSION;
+  while (v < SCHEMA_VERSION) { v++; MIGRATIONS[v](s); }
+  s.schemaVersion = SCHEMA_VERSION;
+  return s;
 }
 
 // ── Saved-state safety ──────────────────────────────────────────────
@@ -1865,8 +1992,15 @@ function saveState() {
     notes: STATE.notes || [],
     activeNoteId: STATE.activeNoteId || null,
     ui: STATE.ui || {},
+    schemaVersion: SCHEMA_VERSION,
     calendars: STATE.calendars || [],
     lists: STATE.lists || [],
+    projects: (STATE.projects || []).map(pr => ({
+      ...pr,
+      start: pr.start ? toDueDate(pr.start).toISOString() : null,
+      due:   pr.due   ? toDueDate(pr.due).toISOString()   : null,
+    })),
+    statusSets: STATE.statusSets || defaultStatusSets(),
     taskViewConfig: STATE.taskViewConfig || {},
     views: STATE.views || [],
     activeViewId: STATE.activeViewId || null,
@@ -1886,8 +2020,8 @@ function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return 'empty';
   try {
-    const s = JSON.parse(raw);
     backupOnce(raw);
+    const s = migrateSaved(JSON.parse(raw));
     STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
     STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: toDueDate(t.dueDate)}));
     // STATE.view used to hold BOTH the route and the calendar zoom. Split them.
@@ -1918,19 +2052,15 @@ function loadState() {
     rolloverIfNewDay();
     STATE.calendars = s.calendars || [];
     STATE.lists = s.lists || [];
+    STATE.projects = (s.projects || []).map(pr => ({ ...pr, start: toDueDate(pr.start), due: toDueDate(pr.due) }));
+    STATE.statusSets = s.statusSets || defaultStatusSets();
     STATE.taskViewConfig = Object.assign({ sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' }, s.taskViewConfig || {});
     STATE.views = s.views || [];
     STATE.activeViewId = s.activeViewId || null;
-    // Lists gained a colour; backfill from the palette by position.
-    STATE.lists.forEach((l, i) => { if (!l.color) l.color = CAL_COLORS[i % CAL_COLORS.length]; });
     STATE.settings = Object.assign({ weekStartsSun: true, use24h: false, eventNotifs: true, taskNotifs: true }, s.settings || {});
-    // Migrate tasks: ensure status and listId fields exist
-    STATE.tasks.forEach(t => {
-      if (!t.status) t.status = t.completed ? 'completed' : 'not_started';
-      if (t.listId === undefined) t.listId = null;
-      if (t.dueDate) t.dueDate = toDueDate(t.dueDate);
-      if (!t.tags) t.tags = [];
-    });
+    // Persist the upgrade now that hydration proved it parses, so the chain
+    // runs exactly once per stored blob.
+    if (didMigrate) { didMigrate = false; saveState(); }
     return 'ok';
   } catch (e) {
     console.error('[timebox] loadState failed', e);
@@ -2490,11 +2620,20 @@ function layoutEventsForDay(events, day) {
 // ─────────────────────────────────────────────
 const SECTION_STATE = { overdue: true, today: true, upcoming: true, noDueDate: true, completed: false };
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+// P1/P2/P3 is the label; high/medium/low stays the stored value. Rewriting the
+// stored strings would mean rewriting every saved view's filter array too -- a
+// real data migration for a cosmetic change.
+const PRIORITY_LABEL = { high: 'P1', medium: 'P2', low: 'P3' };
+// One default, because the creation sites and the sort/filter readers used to
+// disagree: tasks were minted 'medium' but read as 'low' when sorted.
+function getTaskPriority(t) { return (t && t.priority) || 'medium'; }
+function priorityLabel(t) { return PRIORITY_LABEL[getTaskPriority(t)] || 'P2'; }
+function priorityRank(t) { return PRIORITY_ORDER[getTaskPriority(t)]; }
 
 function categorizeTasks() {
   const todayD = new Date(); todayD.setHours(0,0,0,0);
   const cats = { overdue: [], today: [], upcoming: [], noDueDate: [], completed: [] };
-  STATE.tasks.forEach(task => {
+  rootTasks().forEach(task => {
     if (task.completed) { cats.completed.push(task); return; }
     if (!task.dueDate) { cats.noDueDate.push(task); return; }
     const due = new Date(task.dueDate); due.setHours(0,0,0,0);
@@ -2504,9 +2643,9 @@ function categorizeTasks() {
     else cats.upcoming.push(task);
   });
   // Sort each by priority then date
-  const byPriority = arr => arr.sort((a,b) => (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2));
+  const byPriority = arr => arr.sort((a,b) => (priorityRank(a)) - (priorityRank(b)));
   byPriority(cats.overdue); byPriority(cats.today); byPriority(cats.noDueDate); byPriority(cats.completed);
-  cats.upcoming.sort((a,b) => (new Date(a.dueDate) - new Date(b.dueDate)) || (PRIORITY_ORDER[a.priority||'low'] - PRIORITY_ORDER[b.priority||'low']));
+  cats.upcoming.sort((a,b) => (new Date(a.dueDate) - new Date(b.dueDate)) || (priorityRank(a) - priorityRank(b)));
   return cats;
 }
 
@@ -2565,7 +2704,7 @@ function bucketTasks() {
   const today = startOfDay(new Date());
   const out = { today: [], overdue: [], unscheduled: [], dump: [] };
   const dumpIds = new Set(STATE.brainDump || []);
-  for (const t of STATE.tasks) {
+  for (const t of rootTasks()) {
     const due = toDueDate(t.dueDate);
     if (!due) {
       if (t.completed) continue;
@@ -2577,7 +2716,7 @@ function bucketTasks() {
     if (d < today) { if (!t.completed) out.overdue.push(t); }
     else if (d.getTime() === today.getTime()) out.today.push(t);
   }
-  const byPriority = (a, b) => (PRIORITY_ORDER[a.priority || 'low'] || 2) - (PRIORITY_ORDER[b.priority || 'low'] || 2);
+  const byPriority = (a, b) => (priorityRank(a)) - (priorityRank(b));
   out.today.sort((a, b) => (a.completed ? 1 : 0) - (b.completed ? 1 : 0) || byPriority(a, b));
   out.overdue.sort((a, b) => toDueDate(a.dueDate) - toDueDate(b.dueDate) || byPriority(a, b));
   out.unscheduled.sort(byPriority);
@@ -3122,8 +3261,19 @@ function toggleTaskComplete(id) {
   }
 }
 
+// Deleting used to leave the id behind in linkedTaskIds, topThree and
+// brainDump. Readers tolerated it via .filter(Boolean), but nesting makes a
+// stale parentId visible -- an orphan would vanish from every list -- and the
+// top3 flag turns a dangling slot into a wrong count. So scrub properly.
 function deleteTask(id) {
   STATE.tasks = STATE.tasks.filter(t => t.id !== id);
+  // Children are promoted, not cascaded: same choice the list delete makes.
+  STATE.tasks.forEach(t => { if (t.parentId === id) t.parentId = null; });
+  STATE.events.forEach(ev => {
+    if (ev.linkedTaskIds) ev.linkedTaskIds = ev.linkedTaskIds.filter(x => x !== id);
+  });
+  STATE.topThree = normalizeTopThree((STATE.topThree || []).map(x => x === id ? null : x));
+  STATE.brainDump = (STATE.brainDump || []).filter(x => x !== id);
   saveState(); renderTasks();
 }
 
@@ -3375,7 +3525,8 @@ function openTaskModal(id) {
   document.getElementById('task-delete-btn').style.display = task ? 'block' : 'none';
 
   currentTags = task ? [...(task.tags||[])] : [];
-  currentSubtasks = task ? (task.subtasks||[]).map(s => ({...s})) : [];
+  // Staging copies of the real child tasks; reconciled back in saveTask().
+  currentSubtasks = task ? childrenOf(task.id).map(k => ({ id: k.id, text: k.title, done: isTerminalStatus('task', getTaskStatus(k)) })) : [];
   renderTagsInput();
   renderSubtasks();
 
@@ -3432,6 +3583,38 @@ function renderSubtasks() {
   });
 }
 
+// The modal edits sub-tasks as a flat staging list. Reconcile it against the
+// real child tasks rather than writing the retired subtasks array: match by id,
+// create what's new, delete what was removed.
+function syncChildTasks(parent, staged) {
+  const existing = childrenOf(parent.id);
+  const keep = new Set();
+  (staged || []).forEach(st => {
+    const text = (st.text || '').trim();
+    if (!text) return;
+    const found = existing.find(k => k.id === st.id);
+    if (found) {
+      found.title = text;
+      found.status = st.done ? 'completed' : 'not_started';
+      found.completed = !!st.done;
+      keep.add(found.id);
+    } else {
+      const kid = normalizeTask({
+        title: text,
+        parentId: parent.id,
+        listId: parent.listId || null,
+        projectId: parent.projectId || null,
+        priority: getTaskPriority(parent),
+        status: st.done ? 'completed' : 'not_started',
+        completed: !!st.done,
+      });
+      STATE.tasks.push(kid);
+      keep.add(kid.id);
+    }
+  });
+  existing.filter(k => !keep.has(k.id)).forEach(k => deleteTask(k.id));
+}
+
 function saveTask() {
   const title = document.getElementById('task-title-input').value.trim();
   if (!title) { document.getElementById('task-title-input').focus(); return; }
@@ -3443,13 +3626,16 @@ function saveTask() {
   const recurring = document.getElementById('task-recurring').value;
   const priority = document.getElementById('task-priority').value;
   const tags = [...currentTags];
-  const subtasks = currentSubtasks.filter(s => s.text.trim()).map(s => ({...s}));
-
   if (editingTaskId) {
     const task = STATE.tasks.find(t => t.id === editingTaskId);
-    if (task) Object.assign(task, {title, dueDate, dueTime, description, notification, recurring, priority, tags, subtasks});
+    if (task) {
+      Object.assign(task, {title, dueDate, dueTime, description, notification, recurring, priority, tags});
+      syncChildTasks(task, currentSubtasks);
+    }
   } else {
-    STATE.tasks.push(normalizeTask({ title, priority, dueDate, dueTime, description, notification, recurring, tags, subtasks }));
+    const task = normalizeTask({ title, priority, dueDate, dueTime, description, notification, recurring, tags });
+    STATE.tasks.push(task);
+    syncChildTasks(task, currentSubtasks);
   }
   saveState(); closeTaskModal(); renderTasks();
 }
@@ -3879,7 +4065,8 @@ document.getElementById('task-modal-close').addEventListener('click', closeTaskM
 document.getElementById('task-cancel-btn').addEventListener('click', closeTaskModal);
 document.getElementById('task-save-btn').addEventListener('click', saveTask);
 document.getElementById('task-delete-btn').addEventListener('click', () => {
-  if (editingTaskId) { STATE.tasks = STATE.tasks.filter(t => t.id !== editingTaskId); saveState(); closeTaskModal(); renderTasks(); }
+  // Went straight to the array before, skipping every scrub in deleteTask().
+  if (editingTaskId) { deleteTask(editingTaskId); closeTaskModal(); }
 });
 document.getElementById('task-modal-backdrop').addEventListener('click', e => {
   if (e.target === document.getElementById('task-modal-backdrop')) closeTaskModal();
@@ -4249,6 +4436,20 @@ let selectedTaskId = null;   // the task open in the right-hand inspector
 
 // ─── Task helpers ──────────────────────────────────────────────
 function getTaskStatus(t) { return t.status || (t.completed ? 'completed' : 'not_started'); }
+
+// ── Nesting ─────────────────────────────────────────────────────────
+// The edge lives on the child as parentId, and the tree is derived per render.
+// A child whose parent was deleted counts as a root rather than disappearing:
+// deleteTask scrubs parentId, but tolerating the orphan means a stale id can
+// never hide a task outright.
+function taskParent(t) { return t && t.parentId ? STATE.tasks.find(x => x.id === t.parentId) : null; }
+function isRoot(t) { return !t.parentId || !taskParent(t); }
+function rootTasks() { return STATE.tasks.filter(isRoot); }
+function childrenOf(id) { return STATE.tasks.filter(t => t.parentId === id); }
+function childProgress(id) {
+  const kids = childrenOf(id);
+  return { done: kids.filter(k => isTerminalStatus('task', getTaskStatus(k))).length, total: kids.length };
+}
 function getTaskListName(t) {
   if (!t.listId) return 'No list';
   const l = STATE.lists.find(li => li.id === t.listId);
@@ -4273,14 +4474,14 @@ function renderTasksFullPage() {
   renderFpToolbar();
   renderTasksFullPageAll();
   renderTkInspector();
-  const open = STATE.tasks.filter(t => !t.completed).length;
+  const open = rootTasks().filter(t => !t.completed).length;
   document.getElementById('tk-openpill').textContent = `${open} open`;
 }
 
 // ─── Left rail ─────────────────────────────────────────────────
 function tkSmartCount(id) {
   const today = startOfDay(new Date());
-  return STATE.tasks.filter(t => {
+  return rootTasks().filter(t => {
     const d = toDueDate(t.dueDate);
     switch (id) {
       case 'today':     return !t.completed && d && startOfDay(d).getTime() <= today.getTime();
@@ -4302,7 +4503,7 @@ function renderTkRail() {
   noList.className = 'tk-rail-row' + ((f.list || []).includes('__none__') ? ' active' : '');
   noList.innerHTML = `<span class="material-symbols-outlined" style="font-size:15px;color:var(--text-tertiary);">inbox</span>
     <span class="tk-rail-name">Inbox (no list)</span>
-    <span class="tk-rail-count">${STATE.tasks.filter(t => !t.listId && !t.completed).length}</span>`;
+    <span class="tk-rail-count">${rootTasks().filter(t => !t.listId && !t.completed).length}</span>`;
   noList.addEventListener('click', () => toggleFilter('list', '__none__'));
   lists.appendChild(noList);
   STATE.lists.forEach(l => {
@@ -4323,7 +4524,7 @@ function renderTkRail() {
     name.textContent = l.name;
     const count = document.createElement('span');
     count.className = 'tk-rail-count';
-    count.textContent = STATE.tasks.filter(t => t.listId === l.id && !t.completed).length;
+    count.textContent = rootTasks().filter(t => t.listId === l.id && !t.completed).length;
     const del = document.createElement('button');
     del.className = 'plan-icon-act';
     del.title = 'Delete list';
@@ -4649,12 +4850,13 @@ function unflattenFilters(arr) {
 // ─── Sort / Filter / Group logic ───────────────────────────────
 function getFilteredSortedTasks() {
   const cfg = STATE.taskViewConfig;
-  let tasks = [...STATE.tasks];
+  // Children are shown nested under their parent row, never as rows of their own.
+  let tasks = rootTasks();
 
   // Apply filters
   const f = cfg.filters || {};
   if (f.status && f.status.length) tasks = tasks.filter(t => f.status.includes(getTaskStatus(t)));
-  if (f.priority && f.priority.length) tasks = tasks.filter(t => f.priority.includes(t.priority || 'low'));
+  if (f.priority && f.priority.length) tasks = tasks.filter(t => f.priority.includes(getTaskPriority(t)));
   if (f.tag && f.tag.length) tasks = tasks.filter(t => (t.tags||[]).some(tag => f.tag.includes(tag)));
   if (f.list && f.list.length) tasks = tasks.filter(t => {
     if (f.list.includes('__none__') && !t.listId) return true;
@@ -4696,7 +4898,7 @@ function getFilteredSortedTasks() {
       }
       case 'priority': {
         const po = { high: 0, medium: 1, low: 2 };
-        cmp = (po[a.priority||'low']||2) - (po[b.priority||'low']||2); break;
+        cmp = priorityRank(a) - priorityRank(b); break;
       }
       case 'title': cmp = (a.title||'').localeCompare(b.title||''); break;
       case 'status': {
@@ -4719,7 +4921,7 @@ function groupTasks(tasks) {
     let keys = [];
     switch (cfg.groupBy) {
       case 'status': keys = [getTaskStatus(t)]; break;
-      case 'priority': keys = [t.priority || 'low']; break;
+      case 'priority': keys = [getTaskPriority(t)]; break;
       case 'dueDate': {
         if (!t.dueDate) { keys = ['No date']; }
         else {
@@ -4882,18 +5084,21 @@ function buildTkRow(task) {
     }
   }
 
-  if (task.priority && task.priority !== 'low') {
+  {
+    // All three levels render. This used to skip 'low' and label it "P2"
+    // anyway on the branch that did show it, so P3 was unreachable.
+    const label = priorityLabel(task);
     const s = document.createElement('span');
-    s.className = 'tk-prio ' + (task.priority === 'high' ? 'p1' : 'p2');
-    s.textContent = task.priority === 'high' ? 'P1' : 'P2';
+    s.className = 'tk-prio ' + label.toLowerCase();
+    s.textContent = label;
     right.appendChild(s);
   }
 
-  const subs = task.subtasks || [];
-  if (subs.length) {
+  const prog = childProgress(task.id);
+  if (prog.total) {
     const s = document.createElement('span');
     s.className = 'tk-pill';
-    s.textContent = `${subs.filter(x => x.done).length}/${subs.length}`;
+    s.textContent = `${prog.done}/${prog.total}`;
     right.appendChild(s);
   }
 
@@ -5066,7 +5271,7 @@ function renderTkInspector() {
   prio.className = 'tk-insp-input'; prio.dataset.field = 'priority';
   [['high', 'P1 · High'], ['medium', 'P2 · Medium'], ['low', 'P3 · Low']].forEach(([v, l]) => {
     const o = document.createElement('option'); o.value = v; o.textContent = l;
-    if ((task.priority || 'low') === v) o.selected = true;
+    if (getTaskPriority(task) === v) o.selected = true;
     prio.appendChild(o);
   });
   prio.addEventListener('change', () => commit(() => { task.priority = prio.value; }));
@@ -5119,44 +5324,58 @@ function renderTkInspector() {
   recur.addEventListener('change', () => commit(() => { task.recurring = recur.value; }));
   field('repeat', 'Repeats', recur);
 
-  // subtasks
-  const subs = task.subtasks || [];
+  // Sub-tasks are real tasks now, not a checklist of strings -- so they can
+  // carry their own due date, be timeboxed, and be promoted out of the parent.
+  const kids = childrenOf(task.id);
+  const prog = childProgress(task.id);
   const subHead = document.createElement('div');
   subHead.className = 'popover-subhead';
   subHead.style.marginTop = '4px';
-  subHead.innerHTML = `<span>Subtasks</span><span class="mono">${subs.filter(s => s.done).length}/${subs.length}</span>`;
+  subHead.innerHTML = `<span>Sub-tasks</span><span class="mono">${prog.done}/${prog.total}</span>`;
   body.appendChild(subHead);
 
-  subs.forEach((st, i) => {
+  kids.forEach(kid => {
+    const done = isTerminalStatus('task', getTaskStatus(kid));
     const r = document.createElement('div');
     r.className = 'tk-insp-sub';
     const c = document.createElement('div');
-    c.className = 'plan-check' + (st.done ? ' checked' : '');
-    c.addEventListener('click', () => commit(() => { st.done = !st.done; }));
+    c.className = 'plan-check' + (done ? ' checked' : '');
+    c.addEventListener('click', () => commit(() => toggleTaskComplete(kid.id)));
     const txt = document.createElement('input');
-    txt.className = 'tk-insp-subtext' + (st.done ? ' done' : '');
-    txt.value = st.text;
-    txt.addEventListener('change', () => commit(() => { st.text = txt.value; }));
+    txt.className = 'tk-insp-subtext' + (done ? ' done' : '');
+    txt.value = kid.title;
+    txt.addEventListener('change', () => commit(() => { kid.title = txt.value; }));
+    const open = document.createElement('button');
+    open.className = 'plan-icon-act';
+    open.title = 'Open this sub-task';
+    open.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;">open_in_new</span>';
+    open.addEventListener('click', () => { selectedTaskId = kid.id; renderTasksFullPage(); });
     const rm = document.createElement('button');
     rm.className = 'plan-icon-act';
+    rm.title = 'Delete sub-task';
     rm.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px;">close</span>';
-    rm.addEventListener('click', () => commit(() => { task.subtasks.splice(i, 1); }));
-    r.append(c, txt, rm);
+    rm.addEventListener('click', () => commit(() => deleteTask(kid.id)));
+    r.append(c, txt, open, rm);
     body.appendChild(r);
   });
 
   const addSub = document.createElement('button');
   addSub.className = 'plan-act';
   addSub.style.alignSelf = 'flex-start';
-  addSub.textContent = '+ Add subtask';
+  addSub.textContent = '+ Add sub-task';
   addSub.addEventListener('click', () => commit(() => {
-    task.subtasks = task.subtasks || [];
-    task.subtasks.push({ id: uid(), text: 'New subtask', done: false });
+    STATE.tasks.push(normalizeTask({
+      title: 'New sub-task',
+      parentId: task.id,
+      listId: task.listId || null,
+      projectId: task.projectId || null,
+      priority: getTaskPriority(task),
+    }));
   }));
   body.appendChild(addSub);
 
-  document.getElementById('tk-insp-meta').textContent = subs.length
-    ? `${subs.filter(s => s.done).length} of ${subs.length} done`
+  document.getElementById('tk-insp-meta').textContent = prog.total
+    ? `${prog.done} of ${prog.total} done`
     : getTaskListName(task);
 }
 
@@ -5197,7 +5416,7 @@ function attachTaskAutocomplete(input, listEl, opts) {
       .sort((a, b) => {
         const ap = a.title.toLowerCase().startsWith(ql) ? 0 : 1;
         const bp = b.title.toLowerCase().startsWith(ql) ? 0 : 1;
-        return ap - bp || (PRIORITY_ORDER[a.priority || 'low'] || 2) - (PRIORITY_ORDER[b.priority || 'low'] || 2);
+        return ap - bp || (priorityRank(a)) - (priorityRank(b));
       })
       .slice(0, 8);
 
@@ -5438,7 +5657,7 @@ function bucketHomeTasks() {
   const today = startOfDay(new Date());
   const top3Ids = new Set(normalizeTopThree(STATE.topThree).filter(Boolean));
   const overdue = [], todays = [], later = [];
-  for (const t of STATE.tasks) {
+  for (const t of rootTasks()) {
     if (top3Ids.has(t.id)) continue;
     const due = toDueDate(t.dueDate);
     if (due) {
@@ -5450,7 +5669,7 @@ function bucketHomeTasks() {
     }
     if (!t.completed) later.push(t);
   }
-  const byPriority = (a, b) => (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
+  const byPriority = (a, b) => (priorityRank(a)) - (priorityRank(b));
   overdue.sort((a,b) => toDueDate(a.dueDate) - toDueDate(b.dueDate) || byPriority(a,b));
   todays.sort((a,b) => (a.completed?1:0) - (b.completed?1:0) || byPriority(a,b));
   later.sort((a,b) => {
@@ -6349,7 +6568,7 @@ function init() {
     STATE.taskViewConfig.search = tkSearch.value;
     renderTasksFullPageAll();   // rows only: re-rendering the head would steal focus
     document.getElementById('tk-openpill').textContent =
-      `${STATE.tasks.filter(t => !t.completed).length} open`;
+      `${rootTasks().filter(t => !t.completed).length} open`;
   });
   document.getElementById('tk-insp-close').addEventListener('click', () => {
     selectedTaskId = null; renderTasksFullPage();
