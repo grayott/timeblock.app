@@ -1902,11 +1902,26 @@ function normalizeTopThree(v) {
   return out;
 }
 
+// The positional array stays authoritative -- a slot NUMBER is information a
+// boolean cannot carry. task.top3 is a denormalized index onto it, so a "Top 3"
+// filter is possible without scanning the array per row. Written only here, and
+// recomputed on load, so the two cannot drift.
+function syncTop3Flags() {
+  const ids = new Set(normalizeTopThree(STATE.topThree).filter(Boolean));
+  const today = new Date().toDateString();
+  STATE.tasks.forEach(t => {
+    const on = ids.has(t.id);
+    t.top3 = on;
+    t.top3Date = on ? today : null;
+  });
+}
+
 // Brain Dump and Top Three are both "for today only" and reset at midnight.
 function rolloverIfNewDay() {
   const today = new Date().toDateString();
   if (STATE.brainDumpDate !== today) { STATE.brainDump = []; STATE.brainDumpDate = today; }
   if (STATE.topThreeDate !== today) { STATE.topThree = [null, null, null]; STATE.topThreeDate = today; }
+  syncTop3Flags();
 }
 
 // Self-rescheduling so a tab left open overnight still clears at 12:00 AM.
@@ -2171,6 +2186,7 @@ function loadState() {
     STATE.dailyNote = s.dailyNote || newDailyNote();
     STATE.ui = Object.assign({ overdueOpen: false, unscheduledOpen: false, planCollapsed: false, homeLaterOpen: false }, s.ui || {});
     // Daily rollover for the tab-was-closed case; scheduleMidnightReset() covers a tab left open.
+    // This also re-derives task.top3 from the slots, healing any drift.
     rolloverIfNewDay();
     STATE.calendars = s.calendars || [];
     STATE.lists = s.lists || [];
@@ -3469,6 +3485,7 @@ function deleteTask(id) {
   });
   STATE.topThree = normalizeTopThree((STATE.topThree || []).map(x => x === id ? null : x));
   STATE.brainDump = (STATE.brainDump || []).filter(x => x !== id);
+  syncTop3Flags();
   saveState(); renderTasks();
 }
 
@@ -5291,6 +5308,8 @@ function renderFpToolbar() {
     STATE.lists.forEach(l => items.push({ id: 'list:' + l.id, label: l.name, icon: 'folder' }));
     items.push({ id: 'list:__none__', label: 'No list', icon: 'folder_off' });
   }
+  items.push({ id: '__divider__' }, { id: '__label__', label: 'FOCUS' });
+  items.push({ id: 'top3:yes', label: 'Top 3 today', icon: 'counter_3' });
   items.push({ id: '__divider__' }, { id: '__label__', label: 'SCALE' });
   items.push({ id: 'scale:daily', label: 'Daily', icon: 'today' });
   items.push({ id: 'scale:weekly', label: 'Weekly', icon: 'date_range' });
@@ -5347,6 +5366,7 @@ function renderFpToolbar() {
       label = val === '__none__' ? 'No project' : (projectName(val) || val);
     }
     if (type === 'scale') label = val === 'weekly' ? 'Weekly' : 'Daily';
+    if (type === 'top3') label = 'Top 3 today';
     const chip = document.createElement('span');
     chip.className = 'fp-filter-chip';
     chip.innerHTML = `${type.charAt(0).toUpperCase() + type.slice(1)}: ${label} <span class="material-symbols-outlined">close</span>`;
@@ -5436,6 +5456,7 @@ function getFilteredSortedTasks() {
   if (f.status && f.status.length) tasks = tasks.filter(t => f.status.includes(getTaskStatus(t)));
   if (f.priority && f.priority.length) tasks = tasks.filter(t => f.priority.includes(getTaskPriority(t)));
   if (f.tag && f.tag.length) tasks = tasks.filter(t => (t.tags||[]).some(tag => f.tag.includes(tag)));
+  if (f.top3 && f.top3.includes('yes')) tasks = tasks.filter(t => !!t.top3);
   if (f.scale && f.scale.length) tasks = tasks.filter(t => f.scale.includes(t.scale || 'daily'));
   if (f.project && f.project.length) tasks = tasks.filter(t => {
     if (f.project.includes('__none__') && !t.projectId) return true;
@@ -6260,6 +6281,7 @@ function renderTopThree() {
       rm.addEventListener('click', e => {
         e.stopPropagation();
         STATE.topThree[i] = null;
+        syncTop3Flags();
         saveState(); renderTasks();
       });
       slot.appendChild(rm);
@@ -6309,6 +6331,7 @@ function setTopThree(i, taskId) {
   STATE.topThree = STATE.topThree.map(id => (id === taskId ? null : id));
   STATE.topThree[i] = taskId;
   STATE.topThreeDate = new Date().toDateString();
+  syncTop3Flags();
   saveState(); renderTasks();
 }
 
@@ -6651,6 +6674,7 @@ function renderHomeTopThree() {
       rm.addEventListener('click', e => {
         e.stopPropagation();
         STATE.topThree[i] = null;
+        syncTop3Flags();
         saveState(); renderTasks();
       });
       slot.appendChild(rm);
