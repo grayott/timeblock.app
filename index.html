@@ -997,6 +997,67 @@
 
   /* Ensure month view works */
   #month-view { background: white; }
+
+  /* ── Home page: Tasks | Day Plan | Notes ── */
+  #home-view { display: none; flex: 1; min-width: 0; overflow: hidden; background: var(--bg-canvas); }
+  #home-view.active { display: flex; }
+  .home-col { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface); border-right: 1px solid var(--border-subtle); }
+  .home-col:last-child { border-right: none; }
+  .home-col-head { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); }
+  .home-col-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-primary); }
+  .home-expand-btn {
+    width: 26px; height: 26px; border: none; background: none; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    color: var(--text-tertiary); flex-shrink: 0;
+  }
+  .home-expand-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .home-col-date { margin-left: auto; font-size: 11px; color: var(--text-tertiary); }
+  .home-col-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+  .home-col-foot { flex-shrink: 0; padding: 12px 16px; border-top: 1px solid var(--border-subtle); }
+  .home-braindump-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px; border-radius: 8px; border: 1px dashed var(--border-subtle);
+    background: var(--bg-canvas); color: var(--text-secondary); font-weight: 600;
+    font-size: 13px; cursor: pointer; transition: all 0.12s;
+  }
+  .home-braindump-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-subtle); }
+  .home-subhead { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-red); margin: 2px 0 -4px; }
+  .home-divider { height: 1px; background: var(--border-subtle); margin: 2px 0; }
+  .home-allday-row { display: none; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+  .home-allday-row.has-events { display: flex; }
+
+  /* Home Notes pane */
+  .home-notes-add {
+    display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px;
+    border-radius: 8px; border: 1px solid var(--border-subtle); background: var(--bg-canvas);
+    color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .home-notes-add:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-subtle); }
+  .home-note-row { padding: 9px 10px; border: 1px solid var(--border-subtle); border-radius: 8px; cursor: pointer; background: var(--bg-surface); }
+  .home-note-row:hover { border-color: #cbd5e1; background: var(--bg-canvas); }
+  .home-note-title { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-note-snippet { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .home-note-time { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; }
+
+  /* ── Notes full page: rail | editor ── */
+  #notes-fullpage { display: none; flex: 1; min-width: 0; background: var(--bg-canvas); }
+  #notes-fullpage.active { display: flex; }
+  #notes-rail { width: 260px; flex-shrink: 0; background: var(--bg-surface); border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; overflow: hidden; }
+  #notes-rail-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 13px; }
+  #notes-rail-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+  #notes-rail-footer { flex-shrink: 0; padding: 10px 12px; border-top: 1px solid var(--border-subtle); }
+  .notes-rail-item { position: relative; padding: 9px 30px 9px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .notes-rail-item:hover { background: var(--bg-hover); }
+  .notes-rail-item.active { background: var(--primary-subtle); border-color: var(--primary); }
+  .notes-rail-item-title { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notes-rail-item-snippet { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .notes-rail-item-time { font-size: 10px; color: var(--text-tertiary); margin-top: 3px; font-family: 'JetBrains Mono', monospace; }
+  .notes-rail-item-del { position: absolute; top: 8px; right: 6px; opacity: 0; transition: opacity 0.15s; }
+  .notes-rail-item:hover .notes-rail-item-del { opacity: 1; }
+  #notes-editor { flex: 1; display: flex; flex-direction: column; padding: 32px 44px; overflow-y: auto; }
+  #notes-title-input { border: none; outline: none; background: none; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 14px; flex-shrink: 0; }
+  #notes-body-input { flex: 1; border: none; outline: none; background: none; resize: none; font-family: inherit; font-size: 14px; line-height: 1.7; color: var(--text-primary); }
+  #notes-editor-empty { color: var(--text-tertiary); font-size: 13px; margin-top: 60px; text-align: center; }
 </style>
 </head>
 <body>
@@ -1009,6 +1070,7 @@
       <span class="logo">Timebox</span>
     </div>
     <div class="route-switcher" id="route-switcher">
+      <button class="route-btn" data-route="home" type="button">Home</button>
       <button class="route-btn" data-route="calendar" type="button">Calendar</button>
       <button class="route-btn" data-route="tasks" type="button">Tasks</button>
     </div>
@@ -1135,7 +1197,7 @@
         </div>
         <div id="tk-rail-footer">
           <span style="display:flex;align-items:center;gap:5px;"><span class="plan-dot"></span>Synced with calendar</span>
-          <button class="plan-act" id="tasks-fp-collapse-btn" title="Back to calendar">Calendar</button>
+          <button class="plan-act" id="tasks-fp-collapse-btn" title="Back to home">Home</button>
         </div>
       </aside>
 
@@ -1181,8 +1243,84 @@
         </div>
       </aside>
     </div>
+
+    <!-- Home: Tasks | Day Plan | Notes -->
+    <div id="home-view">
+      <section class="home-col" id="home-tasks-col">
+        <div class="home-col-head">
+          <button class="home-expand-btn" id="home-expand-tasks" title="Expand to Tasks"><span class="material-symbols-outlined" style="font-size:17px;">open_in_full</span></button>
+          <span class="home-col-title">Tasks</span>
+        </div>
+        <div class="home-col-body" id="home-tasks-body"></div>
+        <div class="home-col-foot">
+          <button class="home-braindump-btn" id="home-braindump-btn"><span class="material-symbols-outlined" style="font-size:16px;">bolt</span>Brain Dump</button>
+        </div>
+      </section>
+
+      <section class="home-col" id="home-dayplan-col">
+        <div class="home-col-head">
+          <button class="home-expand-btn" id="home-expand-dayplan" title="Expand to calendar"><span class="material-symbols-outlined" style="font-size:17px;">open_in_full</span></button>
+          <span class="home-col-title">Day Plan</span>
+          <span class="home-col-date" id="home-dayplan-date"></span>
+        </div>
+        <div class="home-allday-row" id="home-dayplan-allday"></div>
+        <div class="time-grid-scroll" id="home-dayplan-scroll">
+          <div class="time-grid" style="height:calc(24 * var(--hour-height));">
+            <div class="time-labels" id="home-dayplan-labels"></div>
+            <div class="time-grid-cols">
+              <div class="day-col today-col" id="home-dayplan-grid"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="home-col" id="home-notes-col">
+        <div class="home-col-head">
+          <button class="home-expand-btn" id="home-expand-notes" title="Expand to Notes"><span class="material-symbols-outlined" style="font-size:17px;">open_in_full</span></button>
+          <span class="home-col-title">Notes</span>
+        </div>
+        <div class="home-col-body" id="home-notes-body"></div>
+      </section>
+    </div>
+
+    <!-- Notes full page -->
+    <div id="notes-fullpage">
+      <aside id="notes-rail">
+        <div id="notes-rail-head">
+          <span>Notes</span>
+          <button class="plan-icon-act" id="notes-add-btn" title="New note"><span class="material-symbols-outlined" style="font-size:16px;">add</span></button>
+        </div>
+        <div id="notes-rail-list"></div>
+        <div id="notes-rail-footer">
+          <button class="plan-act" id="notes-fp-home-btn" title="Back to home">Home</button>
+        </div>
+      </aside>
+      <div id="notes-editor">
+        <input type="text" id="notes-title-input" placeholder="Untitled note" autocomplete="off">
+        <textarea id="notes-body-input" placeholder="Start writing…"></textarea>
+        <div id="notes-editor-empty" style="display:none;">Select a note, or create a new one.</div>
+      </div>
+    </div>
   </div>
 
+</div>
+
+<!-- Brain Dump Modal -->
+<div class="modal-backdrop" id="braindump-modal-backdrop">
+  <div class="modal" id="braindump-modal" role="dialog" style="width:480px;">
+    <div class="modal-header modal-drag-handle">
+      <span class="modal-title">Brain Dump</span>
+      <button class="icon-btn" id="braindump-modal-close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body" style="gap:10px;">
+      <div class="plan-input-wrap">
+        <input type="text" class="plan-input" id="braindump-modal-input" placeholder="Dump a thought, task, or type a date (e.g. tom 2pm)…" autocomplete="off">
+        <span class="plan-kbd">Enter</span>
+        <div class="brain-dump-suggestions" id="braindump-modal-suggestions"></div>
+      </div>
+      <div id="braindump-modal-list" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Settings Modal -->
@@ -1599,7 +1737,7 @@ let STATE = {
   tasks: [],
   calendars: [],
   lists: [],
-  view: 'week',
+  view: 'home',
   nDays: 7,
   currentDate: new Date(),
   topThree: [null, null, null],
@@ -1607,6 +1745,8 @@ let STATE = {
   brainDump: [],
   brainDumpDate: new Date().toDateString(),
   weeklyFocus: {},
+  notes: [],
+  activeNoteId: null,
   ui: { overdueOpen: false, unscheduledOpen: false, weeklyFocusOpen: false, planCollapsed: false },
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' },
   views: [],            // user-saved [{ id, name, config }]
@@ -1646,6 +1786,8 @@ function saveState() {
     brainDump: STATE.brainDump || [],
     brainDumpDate: STATE.brainDumpDate || new Date().toDateString(),
     weeklyFocus: STATE.weeklyFocus || {},
+    notes: STATE.notes || [],
+    activeNoteId: STATE.activeNoteId || null,
     ui: STATE.ui || {},
     calendars: STATE.calendars || [],
     lists: STATE.lists || [],
@@ -1664,7 +1806,7 @@ function loadState() {
     const s = JSON.parse(raw);
     STATE.events = (s.events||[]).map(e => ({...e, start: new Date(e.start), end: new Date(e.end)}));
     STATE.tasks = (s.tasks||[]).map(t => ({...t, dueDate: toDueDate(t.dueDate)}));
-    STATE.view = s.view || 'week';
+    STATE.view = s.view || 'home';
     STATE.nDays = Math.min(s.nDays || 7, 7);
     STATE.currentDate = s.currentDate ? new Date(s.currentDate) : new Date();
     // topThree is positional: always exactly 3 slots. Older saves punched null holes
@@ -1674,6 +1816,8 @@ function loadState() {
     STATE.brainDump = s.brainDump || [];
     STATE.brainDumpDate = s.brainDumpDate || new Date().toDateString();
     STATE.weeklyFocus = s.weeklyFocus || {};
+    STATE.notes = s.notes || [];
+    STATE.activeNoteId = s.activeNoteId || null;
     STATE.ui = Object.assign({ overdueOpen: false, unscheduledOpen: false, weeklyFocusOpen: false, planCollapsed: false }, s.ui || {});
     // Daily rollover for the tab-was-closed case; scheduleMidnightReset() covers a tab left open.
     rolloverIfNewDay();
@@ -1863,25 +2007,36 @@ function render() {
   renderViewButtons();
   const planPanel = document.getElementById('plan-panel');
   const tasksFullpage = document.getElementById('tasks-fullpage');
+  const homeView = document.getElementById('home-view');
+  const notesFullpage = document.getElementById('notes-fullpage');
+  const monthView = document.getElementById('month-view');
+  const weekView = document.getElementById('week-view');
+
+  // The old daily-planning sidebar is superseded by the Home page; it stays
+  // in the DOM (untouched) but is never shown any more.
+  planPanel.style.display = 'none';
+  monthView.style.display = 'none';
+  weekView.style.display = 'none';
+  tasksFullpage.classList.remove('active');
+  homeView.classList.remove('active');
+  notesFullpage.classList.remove('active');
+
   if (STATE.view === 'tasks') {
-    document.getElementById('month-view').style.display = 'none';
-    document.getElementById('week-view').style.display = 'none';
     tasksFullpage.classList.add('active');
-    planPanel.style.display = 'none';
     renderTasksFullPage();
+  } else if (STATE.view === 'home') {
+    homeView.classList.add('active');
+    renderHome();
+  } else if (STATE.view === 'notes') {
+    notesFullpage.classList.add('active');
+    renderNotesPage();
+  } else if (STATE.view === 'month') {
+    monthView.style.display = 'flex';
+    renderMonth();
   } else {
-    tasksFullpage.classList.remove('active');
-    planPanel.style.display = '';
-    if (STATE.view === 'month') {
-      document.getElementById('month-view').style.display = 'flex';
-      document.getElementById('week-view').style.display = 'none';
-      renderMonth();
-    } else {
-      document.getElementById('month-view').style.display = 'none';
-      document.getElementById('week-view').style.display = 'flex';
-      renderWeekDay();
-      syncGridScrollbarGutter();
-    }
+    weekView.style.display = 'flex';
+    renderWeekDay();
+    syncGridScrollbarGutter();
   }
 }
 
@@ -1894,14 +2049,15 @@ function renderViewButtons() {
     const v = btn.dataset.view;
     btn.classList.toggle('active', v === STATE.view || (v === 'week' && STATE.view === 'nday'));
   });
-  const isTasksView = STATE.view === 'tasks';
+  const currentRoute = (STATE.view === 'tasks' || STATE.view === 'home' || STATE.view === 'notes') ? STATE.view : 'calendar';
   document.querySelectorAll('.route-btn').forEach(btn => {
-    btn.classList.toggle('active', (btn.dataset.route === 'tasks') === isTasksView);
+    btn.classList.toggle('active', btn.dataset.route === currentRoute);
   });
-  // Date navigation and the view switcher don't apply to the Tasks route.
-  document.querySelector('.nav-group').style.display = isTasksView ? 'none' : '';
-  document.querySelector('.view-switcher').style.display = isTasksView ? 'none' : '';
-  document.getElementById('nav-title').style.display = isTasksView ? 'none' : '';
+  // Date navigation and the view switcher only mean anything on the Calendar route.
+  const isDateless = currentRoute !== 'calendar';
+  document.querySelector('.nav-group').style.display = isDateless ? 'none' : '';
+  document.querySelector('.view-switcher').style.display = isDateless ? 'none' : '';
+  document.getElementById('nav-title').style.display = isDateless ? 'none' : '';
 }
 
 // ─────────────────────────────────────────────
@@ -2552,6 +2708,10 @@ function renderTasks() {
   list.appendChild(renderTodaySection(b.today));
   if (b.overdue.length) list.appendChild(renderOverdueSection(b.overdue));
   if (b.unscheduled.length) list.appendChild(renderUnscheduledSection(b.unscheduled));
+
+  // Keep the Home page's Tasks column in sync with every mutation that
+  // already funnels through here, whether or not Home is the visible route.
+  if (STATE.view === 'home') renderHomeTasks();
 }
 
 // ── 4. Today's Tasks ──
@@ -3623,13 +3783,17 @@ document.getElementById('left-sidebar-collapse-btn').addEventListener('click', (
   applyPlanCollapsed(); saveState();
 });
 
+// 'tasks' / 'home' / 'notes' are pseudo-routes layered on top of STATE.view's
+// real job (which calendar sub-view -- day/week/month/nday -- is showing).
+// _prevView remembers the last real sub-view so "Calendar" can restore it.
+const HOME_SPECIAL_VIEWS = ['tasks', 'home', 'notes'];
 let _prevView = 'week';
 function goToRoute(route) {
-  if (route === 'tasks') {
-    if (STATE.view !== 'tasks') _prevView = STATE.view;
-    STATE.view = 'tasks';
-  } else if (STATE.view === 'tasks') {
-    STATE.view = _prevView;
+  if (route === 'calendar') {
+    if (HOME_SPECIAL_VIEWS.includes(STATE.view)) STATE.view = _prevView;
+  } else {
+    if (!HOME_SPECIAL_VIEWS.includes(STATE.view)) _prevView = STATE.view;
+    STATE.view = route;
   }
   saveState(); render();
 }
@@ -3639,8 +3803,7 @@ document.getElementById('route-switcher').addEventListener('click', (e) => {
 });
 
 document.getElementById('tasks-fp-collapse-btn').addEventListener('click', () => {
-  STATE.view = _prevView;
-  saveState(); render();
+  goToRoute('home');
 });
 
 // Event modal listeners
@@ -5248,6 +5411,563 @@ function initPlanCapture() {
     onCreate: title => createTaskFromText(title, { toTray: true })
   });
 }
+
+// ─────────────────────────────────────────────
+// HOME PAGE (Tasks | Day Plan | Notes)
+// ─────────────────────────────────────────────
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Home's own bucketing: unlike bucketTasks() (which only surfaces today /
+// overdue / undated for the daily planning panel), Home needs every open
+// task sorted into exactly one of Top Three / Today (+Overdue) / Later.
+function bucketHomeTasks() {
+  const today = startOfDay(new Date());
+  const top3Ids = new Set(normalizeTopThree(STATE.topThree).filter(Boolean));
+  const overdue = [], todays = [], later = [];
+  for (const t of STATE.tasks) {
+    if (top3Ids.has(t.id)) continue;
+    const due = toDueDate(t.dueDate);
+    if (due) {
+      const d = startOfDay(due);
+      if (d < today) { if (!t.completed) overdue.push(t); continue; }
+      if (d.getTime() === today.getTime()) { todays.push(t); continue; }
+      if (!t.completed) later.push(t);
+      continue;
+    }
+    if (!t.completed) later.push(t);
+  }
+  const byPriority = (a, b) => (PRIORITY_ORDER[a.priority||'low']||2) - (PRIORITY_ORDER[b.priority||'low']||2);
+  overdue.sort((a,b) => toDueDate(a.dueDate) - toDueDate(b.dueDate) || byPriority(a,b));
+  todays.sort((a,b) => (a.completed?1:0) - (b.completed?1:0) || byPriority(a,b));
+  later.sort((a,b) => {
+    const da = toDueDate(a.dueDate), db = toDueDate(b.dueDate);
+    if (da && db) return da - db;
+    if (da) return -1;
+    if (db) return 1;
+    return byPriority(a,b);
+  });
+  return { overdue, today: todays, later };
+}
+
+function renderHome() {
+  renderHomeTasks();
+  renderHomeDayPlan();
+  renderHomeNotes();
+}
+
+const HOME_LATER_CAP = 8;
+
+function renderHomeTasks() {
+  const body = document.getElementById('home-tasks-body');
+  if (!body) return;
+  PLAN_SCHED = buildScheduleMap();
+  body.innerHTML = '';
+
+  // Top Three
+  const topSec = document.createElement('section');
+  topSec.className = 'plan-section';
+  topSec.appendChild(planSectionHead('Top Three'));
+  const slots = document.createElement('div');
+  slots.id = 'home-top-three-slots';
+  slots.style.cssText = 'display:flex;flex-direction:column;gap:7px;';
+  topSec.appendChild(slots);
+  body.appendChild(topSec);
+
+  const { overdue, today, later } = bucketHomeTasks();
+
+  // Today, with Overdue as a subsection up top
+  const todaySec = document.createElement('section');
+  todaySec.className = 'plan-section';
+  const remaining = today.filter(t => !t.completed).length;
+  todaySec.appendChild(planSectionHead('Today', `${remaining} remaining`));
+  const todayBody = document.createElement('div');
+  todayBody.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  if (overdue.length) {
+    const sub = document.createElement('div');
+    sub.className = 'home-subhead';
+    sub.textContent = `Overdue · ${overdue.length}`;
+    todayBody.appendChild(sub);
+    overdue.forEach(t => todayBody.appendChild(buildPlanRow(t, {
+      chip: { text: relDayLabel(toDueDate(t.dueDate)), cls: 'is-warn' },
+      action: { icon: 'arrow_forward', title: 'Move to Today', onClick: () => pullToToday(t.id) }
+    })));
+    if (today.length) {
+      const divider = document.createElement('div');
+      divider.className = 'home-divider';
+      todayBody.appendChild(divider);
+    }
+  }
+  if (today.length) {
+    today.forEach(t => todayBody.appendChild(buildPlanRow(t, { chip: todayChip(t) })));
+  } else if (!overdue.length) {
+    const e = document.createElement('div');
+    e.className = 'plan-empty';
+    e.textContent = 'Nothing due today.';
+    todayBody.appendChild(e);
+  }
+  todaySec.appendChild(todayBody);
+  body.appendChild(todaySec);
+
+  // Later
+  const laterSec = document.createElement('section');
+  laterSec.className = 'plan-section';
+  laterSec.appendChild(planSectionHead('Later', String(later.length)));
+  const laterBody = document.createElement('div');
+  laterBody.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+  if (!later.length) {
+    const e = document.createElement('div');
+    e.className = 'plan-empty';
+    e.textContent = 'Nothing else on the list.';
+    laterBody.appendChild(e);
+  } else {
+    later.slice(0, HOME_LATER_CAP).forEach(t => {
+      const due = toDueDate(t.dueDate);
+      laterBody.appendChild(buildPlanRow(t, {
+        sub: due ? relDayLabel(due) : (t.listId ? getTaskListName(t) : null)
+      }));
+    });
+    if (later.length > HOME_LATER_CAP) {
+      const more = document.createElement('button');
+      more.className = 'plan-act';
+      more.style.cssText = 'align-self:flex-start;';
+      more.textContent = `+${later.length - HOME_LATER_CAP} more in Tasks →`;
+      more.addEventListener('click', () => goToRoute('tasks'));
+      laterBody.appendChild(more);
+    }
+  }
+  laterSec.appendChild(laterBody);
+  body.appendChild(laterSec);
+
+  renderHomeTopThree();
+}
+
+// Same slots UI as the (now-retired) planning panel's Top Three, targeting
+// Home's own container so the two can't fight over one DOM node.
+function renderHomeTopThree() {
+  const container = document.getElementById('home-top-three-slots');
+  if (!container) return;
+  STATE.topThree = normalizeTopThree(STATE.topThree);
+  container.innerHTML = '';
+
+  for (let i = 0; i < 3; i++) {
+    const taskId = STATE.topThree[i];
+    const task = taskId ? STATE.tasks.find(t => t.id === taskId) : null;
+    const slot = document.createElement('div');
+    slot.className = 'plan-slot' + (task ? '' : ' is-empty');
+    slot.dataset.slot = i;
+
+    const num = document.createElement('span');
+    num.className = 'plan-slot-num';
+    num.textContent = i + 1;
+    slot.appendChild(num);
+
+    if (task) {
+      slot.setAttribute('draggable', 'true');
+      slot.dataset.taskId = task.id;
+
+      const cb = document.createElement('div');
+      cb.className = 'plan-check' + (task.completed ? ' checked' : '');
+      cb.addEventListener('click', e => { e.stopPropagation(); toggleTaskComplete(task.id); });
+      slot.appendChild(cb);
+
+      const title = document.createElement('span');
+      title.className = 'plan-row-title' + (task.completed ? ' is-done' : '');
+      title.style.fontWeight = '500';
+      title.textContent = task.title;
+      slot.appendChild(title);
+
+      const ev = PLAN_SCHED.get(task.id);
+      const chip = document.createElement('span');
+      if (ev) {
+        chip.className = 'plan-chip';
+        chip.textContent = scheduleChipText(ev);
+      } else {
+        chip.className = 'plan-chip is-ghost';
+        chip.textContent = '+ Timebox';
+        chip.title = 'Block time for this task';
+        chip.addEventListener('click', e => { e.stopPropagation(); timeboxTask(task.id, e.clientX, e.clientY); });
+      }
+      slot.appendChild(chip);
+
+      const rm = document.createElement('button');
+      rm.className = 'plan-icon-act';
+      rm.title = 'Remove from Top Three';
+      rm.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">close</span>';
+      rm.addEventListener('click', e => {
+        e.stopPropagation();
+        STATE.topThree[i] = null;
+        saveState(); renderTasks();
+      });
+      slot.appendChild(rm);
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'plan-slot-input';
+      inp.placeholder = 'Add a priority, or drag one here';
+      inp.autocomplete = 'off';
+      inp.style.cssText = 'flex:1;min-width:0;border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--text-primary);';
+      const sug = document.createElement('div');
+      sug.className = 'brain-dump-suggestions';
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'flex:1;min-width:0;position:relative;';
+      wrap.append(inp, sug);
+      slot.appendChild(wrap);
+      attachTaskAutocomplete(inp, sug, {
+        exclude: t => STATE.topThree.includes(t.id),
+        onPick: t => setTopThree(i, t.id),
+        onCreate: title => {
+          const t = createTaskFromText(title, { toTray: false });
+          setTopThree(i, t.id);
+        }
+      });
+    }
+
+    slot.addEventListener('dragover', e => {
+      e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; slot.classList.add('drop-target');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drop-target'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault(); slot.classList.remove('drop-target');
+      const id = getDraggedTaskId(e);
+      if (id) setTopThree(i, id);
+    });
+
+    container.appendChild(slot);
+  }
+}
+
+// ── Day Plan: a single-day agenda reusing the main time-grid's own classes ──
+function renderHomeDayPlan() {
+  const grid = document.getElementById('home-dayplan-grid');
+  if (!grid) return;
+  const today = new Date();
+
+  const dateEl = document.getElementById('home-dayplan-date');
+  if (dateEl) dateEl.textContent = `${DAYS[today.getDay()]}, ${MONTHS[today.getMonth()].slice(0,3)} ${today.getDate()}`;
+
+  const alldayHost = document.getElementById('home-dayplan-allday');
+  const alldayEvs = alldayEventsOnDay(today);
+  alldayHost.innerHTML = '';
+  alldayHost.classList.toggle('has-events', alldayEvs.length > 0);
+  alldayEvs.forEach(ev => {
+    const c = ev.color || EVENT_COLORS[0];
+    const chip = document.createElement('span');
+    chip.className = 'plan-chip';
+    chip.style.cssText = `background:${c}1f;border:1px solid ${c}3d;color:${c};cursor:pointer;`;
+    chip.textContent = ev.title;
+    chip.addEventListener('click', e => openEventPopover(ev.id, e.clientX, e.clientY, today));
+    alldayHost.appendChild(chip);
+  });
+
+  const labels = document.getElementById('home-dayplan-labels');
+  labels.innerHTML = '';
+  for (let h = 1; h <= 23; h++) {
+    const el = document.createElement('div');
+    el.className = 'time-label';
+    el.style.top = `${h * HOUR_HEIGHT}px`;
+    el.textContent = h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
+    labels.appendChild(el);
+  }
+
+  grid.innerHTML = '';
+  for (let h = 0; h < 24; h++) {
+    const line = document.createElement('div');
+    line.className = 'hour-line';
+    line.style.top = `${h * HOUR_HEIGHT}px`;
+    grid.appendChild(line);
+    const half = document.createElement('div');
+    half.className = 'half-line';
+    half.style.top = `${h * HOUR_HEIGHT + HOUR_HEIGHT/2}px`;
+    grid.appendChild(half);
+  }
+
+  const mins = today.getHours()*60 + today.getMinutes();
+  const nowLine = document.createElement('div');
+  nowLine.className = 'current-time-line';
+  nowLine.style.top = `${minutesToY(mins)}px`;
+  grid.appendChild(nowLine);
+
+  const dayEvents = nonAlldayEventsOnDay(today);
+  const laid = layoutEventsForDay(dayEvents, today);
+  laid.forEach(({ ev, col, totalCols }) => {
+    const { startMin, endMin } = getEffMinutes(ev, today);
+    const top = minutesToY(startMin);
+    const height = Math.max(minutesToY(endMin - startMin), 18);
+    const width = `calc(${100/totalCols}% - 4px)`;
+    const left = `calc(${(col/totalCols)*100}% + 2px)`;
+    const c = ev.color || '#2563eb';
+    const el = document.createElement('div');
+    el.className = 'cal-event';
+    el.style.cssText = `top:${top}px;height:${height}px;left:${left};width:${width};` +
+      `background:${c}1f;border:1px solid ${c}3d;border-left:3px solid ${c};color:${c};`;
+    let inner = `<div class="cal-event-title">${escapeHtml(ev.title)}</div>`;
+    if (height > 30) inner += `<div class="cal-event-time mono">${formatTime(ev.start)} – ${formatTime(ev.end)}</div>`;
+    el.innerHTML = inner;
+    el.addEventListener('click', e => { e.stopPropagation(); openEventPopover(ev.id, e.clientX, e.clientY, today); });
+    grid.appendChild(el);
+  });
+
+  // Drop a task dragged from the Tasks column onto the grid to timebox it today.
+  grid.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; grid.classList.add('drop-active'); };
+  grid.ondragleave = () => grid.classList.remove('drop-active');
+  grid.ondrop = e => {
+    e.preventDefault();
+    grid.classList.remove('drop-active');
+    const taskId = getDraggedTaskId(e);
+    if (!taskId) return;
+    const task = STATE.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const rect = grid.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const startMins = snapMinutes(yToMinutes(y, DAY_HEIGHT));
+    const start = new Date(today); start.setHours(Math.floor(startMins/60), startMins%60, 0, 0);
+    const end = new Date(start); end.setMinutes(end.getMinutes() + 60);
+    const endOfGrid = new Date(today); endOfGrid.setHours(23,59,0,0);
+    if (end > endOfGrid) end.setTime(Math.max(endOfGrid.getTime(), start.getTime() + 15*60000));
+    STATE.events.push({ id: uid(), title: task.title, start, end, allDay: false, description: task.description||'', location: '', color: '#2563eb', recurring: 'none', notification: 'none', linkedTaskIds: [taskId] });
+    saveState(); renderHomeDayPlan();
+  };
+}
+
+function initHomeExpandButtons() {
+  document.getElementById('home-expand-tasks').addEventListener('click', () => goToRoute('tasks'));
+  document.getElementById('home-expand-dayplan').addEventListener('click', () => goToRoute('calendar'));
+  document.getElementById('home-expand-notes').addEventListener('click', () => goToRoute('notes'));
+}
+
+// ─────────────────────────────────────────────
+// BRAIN DUMP MODAL
+// ─────────────────────────────────────────────
+// Home's version of the capture funnel: same createTaskFromText()/
+// pullToToday() plumbing as the old inline input, just fronted by a dialog
+// instead of an always-visible field, per the redesign brief (Brain Dump is
+// an action you take, not a section that's always sitting open).
+function renderBrainDumpModalList() {
+  const list = document.getElementById('braindump-modal-list');
+  if (!list) return;
+  list.innerHTML = '';
+  const dumpIds = new Set(STATE.brainDump || []);
+  const items = STATE.tasks.filter(t => dumpIds.has(t.id) && !t.completed && !toDueDate(t.dueDate));
+  items.sort((a, b) => STATE.brainDump.indexOf(a.id) - STATE.brainDump.indexOf(b.id));
+  if (!items.length) {
+    const e = document.createElement('div');
+    e.className = 'plan-empty';
+    e.textContent = 'Nothing undated yet. Type above to add something.';
+    list.appendChild(e);
+    return;
+  }
+  items.forEach(task => {
+    list.appendChild(buildPlanRow(task, {
+      dashed: true, check: false,
+      action: { label: '+ Today', title: 'Schedule for today', onClick: () => { pullToToday(task.id); renderBrainDumpModalList(); } }
+    }));
+  });
+}
+
+function openBrainDumpModal() {
+  renderBrainDumpModalList();
+  const backdrop = document.getElementById('braindump-modal-backdrop');
+  backdrop.style.display = 'flex';
+  requestAnimationFrame(() => backdrop.classList.add('visible'));
+  setTimeout(() => document.getElementById('braindump-modal-input').focus(), 60);
+}
+function closeBrainDumpModal() {
+  const backdrop = document.getElementById('braindump-modal-backdrop');
+  backdrop.classList.remove('visible');
+  document.getElementById('braindump-modal-input').value = '';
+  setTimeout(() => { backdrop.style.display = 'none'; }, 200);
+}
+
+function initBrainDumpModal() {
+  const input = document.getElementById('braindump-modal-input');
+  const sug = document.getElementById('braindump-modal-suggestions');
+  attachTaskAutocomplete(input, sug, {
+    exclude: t => (STATE.brainDump || []).includes(t.id) && !toDueDate(t.dueDate),
+    onPick: t => { pullToToday(t.id); renderBrainDumpModalList(); },
+    onCreate: title => { createTaskFromText(title, { toTray: true }); renderBrainDumpModalList(); }
+  });
+  document.getElementById('home-braindump-btn').addEventListener('click', openBrainDumpModal);
+  document.getElementById('braindump-modal-close').addEventListener('click', closeBrainDumpModal);
+  document.getElementById('braindump-modal-backdrop').addEventListener('click', e => {
+    if (e.target === document.getElementById('braindump-modal-backdrop')) closeBrainDumpModal();
+  });
+  document.getElementById('braindump-modal-input').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeBrainDumpModal();
+  });
+  makeDraggable(document.getElementById('braindump-modal'), document.querySelector('#braindump-modal .modal-drag-handle'));
+}
+
+// ─────────────────────────────────────────────
+// NOTES
+// ─────────────────────────────────────────────
+function createNote(title) {
+  const note = { id: uid(), title: title || '', body: '', updatedAt: new Date().toISOString() };
+  STATE.notes.unshift(note);
+  STATE.activeNoteId = note.id;
+  saveState();
+  return note;
+}
+function deleteNote(id) {
+  STATE.notes = STATE.notes.filter(n => n.id !== id);
+  if (STATE.activeNoteId === id) {
+    const next = sortedNotes()[0];
+    STATE.activeNoteId = next ? next.id : null;
+  }
+  saveState();
+}
+function touchNote(note) { note.updatedAt = new Date().toISOString(); }
+function sortedNotes() { return [...STATE.notes].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)); }
+function noteSnippet(note) {
+  const t = (note.body || '').replace(/\s+/g, ' ').trim();
+  if (!t) return 'No content yet';
+  return t.length > 64 ? t.slice(0, 64) + '…' : t;
+}
+function relTimeLabel(iso) {
+  const d = new Date(iso), now = new Date();
+  const diffMin = Math.max(0, Math.round((now - d) / 60000));
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.round(diffH / 24);
+  if (diffD < 7) return `${diffD}d ago`;
+  return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}`;
+}
+
+function renderHomeNotes() {
+  const body = document.getElementById('home-notes-body');
+  if (!body) return;
+  body.innerHTML = '';
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'home-notes-add';
+  addBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px;">add</span>New note';
+  addBtn.addEventListener('click', () => { createNote(); goToRoute('notes'); });
+  body.appendChild(addBtn);
+
+  const notes = sortedNotes();
+  if (!notes.length) {
+    const e = document.createElement('div');
+    e.className = 'plan-empty';
+    e.textContent = 'No notes yet. Jot one down.';
+    body.appendChild(e);
+    return;
+  }
+  notes.slice(0, 6).forEach(n => {
+    const row = document.createElement('div');
+    row.className = 'home-note-row';
+    row.innerHTML =
+      `<div class="home-note-title">${escapeHtml(n.title || 'Untitled note')}</div>` +
+      `<div class="home-note-snippet">${escapeHtml(noteSnippet(n))}</div>` +
+      `<div class="home-note-time mono">${relTimeLabel(n.updatedAt)}</div>`;
+    row.addEventListener('click', () => { STATE.activeNoteId = n.id; saveState(); goToRoute('notes'); });
+    body.appendChild(row);
+  });
+  if (notes.length > 6) {
+    const more = document.createElement('button');
+    more.className = 'plan-act';
+    more.textContent = `+${notes.length - 6} more →`;
+    more.addEventListener('click', () => goToRoute('notes'));
+    body.appendChild(more);
+  }
+}
+
+function renderNotesRail() {
+  const list = document.getElementById('notes-rail-list');
+  if (!list) return;
+  list.innerHTML = '';
+  sortedNotes().forEach(n => {
+    const item = document.createElement('div');
+    item.className = 'notes-rail-item' + (n.id === STATE.activeNoteId ? ' active' : '');
+    item.innerHTML =
+      `<div class="notes-rail-item-title">${escapeHtml(n.title || 'Untitled note')}</div>` +
+      `<div class="notes-rail-item-snippet">${escapeHtml(noteSnippet(n))}</div>` +
+      `<div class="notes-rail-item-time">${relTimeLabel(n.updatedAt)}</div>` +
+      `<button class="plan-icon-act notes-rail-item-del" title="Delete note"><span class="material-symbols-outlined" style="font-size:14px;">delete</span></button>`;
+    item.addEventListener('click', () => {
+      if (n.id === STATE.activeNoteId) return;
+      commitActiveNote();
+      STATE.activeNoteId = n.id;
+      saveState();
+      renderNotesPage();
+    });
+    item.querySelector('.notes-rail-item-del').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteNote(n.id);
+      renderNotesPage();
+      renderHomeNotes();
+    });
+    list.appendChild(item);
+  });
+}
+
+function renderNotesEditor() {
+  const titleInput = document.getElementById('notes-title-input');
+  const bodyInput = document.getElementById('notes-body-input');
+  const empty = document.getElementById('notes-editor-empty');
+  const note = STATE.notes.find(n => n.id === STATE.activeNoteId);
+  if (!note) {
+    titleInput.style.display = 'none';
+    bodyInput.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  titleInput.style.display = '';
+  bodyInput.style.display = '';
+  empty.style.display = 'none';
+  titleInput.value = note.title;
+  bodyInput.value = note.body;
+}
+
+let notesSaveTimer = null;
+function commitActiveNote() {
+  clearTimeout(notesSaveTimer);
+  const note = STATE.notes.find(n => n.id === STATE.activeNoteId);
+  const titleInput = document.getElementById('notes-title-input');
+  const bodyInput = document.getElementById('notes-body-input');
+  if (!note || !titleInput || !bodyInput) return;
+  note.title = titleInput.value;
+  note.body = bodyInput.value;
+  touchNote(note);
+  saveState();
+}
+function scheduleNoteSave() {
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(() => {
+    commitActiveNote();
+    renderNotesRail();
+    renderHomeNotes();
+  }, 500);
+}
+
+function renderNotesPage() {
+  if (!STATE.activeNoteId || !STATE.notes.find(n => n.id === STATE.activeNoteId)) {
+    const first = sortedNotes()[0];
+    STATE.activeNoteId = first ? first.id : null;
+  }
+  renderNotesRail();
+  renderNotesEditor();
+}
+
+function initNotesPage() {
+  document.getElementById('notes-title-input').addEventListener('input', scheduleNoteSave);
+  document.getElementById('notes-body-input').addEventListener('input', scheduleNoteSave);
+  document.getElementById('notes-title-input').addEventListener('blur', commitActiveNote);
+  document.getElementById('notes-body-input').addEventListener('blur', commitActiveNote);
+  document.getElementById('notes-add-btn').addEventListener('click', () => {
+    commitActiveNote();
+    createNote();
+    renderNotesPage();
+    renderHomeNotes();
+  });
+  document.getElementById('notes-fp-home-btn').addEventListener('click', () => {
+    commitActiveNote();
+    goToRoute('home');
+  });
+}
+
 // ─────────────────────────────────────────────
 // SETTINGS
 // ─────────────────────────────────────────────
@@ -5316,6 +6036,9 @@ function init() {
   applyPlanCollapsed();
   initDragCreate();
   initPlanCapture();
+  initHomeExpandButtons();
+  initBrainDumpModal();
+  initNotesPage();
 
   // Calendar management
   ensureCalendars();
@@ -5357,7 +6080,7 @@ function init() {
   });
 
   // Delegated task dragging: any element carrying data-task-id is draggable.
-  ['plan-panel', 'tasks-fullpage'].forEach(id => {
+  ['plan-panel', 'tasks-fullpage', 'home-view'].forEach(id => {
     const host = document.getElementById(id);
     if (!host) return;
     host.addEventListener('dragstart', e => {
@@ -5414,6 +6137,8 @@ function init() {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const scroll = document.getElementById('time-grid-scroll');
     if (scroll) scroll.scrollTo({ top: 7 * HOUR_HEIGHT - 32, behavior: 'instant' });
+    const homeScroll = document.getElementById('home-dayplan-scroll');
+    if (homeScroll) homeScroll.scrollTo({ top: 7 * HOUR_HEIGHT - 32, behavior: 'instant' });
   }));
 
   // Schedule notifications if already granted
