@@ -669,12 +669,12 @@
   .cal-event.drop-into-event { outline: 2px solid var(--primary); outline-offset: -2px; }
 
   /* Drag selection overlay */
-  #drag-overlay {
+  #drag-overlay, #home-drag-overlay {
     position: absolute; background: rgba(var(--primary-rgb), 0.2);
     border: 2px solid var(--primary); border-radius: 6px;
     pointer-events: none; z-index: 20; display: none;
   }
-  #drag-time-tooltip {
+  #drag-time-tooltip, #home-drag-tooltip {
     position: absolute; background: var(--primary); color: white;
     font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
     pointer-events: none; z-index: 21; display: none; white-space: nowrap;
@@ -1237,8 +1237,10 @@
         <div class="time-grid-scroll" id="home-dayplan-scroll">
           <div class="time-grid" style="height:calc(24 * var(--hour-height));">
             <div class="time-labels" id="home-dayplan-labels"></div>
-            <div class="time-grid-cols">
+            <div class="time-grid-cols" id="home-dayplan-cols">
               <div class="day-col today-col" id="home-dayplan-grid"></div>
+              <div id="home-drag-overlay"></div>
+              <div id="home-drag-tooltip"></div>
             </div>
           </div>
         </div>
@@ -3417,27 +3419,41 @@ function saveTask() {
 // ─────────────────────────────────────────────
 let dragState = null;
 
-function initDragCreate() {
-  const cols = document.getElementById('time-grid-cols');
-  const overlay = document.getElementById('drag-overlay');
-  const tooltip = document.getElementById('drag-time-tooltip');
+// Drag-to-create is bound per grid. Home's Day Plan is a second, separate
+// day grid -- it accepted task drops but had no drag-create at all, so the
+// main screen was the one place you could not block out time by dragging.
+function bindDragCreate(hostId, overlayId, tooltipId) {
+  const cols = document.getElementById(hostId);
+  const overlay = document.getElementById(overlayId);
+  const tooltip = document.getElementById(tooltipId);
+  if (!cols || !overlay || !tooltip) return;
 
   cols.addEventListener('mousedown', e => {
     const col = e.target.closest('.day-col');
     if (!col || e.target.closest('.cal-event')) return;
+    if (!col.dataset.date) return;
     e.preventDefault();
 
     const rect = col.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const startMin = snapMinutes(yToMinutes(y, DAY_HEIGHT));
-    const dateStr = col.dataset.date;
-    dragState = { col, dateStr, startY: e.clientY, startMin, currentMin: startMin, rect, colIdx: parseInt(col.dataset.dayIdx) };
+    // host/overlay/tooltip ride along on dragState so updateDragOverlay and
+    // mouseup act on whichever grid the drag actually started in.
+    dragState = { col, dateStr: col.dataset.date, startY: e.clientY, startMin,
+                  currentMin: startMin, rect, colIdx: parseInt(col.dataset.dayIdx) || 0,
+                  host: cols, overlay, tooltip };
 
     overlay.style.display = 'block';
     tooltip.style.display = 'block';
     updateDragOverlay(startMin, startMin);
   });
+}
 
+function initDragCreate() {
+  bindDragCreate('time-grid-cols', 'drag-overlay', 'drag-time-tooltip');
+  bindDragCreate('home-dayplan-cols', 'home-drag-overlay', 'home-drag-tooltip');
+
+  // Bound once, not per host: both grids share one in-flight drag.
   document.addEventListener('mousemove', e => {
     if (!dragState) return;
     const col = dragState.col;
@@ -3453,6 +3469,7 @@ function initDragCreate() {
 
   document.addEventListener('mouseup', e => {
     if (!dragState) return;
+    const overlay = dragState.overlay, tooltip = dragState.tooltip;
     const s = Math.min(dragState.startMin, dragState.currentMin);
     let en = Math.max(dragState.startMin, dragState.currentMin) + SNAP;
     if (en - s < 15) en = s + 15;
@@ -3474,14 +3491,13 @@ function initDragCreate() {
 }
 
 function updateDragOverlay(startMin, endMin) {
-  const overlay = document.getElementById('drag-overlay');
-  const tooltip = document.getElementById('drag-time-tooltip');
   if (!dragState) return;
+  const overlay = dragState.overlay;
+  const tooltip = dragState.tooltip;
 
   const col = dragState.col;
   const colRect = col.getBoundingClientRect();
-  const gridCols = document.getElementById('time-grid-cols');
-  const gridRect = gridCols.getBoundingClientRect();
+  const gridRect = dragState.host.getBoundingClientRect();
 
   const top = minutesToY(startMin);
   const height = minutesToY(endMin - startMin);
@@ -3689,9 +3705,11 @@ function closeQuickEventPopover() {
   pop.classList.remove('visible');
   document.getElementById('qep-backdrop').classList.remove('visible');
   setTimeout(() => { pop.style.display = 'none'; }, 150);
-  // Hide the drag selection overlay now that we're done
-  const overlay = document.getElementById('drag-overlay');
-  if (overlay) overlay.style.display = 'none';
+  // Hide the drag selection overlay now that we're done. Either grid's.
+  ['drag-overlay', 'home-drag-overlay'].forEach(id => {
+    const o = document.getElementById(id);
+    if (o) o.style.display = 'none';
+  });
 }
 
 function qepGetValues() {
@@ -5253,7 +5271,7 @@ function renderTopThree() {
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.className = 'plan-slot-input';
-      inp.placeholder = 'Add a priority or drag here';
+      inp.placeholder = 'Drag or type';
       inp.autocomplete = 'off';
       inp.style.cssText = 'flex:1;min-width:0;border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--text-primary);text-overflow:ellipsis;';
       const sug = document.createElement('div');
@@ -5439,12 +5457,12 @@ function homeAddRows() {
     return wrap;
   };
   HOME_ADD = {
-    today: mk('today', 'Add a task for today\u2026', (t, picked) => {
+    today: mk('today', 'Add task', (t, picked) => {
       // A date typed into the text wins; the section only fills the gap.
       if (!toDueDate(t.dueDate)) { t.dueDate = startOfDay(new Date()); saveState(); renderTasks(); }
       else if (picked) { renderTasks(); }
     }),
-    later: mk('later', 'Add a task for later\u2026', (t, picked) => {
+    later: mk('later', 'Add task', (t, picked) => {
       STATE.ui.homeLaterOpen = true;   // show where it landed
       saveState(); renderTasks();
     }),
@@ -5645,7 +5663,7 @@ function renderHomeTopThree() {
       const inp = document.createElement('input');
       inp.type = 'text';
       inp.className = 'plan-slot-input';
-      inp.placeholder = 'Add a priority, or drag one here';
+      inp.placeholder = 'Drag or type';
       inp.autocomplete = 'off';
       inp.style.cssText = 'flex:1;min-width:0;border:none;background:none;outline:none;font-family:inherit;font-size:13px;color:var(--text-primary);';
       const sug = document.createElement('div');
@@ -5683,6 +5701,9 @@ function renderHomeDayPlan() {
   const grid = document.getElementById('home-dayplan-grid');
   if (!grid) return;
   const today = new Date();
+  // bindDragCreate() reads the target day off the column itself.
+  grid.dataset.date = formatDateInput(today);
+  grid.dataset.dayIdx = 0;
 
   const dateEl = document.getElementById('home-dayplan-date');
   if (dateEl) dateEl.textContent = `${DAYS[today.getDay()]}, ${MONTHS[today.getMonth()].slice(0,3)} ${today.getDate()}`;
@@ -5880,7 +5901,9 @@ function renderHomeNotes() {
   if (!notes.length) {
     const e = document.createElement('div');
     e.className = 'plan-empty';
-    e.textContent = 'No notes yet. Jot one down.';
+    e.style.cursor = 'pointer';
+    e.textContent = 'Nothing written yet \u2014 start typing\u2026';
+    e.addEventListener('click', () => goToRoute('notes'));
     body.appendChild(e);
     return;
   }
@@ -5971,11 +5994,16 @@ function scheduleNoteSave() {
   }, 500);
 }
 
+// Opening Notes should put a cursor somewhere, not an empty state behind a
+// small "+". Falls back to the most recent note, and only mints a new one when
+// there is genuinely nothing -- so revisiting reuses the blank note rather than
+// stacking up empties.
 function renderNotesPage() {
   if (!STATE.activeNoteId || !STATE.notes.find(n => n.id === STATE.activeNoteId)) {
     const first = sortedNotes()[0];
     STATE.activeNoteId = first ? first.id : null;
   }
+  if (!STATE.activeNoteId) createNote();
   renderNotesRail();
   renderNotesEditor();
 }
