@@ -10,11 +10,11 @@
 <style>
   :root {
     /* ── Design tokens (Timebox wireframe palette) ── */
-    --border-subtle: #e5e9ea;
-    --bg-canvas: #f8fafc;
+    --border-subtle: #ebedef;
+    --bg-canvas: #ffffff;
     --bg-surface: #ffffff;
-    --bg-subtle: #f1f5f9;
-    --bg-hover: #f1f5f9;
+    --bg-subtle: #f7f8fa;
+    --bg-hover: #f4f5f7;
     --text-primary: #0f172a;
     --text-secondary: #64748b;
     --text-tertiary: #94a3b8;
@@ -301,7 +301,7 @@
     white-space: nowrap;   /* "Projects & Tasks" wrapped to two lines otherwise */
   }
   .route-btn:hover { color: var(--text-primary); }
-  .route-btn.active { background: var(--bg-surface); color: var(--text-primary); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+  .route-btn.active { background: var(--bg-surface); color: var(--text-primary); font-weight: 600; }
   .nav-group { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border-subtle); border-radius: 7px; padding: 2px; background: var(--bg-surface); }
   .add-btn {
     height: 30px; padding: 0 12px; border-radius: 7px; border: none; cursor: pointer;
@@ -682,7 +682,6 @@
   .cal-event {
     position: absolute; border-radius: 6px;
     padding: 3px 6px; cursor: pointer; overflow: hidden;
-    box-shadow: 0 1px 2px rgba(15,23,42,0.06);
     transition: filter 0.1s, box-shadow 0.1s; z-index: 5;
     display: flex; flex-direction: column;
   }
