@@ -1004,6 +1004,31 @@
     font-size: 12px; cursor: pointer; transition: all 0.12s; white-space: nowrap;
   }
   .tk-braindump-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-subtle); }
+  .home-archive-btn {
+    margin-left: auto; display: flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 6px; border: 1px solid var(--border-subtle);
+    background: var(--bg-surface); color: var(--text-secondary);
+    font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .home-archive-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-subtle); }
+  .home-archive-btn:disabled { opacity: 0.4; cursor: default; }
+  .home-archive-btn.is-confirm { border-color: var(--accent-amber); color: var(--accent-amber); background: #fffbeb; }
+  /* The notes column is the page itself, so it lays out as an editor rather
+     than as the scrolling card list the other columns use. */
+  #home-notes-body { padding: 18px 20px; gap: 8px; overflow: hidden; }
+  .home-note-title {
+    flex-shrink: 0; border: none; outline: none; background: none; padding: 0;
+    font-family: 'Plus Jakarta Sans', sans-serif; font-size: 19px; font-weight: 700;
+    color: var(--text-primary);
+  }
+  .home-note-title::placeholder { color: var(--text-tertiary); }
+  .home-note-text {
+    flex: 1; border: none; outline: none; background: none; resize: none; padding: 0;
+    font-family: inherit; font-size: 13.5px; line-height: 1.7; color: var(--text-primary);
+  }
+  .home-note-text::placeholder { color: var(--text-tertiary); }
+  .home-note-saved { flex-shrink: 0; height: 14px; font-size: 10px; color: var(--text-tertiary); }
   .home-subhead { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-red); margin: 2px 0 -4px; }
   .home-divider { height: 1px; background: var(--border-subtle); margin: 2px 0; }
   .home-allday-row { display: none; flex-wrap: wrap; gap: 6px; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
@@ -1023,6 +1048,10 @@
   #notes-rail-head { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 13px; }
   #notes-rail-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
   #notes-rail-footer { flex-shrink: 0; padding: 10px 12px; border-top: 1px solid var(--border-subtle); }
+  .notes-rail-group {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-tertiary); padding: 10px 10px 4px;
+  }
   .notes-rail-item { position: relative; padding: 9px 30px 9px 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
   .notes-rail-item:hover { background: var(--bg-hover); }
   .notes-rail-item.active { background: var(--primary-subtle); border-color: var(--primary); }
@@ -1248,10 +1277,17 @@
 
       <section class="home-col" id="home-notes-col">
         <div class="home-col-head">
-          <button class="home-expand-btn" id="home-expand-notes" title="Expand to Notes"><span class="material-symbols-outlined" style="font-size:17px;">open_in_full</span></button>
+          <button class="home-expand-btn" id="home-expand-notes" title="Past pages"><span class="material-symbols-outlined" style="font-size:17px;">open_in_full</span></button>
           <span class="home-col-title">Notes</span>
+          <button class="home-archive-btn" id="home-archive-btn" title="File this page away and start a new one">
+            <span class="material-symbols-outlined" style="font-size:15px;">inventory_2</span>Archive
+          </button>
         </div>
-        <div class="home-col-body" id="home-notes-body"></div>
+        <div class="home-col-body" id="home-notes-body">
+          <input type="text" id="home-note-title" class="home-note-title" placeholder="Untitled" autocomplete="off">
+          <textarea id="home-note-body" class="home-note-text" placeholder="Start writing…"></textarea>
+          <div class="home-note-saved" id="home-note-saved"></div>
+        </div>
       </section>
     </div>
 
@@ -1260,7 +1296,6 @@
       <aside id="notes-rail">
         <div id="notes-rail-head">
           <span>Notes</span>
-          <button class="plan-icon-act" id="notes-add-btn" title="New note"><span class="material-symbols-outlined" style="font-size:16px;">add</span></button>
         </div>
         <div id="notes-rail-list"></div>
         <div id="notes-rail-footer">
@@ -1731,7 +1766,8 @@ let STATE = {
   topThreeDate: new Date().toDateString(),
   brainDump: [],
   brainDumpDate: new Date().toDateString(),
-  notes: [],
+  dailyNote: null,      // the carry-forward page; NOT wiped at midnight
+  notes: [],            // archived pages
   activeNoteId: null,
   ui: { overdueOpen: false, unscheduledOpen: false, planCollapsed: false, homeLaterOpen: false },
   taskViewConfig: { sortBy: 'dueDate', sortDir: 'asc', filters: {}, groupBy: 'none', search: '' },
@@ -1825,6 +1861,7 @@ function saveState() {
     topThreeDate: STATE.topThreeDate || new Date().toDateString(),
     brainDump: STATE.brainDump || [],
     brainDumpDate: STATE.brainDumpDate || new Date().toDateString(),
+    dailyNote: STATE.dailyNote || null,
     notes: STATE.notes || [],
     activeNoteId: STATE.activeNoteId || null,
     ui: STATE.ui || {},
@@ -1873,6 +1910,9 @@ function loadState() {
     STATE.brainDumpDate = s.brainDumpDate || new Date().toDateString();
     STATE.notes = s.notes || [];
     STATE.activeNoteId = s.activeNoteId || null;
+    // Notes written before the daily page existed become archives; the first
+    // load after this change starts a fresh page rather than adopting one.
+    STATE.dailyNote = s.dailyNote || newDailyNote();
     STATE.ui = Object.assign({ overdueOpen: false, unscheduledOpen: false, planCollapsed: false, homeLaterOpen: false }, s.ui || {});
     // Daily rollover for the tab-was-closed case; scheduleMidnightReset() covers a tab left open.
     rolloverIfNewDay();
@@ -3805,6 +3845,10 @@ document.getElementById('left-sidebar-collapse-btn').addEventListener('click', (
 // Route and calendar zoom are independent now, so returning to Calendar just
 // shows whatever calScale was already there -- no _prevView stash needed.
 function goToRoute(route) {
+  // Flush both note editors before the screen changes under them.
+  commitHomeNote();
+  commitActiveNote();
+  resetArchiveConfirm();
   STATE.route = route;
   saveState(); render();
 }
@@ -5858,6 +5902,76 @@ function initBrainDumpModal() {
 // ─────────────────────────────────────────────
 // NOTES
 // ─────────────────────────────────────────────
+// ── The daily page ──────────────────────────────────────────────────
+// Two different lifecycles live in this file and they must not be confused:
+//
+//   brainDump / topThree : date-stamped, AUTO-wiped. rolloverIfNewDay()
+//                          compares a stored date to today and clears them.
+//   dailyNote            : carry-forward, USER-wiped. It survives midnight
+//                          untouched and only resets when archived.
+//
+// So dailyNote is deliberately absent from rolloverIfNewDay(). startedOn
+// records when the page began; it is never compared against today to decide
+// whether to clear anything.
+function newDailyNote() {
+  return { id: uid(), title: '', body: '',
+           startedOn: formatDateInput(new Date()),
+           updatedAt: new Date().toISOString() };
+}
+
+function ensureDailyNote() {
+  if (!STATE.dailyNote) STATE.dailyNote = newDailyNote();
+  return STATE.dailyNote;
+}
+
+function isDailyNote(id) { return !!STATE.dailyNote && STATE.dailyNote.id === id; }
+
+// The daily page and the archives share one id space so activeNoteId can
+// point at either.
+function noteById(id) {
+  if (isDailyNote(id)) return STATE.dailyNote;
+  return STATE.notes.find(n => n.id === id) || null;
+}
+
+function noteHasContent(n) {
+  return !!n && ((n.title || '').trim() !== '' || (n.body || '').trim() !== '');
+}
+
+function dayLabel(ymd) {
+  // NEVER new Date('2026-09-23') -- that parses as UTC midnight and lands on
+  // the previous local day west of Greenwich. Same lesson as toDueDate().
+  const d = new Date(ymd + 'T00:00:00');
+  if (isNaN(d)) return ymd;
+  return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+function defaultArchiveTitle(from, to) {
+  return from === to ? dayLabel(from) : `${dayLabel(from)} \u2013 ${dayLabel(to)}`;
+}
+
+// Files the current page away and starts a clean one. The only thing that
+// ever resets the daily page.
+function archiveDailyNote() {
+  commitHomeNote();
+  const dn = ensureDailyNote();
+  if (!noteHasContent(dn)) return false;
+  const to = formatDateInput(new Date());
+  const now = new Date().toISOString();
+  STATE.notes.unshift({
+    id: dn.id,
+    title: (dn.title || '').trim() || defaultArchiveTitle(dn.startedOn, to),
+    body: dn.body,
+    coversFrom: dn.startedOn,
+    coversTo: to,
+    archivedAt: now,
+    updatedAt: now,
+  });
+  STATE.dailyNote = newDailyNote();
+  if (isDailyNote(STATE.activeNoteId) || !STATE.activeNoteId) STATE.activeNoteId = STATE.dailyNote.id;
+  saveState();
+  return true;
+}
+
 function createNote(title) {
   const note = { id: uid(), title: title || '', body: '', updatedAt: new Date().toISOString() };
   STATE.notes.unshift(note);
@@ -5866,6 +5980,7 @@ function createNote(title) {
   return note;
 }
 function deleteNote(id) {
+  if (isDailyNote(id)) return;   // the live page is archived, never deleted
   STATE.notes = STATE.notes.filter(n => n.id !== id);
   if (STATE.activeNoteId === id) {
     const next = sortedNotes()[0];
@@ -5892,52 +6007,134 @@ function relTimeLabel(iso) {
   return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}`;
 }
 
+// Home's notes column IS the daily page -- typing happens here, not on a
+// separate screen. The elements are static markup and only their values are
+// synced, because this runs on every render and rebuilding the textarea would
+// throw away the caret mid-sentence.
+let homeRenderedNoteId = null;
 function renderHomeNotes() {
-  const body = document.getElementById('home-notes-body');
-  if (!body) return;
-  body.innerHTML = '';
+  const titleEl = document.getElementById('home-note-title');
+  const bodyEl = document.getElementById('home-note-body');
+  if (!titleEl || !bodyEl) return;
+  const dn = ensureDailyNote();
+  const editing = document.activeElement === titleEl || document.activeElement === bodyEl;
+  // Normally never overwrite what someone is mid-sentence in. The exception is
+  // a change of page -- after archiving, the boxes still hold the archived text,
+  // and any later save would commit it straight back onto the fresh page.
+  if (!editing || homeRenderedNoteId !== dn.id) {
+    titleEl.value = dn.title || '';
+    bodyEl.value = dn.body || '';
+  }
+  homeRenderedNoteId = dn.id;
+  updateHomeArchiveBtn();
+  updateHomeSavedLabel();
+}
 
-  const notes = sortedNotes();
-  if (!notes.length) {
-    const e = document.createElement('div');
-    e.className = 'plan-empty';
-    e.style.cursor = 'pointer';
-    e.textContent = 'Nothing written yet \u2014 start typing\u2026';
-    e.addEventListener('click', () => goToRoute('notes'));
-    body.appendChild(e);
-    return;
-  }
-  notes.slice(0, 6).forEach(n => {
-    const row = document.createElement('div');
-    row.className = 'home-note-row';
-    row.innerHTML =
-      `<div class="home-note-title">${escapeHtml(n.title || 'Untitled note')}</div>` +
-      `<div class="home-note-snippet">${escapeHtml(noteSnippet(n))}</div>` +
-      `<div class="home-note-time mono">${relTimeLabel(n.updatedAt)}</div>`;
-    row.addEventListener('click', () => { STATE.activeNoteId = n.id; saveState(); goToRoute('notes'); });
-    body.appendChild(row);
+function updateHomeArchiveBtn() {
+  const btn = document.getElementById('home-archive-btn');
+  if (!btn) return;
+  if (!archiveConfirming) btn.disabled = !noteHasContent(STATE.dailyNote);
+}
+
+function updateHomeSavedLabel() {
+  const el = document.getElementById('home-note-saved');
+  if (!el) return;
+  const dn = STATE.dailyNote;
+  el.textContent = noteHasContent(dn)
+    ? `Started ${dayLabel(dn.startedOn)} \u00b7 saved ${relTimeLabel(dn.updatedAt)}`
+    : '';
+}
+
+let homeNoteSaveTimer = null;
+function commitHomeNote() {
+  clearTimeout(homeNoteSaveTimer);
+  homeNoteSaveTimer = null;
+  // Mirror of commitActiveNote's guard. The daily page can be open in this
+  // editor AND the Notes-page one, so whichever is off screen holds stale
+  // values -- letting it write would undo what was typed in the other.
+  if (STATE.route !== 'home') return;
+  const titleEl = document.getElementById('home-note-title');
+  const bodyEl = document.getElementById('home-note-body');
+  if (!titleEl || !bodyEl) return;
+  const dn = ensureDailyNote();
+  if (dn.title === titleEl.value && dn.body === bodyEl.value) return;
+  dn.title = titleEl.value;
+  dn.body = bodyEl.value;
+  touchNote(dn);
+  saveState();
+}
+
+// saveState() re-serializes the whole store, so typing is debounced rather
+// than written per keystroke. Every exit path flushes.
+function scheduleHomeNoteSave() {
+  clearTimeout(homeNoteSaveTimer);
+  homeNoteSaveTimer = setTimeout(() => {
+    commitHomeNote();
+    updateHomeArchiveBtn();
+    updateHomeSavedLabel();
+  }, 500);
+  updateHomeArchiveBtn();
+}
+
+let archiveConfirming = false;
+let archiveConfirmTimer = null;
+function resetArchiveConfirm() {
+  clearTimeout(archiveConfirmTimer);
+  archiveConfirming = false;
+  const btn = document.getElementById('home-archive-btn');
+  if (!btn) return;
+  btn.classList.remove('is-confirm');
+  btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px;">inventory_2</span>Archive';
+  updateHomeArchiveBtn();
+}
+
+function initHomeNotes() {
+  const titleEl = document.getElementById('home-note-title');
+  const bodyEl = document.getElementById('home-note-body');
+  [titleEl, bodyEl].forEach(el => {
+    el.addEventListener('input', scheduleHomeNoteSave);
+    el.addEventListener('blur', () => { commitHomeNote(); updateHomeSavedLabel(); });
   });
-  if (notes.length > 6) {
-    const more = document.createElement('button');
-    more.className = 'plan-act';
-    more.textContent = `+${notes.length - 6} more →`;
-    more.addEventListener('click', () => goToRoute('notes'));
-    body.appendChild(more);
-  }
+
+  const btn = document.getElementById('home-archive-btn');
+  btn.addEventListener('click', () => {
+    // Archiving is irreversible from the UI, so it takes two clicks -- but
+    // inline, not behind a window.confirm the rest of the app never uses.
+    if (!archiveConfirming) {
+      commitHomeNote();
+      if (!noteHasContent(STATE.dailyNote)) return;
+      archiveConfirming = true;
+      btn.classList.add('is-confirm');
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px;">check</span>Archive &amp; start fresh?';
+      archiveConfirmTimer = setTimeout(resetArchiveConfirm, 4000);
+      return;
+    }
+    resetArchiveConfirm();
+    if (archiveDailyNote()) {
+      renderHomeNotes();
+      if (STATE.route === 'notes') renderNotesPage();
+      document.getElementById('home-note-title').focus();
+    }
+  });
+
+  // A page left mid-sentence must not lose its tail.
+  window.addEventListener('beforeunload', commitHomeNote);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) commitHomeNote(); });
 }
 
 function renderNotesRail() {
   const list = document.getElementById('notes-rail-list');
   if (!list) return;
   list.innerHTML = '';
-  sortedNotes().forEach(n => {
+
+  const row = (n, opts) => {
+    const o = opts || {};
     const item = document.createElement('div');
     item.className = 'notes-rail-item' + (n.id === STATE.activeNoteId ? ' active' : '');
     item.innerHTML =
-      `<div class="notes-rail-item-title">${escapeHtml(n.title || 'Untitled note')}</div>` +
-      `<div class="notes-rail-item-snippet">${escapeHtml(noteSnippet(n))}</div>` +
-      `<div class="notes-rail-item-time">${relTimeLabel(n.updatedAt)}</div>` +
-      `<button class="plan-icon-act notes-rail-item-del" title="Delete note"><span class="material-symbols-outlined" style="font-size:14px;">delete</span></button>`;
+      `<div class="notes-rail-item-title">${escapeHtml(n.title || o.fallbackTitle || 'Untitled note')}</div>` +
+      `<div class="notes-rail-item-snippet">${escapeHtml(noteSnippet(n) || o.emptyHint || '')}</div>` +
+      `<div class="notes-rail-item-time">${escapeHtml(o.timeLabel || relTimeLabel(n.updatedAt))}</div>`;
     item.addEventListener('click', () => {
       if (n.id === STATE.activeNoteId) return;
       commitActiveNote();
@@ -5945,21 +6142,46 @@ function renderNotesRail() {
       saveState();
       renderNotesPage();
     });
-    item.querySelector('.notes-rail-item-del').addEventListener('click', e => {
-      e.stopPropagation();
-      deleteNote(n.id);
-      renderNotesPage();
-      renderHomeNotes();
-    });
+    if (o.deletable) {
+      const del = document.createElement('button');
+      del.className = 'plan-icon-act notes-rail-item-del';
+      del.title = 'Delete note';
+      del.innerHTML = '<span class="material-symbols-outlined" style="font-size:14px;">delete</span>';
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        deleteNote(n.id);
+        renderNotesPage();
+      });
+      item.appendChild(del);
+    }
     list.appendChild(item);
+  };
+
+  const head = t => {
+    const h = document.createElement('div');
+    h.className = 'notes-rail-group';
+    h.textContent = t;
+    list.appendChild(h);
+  };
+
+  // The live page is pinned; it is not an archive and cannot be deleted.
+  head('Current page');
+  row(ensureDailyNote(), {
+    fallbackTitle: 'Today\u2019s page',
+    emptyHint: 'Nothing written yet',
+    timeLabel: 'Started ' + dayLabel(STATE.dailyNote.startedOn),
   });
+
+  const archived = sortedNotes();
+  head(archived.length ? 'Archive' : 'Archive (empty)');
+  archived.forEach(n => row(n, { deletable: true }));
 }
 
 function renderNotesEditor() {
   const titleInput = document.getElementById('notes-title-input');
   const bodyInput = document.getElementById('notes-body-input');
   const empty = document.getElementById('notes-editor-empty');
-  const note = STATE.notes.find(n => n.id === STATE.activeNoteId);
+  const note = noteById(STATE.activeNoteId);
   if (!note) {
     titleInput.style.display = 'none';
     bodyInput.style.display = 'none';
@@ -5976,7 +6198,11 @@ function renderNotesEditor() {
 let notesSaveTimer = null;
 function commitActiveNote() {
   clearTimeout(notesSaveTimer);
-  const note = STATE.notes.find(n => n.id === STATE.activeNoteId);
+  // Only the visible editor may write. This page's inputs are empty whenever
+  // the Notes route is not showing, and the daily page can be open in BOTH
+  // editors -- so committing blind wiped it with two empty fields.
+  if (STATE.route !== 'notes') return;
+  const note = noteById(STATE.activeNoteId);
   const titleInput = document.getElementById('notes-title-input');
   const bodyInput = document.getElementById('notes-body-input');
   if (!note || !titleInput || !bodyInput) return;
@@ -5999,11 +6225,10 @@ function scheduleNoteSave() {
 // there is genuinely nothing -- so revisiting reuses the blank note rather than
 // stacking up empties.
 function renderNotesPage() {
-  if (!STATE.activeNoteId || !STATE.notes.find(n => n.id === STATE.activeNoteId)) {
-    const first = sortedNotes()[0];
-    STATE.activeNoteId = first ? first.id : null;
+  ensureDailyNote();
+  if (!STATE.activeNoteId || !noteById(STATE.activeNoteId)) {
+    STATE.activeNoteId = STATE.dailyNote.id;
   }
-  if (!STATE.activeNoteId) createNote();
   renderNotesRail();
   renderNotesEditor();
 }
@@ -6013,12 +6238,6 @@ function initNotesPage() {
   document.getElementById('notes-body-input').addEventListener('input', scheduleNoteSave);
   document.getElementById('notes-title-input').addEventListener('blur', commitActiveNote);
   document.getElementById('notes-body-input').addEventListener('blur', commitActiveNote);
-  document.getElementById('notes-add-btn').addEventListener('click', () => {
-    commitActiveNote();
-    createNote();
-    renderNotesPage();
-    renderHomeNotes();
-  });
   document.getElementById('notes-fp-home-btn').addEventListener('click', () => {
     commitActiveNote();
     goToRoute('home');
@@ -6105,6 +6324,7 @@ function init() {
   initHomeExpandButtons();
   initBrainDumpModal();
   initNotesPage();
+  initHomeNotes();
 
   // Calendar management
   ensureCalendars();
